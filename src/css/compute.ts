@@ -23,7 +23,7 @@ export interface ResolvedStyle {
     strikethrough: boolean
     dim: boolean
 
-    display: 'block' | 'inline' | 'flex' | 'table' | 'table-row' | 'table-cell' | 'none'
+    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'table' | 'table-row' | 'table-cell' | 'none'
     flexDirection: 'row' | 'column'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
@@ -190,7 +190,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (value.includes('line-through')) style.strikethrough = true
             break
         case 'display':
-            if (['block', 'inline', 'flex', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
+            if (['block', 'inline', 'inline-block', 'flex', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
                 style.display = value as ResolvedStyle['display']
             }
             break

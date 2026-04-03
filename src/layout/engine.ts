@@ -180,7 +180,7 @@ function layoutBlockFlow(
         if (s?.display === 'none') continue
         if (s?.position === 'absolute' || s?.position === 'fixed') continue
 
-        const isInline = child.nodeType === 'text' || s?.display === 'inline'
+        const isInline = child.nodeType === 'text' || s?.display === 'inline' || s?.display === 'inline-block'
 
         if (isInline) {
             // Flow horizontally
