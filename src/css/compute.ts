@@ -44,6 +44,7 @@ export interface ResolvedStyle {
     marginLeft: number
     flexGrow: number
     flexShrink: number
+    flexWrap: 'nowrap' | 'wrap'
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
     borderTop: boolean
@@ -86,7 +87,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
-        flexGrow: 0, flexShrink: 1,
+        flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap',
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
@@ -223,11 +224,16 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             break
         }
         case 'margin-top': style.marginTop = parseCellValue(value); break
-        case 'margin-right': style.marginRight = parseCellValue(value); break
+        case 'margin-right':
+            style.marginRight = value === 'auto' ? -1 : parseCellValue(value)
+            break
         case 'margin-bottom': style.marginBottom = parseCellValue(value); break
-        case 'margin-left': style.marginLeft = parseCellValue(value); break
+        case 'margin-left':
+            style.marginLeft = value === 'auto' ? -1 : parseCellValue(value)
+            break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
+        case 'flex-wrap': style.flexWrap = value === 'wrap' ? 'wrap' : 'nowrap'; break
         case 'border':
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break

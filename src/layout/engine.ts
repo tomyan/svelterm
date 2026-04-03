@@ -77,7 +77,7 @@ function layoutElement(
         return layoutAbsolute(node, styles, boxes, absX, absY, availWidth, availHeight, style)
     }
 
-    const margin = {
+    let margin = {
         top: style?.marginTop ?? 0, right: style?.marginRight ?? 0,
         bottom: style?.marginBottom ?? 0, left: style?.marginLeft ?? 0,
     }
@@ -89,7 +89,16 @@ function layoutElement(
         left: (style?.paddingLeft ?? 0) + borderWidth,
     }
 
-    // Margin offsets the element position
+    // Resolve auto margins for centering
+    const nodeWidthForAutoMargin = resolveSize(style?.width, availWidth)
+    if (margin.left === -1 && margin.right === -1 && nodeWidthForAutoMargin !== null) {
+        const remaining = availWidth - nodeWidthForAutoMargin
+        margin = { ...margin, left: Math.floor(remaining / 2), right: Math.ceil(remaining / 2) }
+    } else {
+        if (margin.left === -1) margin = { ...margin, left: 0 }
+        if (margin.right === -1) margin = { ...margin, right: 0 }
+    }
+
     const boxX = x + margin.left
     const boxY = y + margin.top
     const nodeWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
@@ -107,6 +116,7 @@ function layoutElement(
             boxX + inset.left, boxY + inset.top, innerW, innerH,
             style?.flexDirection ?? 'column', style?.gap ?? 0,
             style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
+            style?.flexWrap ?? 'nowrap',
         )
     } else if (display === 'table') {
         content = layoutTable(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
@@ -271,6 +281,7 @@ function positionChildren(
     innerX: number, innerY: number, innerW: number, innerH: number,
     dir: 'row' | 'column', gap: number,
     justify: ResolvedStyle['justifyContent'], align: ResolvedStyle['alignItems'],
+    wrap: 'nowrap' | 'wrap' = 'nowrap',
 ): { width: number; height: number } {
     // Layout absolute children first (they don't affect flow)
     for (const child of children) {
@@ -308,6 +319,8 @@ function positionChildren(
 
     let contentWidth = 0
     let contentHeight = 0
+    let crossPos = 0     // tracks wrap lines
+    let lineHeight = 0   // max cross size of current line
 
     for (let i = 0; i < visible.length; i++) {
         let mainSize = dir === 'row' ? sizes[i].width : sizes[i].height
@@ -315,20 +328,28 @@ function positionChildren(
             mainSize += Math.floor(freeSpace * growValues[i] / totalGrow)
         }
 
+        // Wrap check
+        if (wrap === 'wrap' && mainPos + mainSize > availMain && i > 0) {
+            crossPos += lineHeight + gap
+            mainPos = 0
+            lineHeight = 0
+        }
+
         const crossSize = dir === 'row' ? sizes[i].height : sizes[i].width
         const crossAvail = dir === 'row' ? innerH : innerW
         const crossOffset = computeCrossOffset(align, crossAvail, crossSize)
 
-        const cx = dir === 'row' ? innerX + mainPos : innerX + crossOffset
-        const cy = dir === 'column' ? innerY + mainPos : innerY + crossOffset
+        const finalCx = dir === 'row' ? innerX + mainPos : innerX + crossOffset
+        const finalCy = dir === 'row' ? innerY + crossPos + crossOffset : innerY + mainPos
 
         const childAvailW = dir === 'row' ? mainSize : innerW
         const childAvailH = dir === 'row' ? innerH : mainSize
-        layoutNode(visible[i], styles, boxes, cx, cy, childAvailW, childAvailH)
+        layoutNode(visible[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
 
+        lineHeight = Math.max(lineHeight, dir === 'row' ? sizes[i].height : sizes[i].width)
         mainPos += mainSize + (i < visible.length - 1 ? itemGap : 0)
-        contentWidth = dir === 'row' ? mainPos : Math.max(contentWidth, sizes[i].width)
-        contentHeight = dir === 'column' ? mainPos : Math.max(contentHeight, sizes[i].height)
+        contentWidth = dir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
+        contentHeight = dir === 'row' ? crossPos + lineHeight : mainPos
     }
 
     return { width: contentWidth, height: contentHeight }
