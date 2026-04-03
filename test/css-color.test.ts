@@ -43,16 +43,20 @@ describe('resolveColor', () => {
     })
 
     describe('unknown values', () => {
-        it('returns default for unknown named color', () => {
-            assert.equal(resolveColor('chartreuse'), 'default')
+        it('returns default for truly unknown value', () => {
+            assert.equal(resolveColor('notacolor'), 'default')
         })
 
         it('returns default for empty string', () => {
             assert.equal(resolveColor(''), 'default')
         })
 
-        it('returns default for rgb() notation', () => {
-            assert.equal(resolveColor('rgb(255, 0, 0)'), 'default')
+        it('CSS named color chartreuse resolves to hex', () => {
+            assert.equal(resolveColor('chartreuse'), '#7fff00')
+        })
+
+        it('rgb() now resolves correctly', () => {
+            assert.equal(resolveColor('rgb(255, 0, 0)'), 'red')
         })
     })
 })
