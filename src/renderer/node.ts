@@ -12,6 +12,7 @@ export class TermNode {
     children: TermNode[] = []
     attributes: Map<string, string> = new Map()
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
+    scrollTop: number = 0
 
     constructor(nodeType: NodeType, tagOrText?: string) {
         this.id = nextId++

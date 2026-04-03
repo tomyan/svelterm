@@ -21,10 +21,17 @@ interface ClipRect {
     height: number
 }
 
+interface ScrollOffset {
+    x: number
+    y: number
+}
+
 const DEFAULT_VISUALS: InheritedVisuals = {
     fg: 'default', bg: 'default',
     bold: false, italic: false, underline: false, strikethrough: false, dim: false,
 }
+
+const NO_SCROLL: ScrollOffset = { x: 0, y: 0 }
 
 export function paint(
     root: TermNode,
@@ -32,21 +39,23 @@ export function paint(
     styles?: Map<number, ResolvedStyle>,
     layout?: Map<number, LayoutBox>,
 ): void {
-    paintNode(root, buffer, styles, layout, DEFAULT_VISUALS, null)
+    paintNode(root, buffer, styles, layout, DEFAULT_VISUALS, null, NO_SCROLL)
 }
 
 function paintNode(
     node: TermNode,
     buffer: CellBuffer,
-    styles?: Map<number, ResolvedStyle>,
-    layout?: Map<number, LayoutBox>,
-    inherited: InheritedVisuals = DEFAULT_VISUALS,
-    clip: ClipRect | null = null,
+    styles: Map<number, ResolvedStyle> | undefined,
+    layout: Map<number, LayoutBox> | undefined,
+    inherited: InheritedVisuals,
+    clip: ClipRect | null,
+    scroll: ScrollOffset,
 ): void {
     if (node.nodeType === 'comment') return
 
     const visuals = resolveVisuals(node, styles, inherited)
-    const box = layout?.get(node.id)
+    const rawBox = layout?.get(node.id)
+    const box = rawBox ? applyScroll(rawBox, scroll) : undefined
 
     if (node.nodeType === 'text') {
         paintText(node, buffer, box, visuals, clip)
@@ -61,18 +70,27 @@ function paintNode(
         }
     }
 
-    // Determine clip rect for children
+    // Determine clip and scroll for children
     let childClip = clip
+    let childScroll = scroll
     if (node.nodeType === 'element' && box) {
         const ownStyle = styles?.get(node.id)
         if (ownStyle && ownStyle.overflow !== 'visible') {
             childClip = intersectClip(clip, box)
         }
+        if (node.scrollTop !== 0) {
+            childScroll = { x: scroll.x, y: scroll.y + node.scrollTop }
+        }
     }
 
     for (const child of node.children) {
-        paintNode(child, buffer, styles, layout, visuals, childClip)
+        paintNode(child, buffer, styles, layout, visuals, childClip, childScroll)
     }
+}
+
+function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
+    if (scroll.x === 0 && scroll.y === 0) return box
+    return { x: box.x - scroll.x, y: box.y - scroll.y, width: box.width, height: box.height }
 }
 
 function paintText(
@@ -86,9 +104,8 @@ function paintText(
 
     for (let i = 0; i < text.length; i++) {
         const cx = x + i
-        const cy = y
-        if (clip && !inClip(cx, cy, clip)) continue
-        buffer.setCell(cx, cy, {
+        if (clip && !inClip(cx, y, clip)) continue
+        buffer.setCell(cx, y, {
             char: text[i],
             fg: visuals.fg, bg: visuals.bg,
             bold: visuals.bold, italic: visuals.italic,

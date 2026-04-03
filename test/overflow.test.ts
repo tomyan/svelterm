@@ -83,6 +83,35 @@ describe('overflow: hidden', () => {
         // Line 2+ should not appear
     })
 
+    it('scroll offset shifts visible content', () => {
+        const root = new TermNode('element', 'root')
+        const stylesheet = parseCSS('.box{overflow:scroll;width:10px;height:2px}')
+
+        const box = new TermNode('element', 'div')
+        box.attributes.set('class', 'box')
+        for (let i = 0; i < 5; i++) {
+            const child = new TermNode('element', 'div')
+            const text = new TermNode('text', `Line ${i}`)
+            child.insertBefore(text, null)
+            box.insertBefore(child, null)
+        }
+        root.insertBefore(box, null)
+
+        // Set scroll offset to skip first 2 lines
+        box.scrollTop = 2
+
+        const styles = resolveStyles(root, stylesheet)
+        const layout = computeLayout(root, styles, 40, 10)
+        const buffer = new CellBuffer(40, 10)
+        paint(root, buffer, styles, layout)
+
+        // Should show Line 2 and Line 3 (skipped 0 and 1)
+        assert.equal(buffer.getCell(0, 0)?.char, 'L')
+        // Check it says "Line 2" not "Line 0"
+        assert.equal(buffer.getCell(5, 0)?.char, '2')
+        assert.equal(buffer.getCell(5, 1)?.char, '3')
+    })
+
     it('without overflow:hidden, content is not clipped', () => {
         const buffer = renderWithCSS(
             '.box{width:5px;height:1px}',
