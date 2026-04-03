@@ -5,39 +5,36 @@
 <style>
     .container {
         display: flex;
-        flex-direction: row;
-        gap: 2;
+        flex-direction: column;
+        gap: 1;
         padding: 1 2;
-    }
-    .box-a {
-        width: 20;
-        padding: 1;
-        border: rounded;
-        border-color: cyan;
-        color: white;
-    }
-    .box-b {
-        width: 20;
-        padding: 1;
-        border: single;
-        border-color: magenta;
-        color: white;
-        font-weight: bold;
     }
     .title {
         color: cyan;
         font-weight: bold;
     }
+    .counter {
+        display: flex;
+        flex-direction: row;
+        gap: 2;
+    }
+    .count {
+        color: yellow;
+        font-weight: bold;
+    }
+    button {
+        border: single;
+        border-color: white;
+        padding: 0 2;
+    }
 </style>
 
-<div>
-    <span class="title">Svelterm — Borders Demo</span>
-    <div class="container">
-        <div class="box-a">
-            <span>Rounded</span>
-        </div>
-        <div class="box-b">
-            <span>Single</span>
-        </div>
+<div class="container">
+    <span class="title">Svelterm — Interactive Demo</span>
+    <div class="counter">
+        <span>Count: </span>
+        <span class="count">{count}</span>
     </div>
+    <button onclick={() => count++}>Increment</button>
+    <span>Tab to focus button, Enter to click</span>
 </div>

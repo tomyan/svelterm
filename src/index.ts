@@ -6,6 +6,9 @@ import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
 import { resolveStyles } from './css/compute.js'
 import { computeLayout } from './layout/engine.js'
+import { parseKeyEvent } from './input/keyboard.js'
+import { FocusManager } from './input/focus.js'
+import { dispatchEvent } from './input/dispatch.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import {
     getTerminalSize,
@@ -53,10 +56,13 @@ export function mount<Props extends Record<string, any>>(
         prevBuffer = buffer
     }
 
-    // Re-render when tree mutates
+    const focusManager = new FocusManager()
+
+    // Re-render when tree mutates, auto-register focusable elements
     const origInsert = root.insertBefore.bind(root)
     root.insertBefore = (node: TermNode, anchor: TermNode | null) => {
         origInsert(node, anchor)
+        registerFocusableNodes(node, focusManager)
         scheduleRender()
     }
 
@@ -67,9 +73,8 @@ export function mount<Props extends Record<string, any>>(
         AppComponent as any,
         { target: root, props: (options as any)?.props ?? {} },
     )
-
     const cleanup = createCleanup(svUnmount, fullscreen)
-    setupInputHandlers(scheduleRender, cleanup)
+    setupInputHandlers(scheduleRender, cleanup, focusManager)
     setupResizeHandler(scheduleRender, () => { prevBuffer = null })
     scheduleRender()
 
@@ -87,13 +92,32 @@ function createCleanup(unmountComponent: () => void, fullscreen: boolean): () =>
     }
 }
 
-function setupInputHandlers(scheduleRender: () => void, cleanup: () => void): void {
+function setupInputHandlers(scheduleRender: () => void, cleanup: () => void, focusManager: FocusManager): void {
     process.stdin.on('data', (data: Buffer) => {
-        if (data[0] === 0x03) {
+        const key = parseKeyEvent(data)
+        if (!key) return
+
+        if (key.ctrl && key.key === 'c') {
             cleanup()
             process.exit(0)
         }
-        scheduleRender()
+
+        if (key.key === 'Tab') {
+            focusManager.focusNext()
+            scheduleRender()
+            return
+        }
+
+        if (key.key === 'Enter' && focusManager.focused) {
+            dispatchEvent(focusManager.focused, 'click')
+            scheduleRender()
+            return
+        }
+
+        if (focusManager.focused) {
+            dispatchEvent(focusManager.focused, 'keydown', key)
+            scheduleRender()
+        }
     })
 
     process.on('SIGINT', () => { cleanup(); process.exit(0) })
@@ -105,6 +129,17 @@ function setupResizeHandler(scheduleRender: () => void, clearBuffer: () => void)
         clearBuffer()
         scheduleRender()
     })
+}
+
+const FOCUSABLE_TAGS = new Set(['button', 'input', 'textarea', 'a', 'select'])
+
+function registerFocusableNodes(node: TermNode, focusManager: FocusManager): void {
+    if (node.nodeType === 'element' && FOCUSABLE_TAGS.has(node.tag ?? '')) {
+        focusManager.register(node)
+    }
+    for (const child of node.children) {
+        registerFocusableNodes(child, focusManager)
+    }
 }
 
 export { TermNode } from './renderer/node.js'
