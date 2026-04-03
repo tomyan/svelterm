@@ -18,6 +18,10 @@ export function parseCellValue(value: string): number {
 export function parseSizeValue(value: string): number | string | null {
     if (value === 'auto') return null
     if (value.endsWith('%')) return value
+    // Preserve calc/min/max/clamp expressions as strings for layout-time evaluation
+    if (value.startsWith('calc(') || value.startsWith('min(') || value.startsWith('max(') || value.startsWith('clamp(')) {
+        return value
+    }
     return parseCellValue(value)
 }
 
