@@ -3,7 +3,7 @@ import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
-import { wrapText } from '../layout/text.js'
+import { wrapText, truncateText } from '../layout/text.js'
 
 interface InheritedVisuals {
     fg: string
@@ -60,7 +60,8 @@ function paintNode(
     const box = rawBox ? applyScroll(rawBox, scroll) : undefined
 
     if (node.nodeType === 'text') {
-        paintText(node, buffer, box, visuals, clip)
+        const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
+        paintText(node, buffer, box, visuals, clip, parentStyle)
         return
     }
 
@@ -105,6 +106,7 @@ function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
 function paintText(
     node: TermNode, buffer: CellBuffer, box: LayoutBox | undefined,
     visuals: InheritedVisuals, clip: ClipRect | null,
+    parentStyle?: ResolvedStyle,
 ): void {
     const text = node.text ?? ''
     if (!text) return
@@ -112,7 +114,20 @@ function paintText(
     const y = box?.y ?? 0
     const width = box?.width ?? buffer.width
 
-    const lines = wrapText(text, width > 0 ? width : buffer.width)
+    const noWrap = parentStyle?.whiteSpace === 'nowrap'
+    const ellipsis = parentStyle?.textOverflow === 'ellipsis'
+
+    // For truncation, use clip width (parent container) if available
+    const truncWidth = clip ? (clip.x + clip.width - x) : width
+
+    let lines: string[]
+    if (noWrap && ellipsis) {
+        lines = [truncateText(text, truncWidth)]
+    } else if (noWrap) {
+        lines = [text.substring(0, truncWidth)]
+    } else {
+        lines = wrapText(text, width > 0 ? width : buffer.width)
+    }
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         const line = lines[lineIdx]

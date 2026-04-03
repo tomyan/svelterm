@@ -41,6 +41,8 @@ export interface ResolvedStyle {
     borderBottom: boolean
     borderLeft: boolean
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
+    textOverflow: 'clip' | 'ellipsis'
+    whiteSpace: 'normal' | 'nowrap' | 'pre'
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small'])
@@ -61,6 +63,8 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
+        textOverflow: 'clip',
+        whiteSpace: 'normal',
     }
 }
 
@@ -152,6 +156,13 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'overflow':
             if (value === 'hidden' || value === 'scroll' || value === 'auto') style.overflow = value
             else style.overflow = 'visible'
+            break
+        case 'text-overflow':
+            style.textOverflow = value === 'ellipsis' ? 'ellipsis' : 'clip'
+            break
+        case 'white-space':
+            if (value === 'nowrap' || value === 'pre') style.whiteSpace = value
+            else style.whiteSpace = 'normal'
             break
     }
 }

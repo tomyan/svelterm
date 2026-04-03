@@ -29,19 +29,29 @@ function layoutNode(
     x: number, y: number,
     availWidth: number, availHeight: number,
 ): { width: number; height: number } {
-    if (node.nodeType === 'text') return layoutText(node, boxes, x, y, availWidth)
+    if (node.nodeType === 'text') return layoutText(node, boxes, x, y, availWidth, styles)
     if (node.nodeType === 'comment') return { width: 0, height: 0 }
     if (node.nodeType === 'fragment') return layoutFragment(node, styles, boxes, x, y, availWidth, availHeight)
     return layoutElement(node, styles, boxes, x, y, availWidth, availHeight)
 }
 
-function layoutText(node: TermNode, boxes: Map<number, LayoutBox>, x: number, y: number, availWidth: number = Infinity) {
+function layoutText(
+    node: TermNode, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availWidth: number = Infinity,
+    styles?: Map<number, ResolvedStyle>,
+) {
     const text = node.text ?? ''
     if (text === '') {
         boxes.set(node.id, { x, y, width: 0, height: 0 })
         return { width: 0, height: 0 }
     }
-    const measured = measureText(text, availWidth > 0 ? availWidth : Infinity)
+
+    // Check parent's whiteSpace
+    const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
+    const noWrap = parentStyle?.whiteSpace === 'nowrap'
+    const wrapWidth = noWrap ? Infinity : (availWidth > 0 ? availWidth : Infinity)
+
+    const measured = measureText(text, wrapWidth)
     boxes.set(node.id, { x, y, width: measured.width, height: measured.height })
     return measured
 }

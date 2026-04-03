@@ -27,6 +27,13 @@ export function wrapText(text: string, width: number): string[] {
     return lines
 }
 
+export function truncateText(text: string, width: number): string {
+    if (width <= 0) return ''
+    if (text.length <= width) return text
+    if (width === 1) return '…'
+    return text.substring(0, width - 1) + '…'
+}
+
 export function measureText(text: string, availWidth: number): { width: number; height: number } {
     const lines = wrapText(text, availWidth)
     const maxLineWidth = lines.reduce((max, line) => Math.max(max, line.length), 0)
