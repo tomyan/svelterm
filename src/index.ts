@@ -8,6 +8,7 @@ import { resolveStyles, type ResolvedStyle } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout, type LayoutBox } from './layout/engine.js'
 import { computeLayoutIncremental } from './layout/incremental.js'
+import { syncLayoutCache } from './layout/cache.js'
 import { RenderContext } from './render/context.js'
 import { paintNodes } from './render/incremental-paint.js'
 import { type RenderQueueSnapshot } from './render/queue.js'
@@ -84,6 +85,7 @@ export function mount<Props extends Record<string, any>>(
         const buffer = new CellBuffer(size.width, size.height)
         lastStyles = stylesheet ? resolveStyles(root, stylesheet) : undefined
         lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
+        if (lastLayout) syncLayoutCache(root, lastLayout)
         paint(root, buffer, lastStyles, lastLayout)
         const output = diffBuffers(prevBuffer, buffer)
         if (output.length > 0) writeOutput(output)
@@ -123,6 +125,7 @@ export function mount<Props extends Record<string, any>>(
             } else {
                 lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
             }
+            if (lastLayout) syncLayoutCache(root, lastLayout)
         }
 
         // Step 3: Repaint
