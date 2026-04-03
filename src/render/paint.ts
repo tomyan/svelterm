@@ -59,9 +59,12 @@ function paintNode(
     const rawBox = layout?.get(node.id)
     const box = rawBox ? applyScroll(rawBox, scroll) : undefined
 
-    // Check visibility — hidden elements take space but don't render
+    // Check display:none — element and all descendants are invisible and take no space
     const ownStyle = node.nodeType === 'element' ? styles?.get(node.id) : undefined
     const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
+    if (ownStyle?.display === 'none' || parentStyle?.display === 'none') return
+
+    // Check visibility — hidden elements take space but don't render
     const isHidden = ownStyle?.visibility === 'hidden' || parentStyle?.visibility === 'hidden'
 
     if (node.nodeType === 'text') {
