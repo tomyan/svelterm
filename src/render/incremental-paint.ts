@@ -95,6 +95,7 @@ function paintTextNode(
                 underline: visuals.underline,
                 strikethrough: visuals.strikethrough,
                 dim: visuals.dim,
+                hyperlink: visuals.hyperlink,
             })
         }
     }
@@ -119,20 +120,26 @@ function findAncestorProp<T>(
 
 function resolveInheritedVisuals(node: TermNode, styles: Map<number, ResolvedStyle>): {
     fg: string; bg: string; bold: boolean; italic: boolean;
-    underline: boolean; strikethrough: boolean; dim: boolean
+    underline: boolean; strikethrough: boolean; dim: boolean; hyperlink?: string
 } {
-    const result = { fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false }
+    const result: { fg: string; bg: string; bold: boolean; italic: boolean;
+        underline: boolean; strikethrough: boolean; dim: boolean; hyperlink?: string } =
+        { fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false }
 
     let current: TermNode | null = node.parent
     while (current) {
         const style = styles.get(current.id)
         if (style) {
             if (result.fg === 'default' && style.fg !== 'default') result.fg = style.fg
+            if (result.bg === 'default' && style.bg !== 'default') result.bg = style.bg
             if (!result.bold && style.bold) result.bold = true
             if (!result.italic && style.italic) result.italic = true
             if (!result.underline && style.underline) result.underline = true
             if (!result.strikethrough && style.strikethrough) result.strikethrough = true
             if (!result.dim && style.dim) result.dim = true
+        }
+        if (!result.hyperlink && current.tag === 'a') {
+            result.hyperlink = current.attributes.get('href')
         }
         current = current.parent
     }
