@@ -5,6 +5,7 @@ import { diffBuffers } from './render/diff.js'
 import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
 import { resolveStyles } from './css/compute.js'
+import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout } from './layout/engine.js'
 import { RenderContext } from './render/context.js'
 import { parseKeyEvent } from './input/keyboard.js'
@@ -66,13 +67,9 @@ export function mount<Props extends Record<string, any>>(
         if (queue.fullRecompute || !lastStyles || !lastLayout) {
             // Full recompute — initial render, resize, or CSS reload
             fullRender()
-        } else {
-            // Incremental render — process queue items
-            // For now, fall back to full render for any queued work.
-            // Steps 4-6 will replace this with incremental processing.
-            if (!queue.isEmpty()) {
-                fullRender()
-            }
+        } else if (!queue.isEmpty()) {
+            // Incremental render
+            incrementalRender(queue)
         }
 
         queue.clear()
@@ -89,6 +86,39 @@ export function mount<Props extends Record<string, any>>(
         prevBuffer = buffer
 
         // Register focusable elements and mutation callbacks after tree is stable
+        registerFocusableNodes(root, focusManager)
+        registerMutationCallbacks(root, ctx, scheduleRender)
+    }
+
+    const incrementalRender = (queue: import('./render/queue.js').RenderQueue) => {
+        const size = getTerminalSize()
+
+        // Step 1: Incremental style resolution
+        if (queue.styleResolve.size > 0 && lastStyles && stylesheet) {
+            const layoutDirty: TermNode[] = []
+            lastStyles = resolveStylesIncremental(
+                root, stylesheet, lastStyles, queue.styleResolve,
+                undefined,
+                (node) => { layoutDirty.push(node) },
+            )
+            // Promote layout-affected nodes
+            for (const node of layoutDirty) {
+                queue.enqueueLayoutSubtree(node)
+            }
+        }
+
+        // Step 2: Layout (for now, full re-layout if any layout items)
+        if (queue.layoutSubtree.size > 0 || queue.layoutBubble.size > 0) {
+            lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
+        }
+
+        // Step 3: Repaint (for now, full repaint)
+        const buffer = new CellBuffer(size.width, size.height)
+        paint(root, buffer, lastStyles, lastLayout)
+        const output = diffBuffers(prevBuffer, buffer)
+        if (output.length > 0) writeOutput(output)
+        prevBuffer = buffer
+
         registerFocusableNodes(root, focusManager)
         registerMutationCallbacks(root, ctx, scheduleRender)
     }
