@@ -284,6 +284,9 @@ function layoutTable(
         for (let col = 0; col < row.length; col++) {
             const cell = row[col]
             const size = layoutNode(cell, styles, boxes, colX, rowY, colWidths[col], availH)
+            // Table cells fill their column width
+            const cellBox = boxes.get(cell.id)
+            if (cellBox && cellBox.width < colWidths[col]) cellBox.width = colWidths[col]
             rowHeight = Math.max(rowHeight, size.height)
             colX += colWidths[col] + colGap
         }
@@ -332,6 +335,11 @@ function layoutGrid(
         const explicitRowH = rowHeights[rowIdx]
 
         const size = layoutNode(child, styles, boxes, colX, rowY, colW, explicitRowH ?? (availH - (rowY - y)))
+
+        // Grid children fill their column width
+        const childBox = boxes.get(child.id)
+        if (childBox && childBox.width < colW) childBox.width = colW
+
         currentRowHeight = Math.max(currentRowHeight, size.height)
         maxWidth = Math.max(maxWidth, colX - x + colW)
         col++
