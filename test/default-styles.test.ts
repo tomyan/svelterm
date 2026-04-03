@@ -96,6 +96,51 @@ describe('default element styles', () => {
         assert.equal(buffer.getCell(10, 0)?.char, '─')
     })
 
+    it('ul > li renders with bullet marker', () => {
+        const buffer = render((root) => {
+            const ul = new TermNode('element', 'ul')
+            const li1 = new TermNode('element', 'li')
+            const t1 = new TermNode('text', 'First')
+            li1.insertBefore(t1, null)
+            ul.insertBefore(li1, null)
+
+            const li2 = new TermNode('element', 'li')
+            const t2 = new TermNode('text', 'Second')
+            li2.insertBefore(t2, null)
+            ul.insertBefore(li2, null)
+
+            root.insertBefore(ul, null)
+        })
+        // Should render as "•  First" and "•  Second" (marker in padding area)
+        assert.equal(buffer.getCell(0, 0)?.char, '•')
+        assert.equal(buffer.getCell(3, 0)?.char, 'F')
+        assert.equal(buffer.getCell(0, 1)?.char, '•')
+        assert.equal(buffer.getCell(3, 1)?.char, 'S')
+    })
+
+    it('ol > li renders with number marker', () => {
+        const buffer = render((root) => {
+            const ol = new TermNode('element', 'ol')
+            const li1 = new TermNode('element', 'li')
+            const t1 = new TermNode('text', 'First')
+            li1.insertBefore(t1, null)
+            ol.insertBefore(li1, null)
+
+            const li2 = new TermNode('element', 'li')
+            const t2 = new TermNode('text', 'Second')
+            li2.insertBefore(t2, null)
+            ol.insertBefore(li2, null)
+
+            root.insertBefore(ol, null)
+        })
+        // Should render as "1. First" and "2. Second"
+        assert.equal(buffer.getCell(0, 0)?.char, '1')
+        assert.equal(buffer.getCell(1, 0)?.char, '.')
+        assert.equal(buffer.getCell(3, 0)?.char, 'F')
+        assert.equal(buffer.getCell(0, 1)?.char, '2')
+        assert.equal(buffer.getCell(3, 1)?.char, 'S')
+    })
+
     it('p is a block element', () => {
         const buffer = render((root) => {
             const p1 = new TermNode('element', 'p')

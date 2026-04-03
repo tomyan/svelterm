@@ -73,6 +73,9 @@ function paintNode(
             paintHorizontalRule(buffer, box, visuals, clip)
             return
         }
+        if (node.tag === 'li') {
+            paintListMarker(node, buffer, box, visuals, clip)
+        }
     }
 
     // Determine clip and scroll for children
@@ -136,6 +139,30 @@ function fillBackground(
             if (clip && !inClip(col, row, clip)) continue
             buffer.setCell(col, row, { bg: visuals.bg })
         }
+    }
+}
+
+function paintListMarker(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const parent = node.parent
+    if (!parent) return
+
+    const isOrdered = parent.tag === 'ol'
+    let marker: string
+
+    if (isOrdered) {
+        const index = parent.children.filter(c => c.tag === 'li').indexOf(node)
+        marker = `${index + 1}. `
+    } else {
+        marker = '• '
+    }
+
+    for (let i = 0; i < marker.length; i++) {
+        const cx = box.x + i
+        if (clip && !inClip(cx, box.y, clip)) continue
+        buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
     }
 }
 

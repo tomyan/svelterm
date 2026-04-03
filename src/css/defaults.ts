@@ -13,4 +13,5 @@ code { color: cyan; }
 a { text-decoration: underline; color: blue; }
 pre { display: flex; }
 hr { height: 1; width: 100%; }
+li { padding-left: 3; }
 `
