@@ -3,6 +3,7 @@ import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
+import { wrapText } from '../layout/text.js'
 
 interface InheritedVisuals {
     fg: string
@@ -101,17 +102,24 @@ function paintText(
     if (!text) return
     const x = box?.x ?? 0
     const y = box?.y ?? 0
+    const width = box?.width ?? buffer.width
 
-    for (let i = 0; i < text.length; i++) {
-        const cx = x + i
-        if (clip && !inClip(cx, y, clip)) continue
-        buffer.setCell(cx, y, {
-            char: text[i],
-            fg: visuals.fg, bg: visuals.bg,
-            bold: visuals.bold, italic: visuals.italic,
-            underline: visuals.underline, strikethrough: visuals.strikethrough,
-            dim: visuals.dim,
-        })
+    const lines = wrapText(text, width > 0 ? width : buffer.width)
+
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx]
+        const cy = y + lineIdx
+        for (let i = 0; i < line.length; i++) {
+            const cx = x + i
+            if (clip && !inClip(cx, cy, clip)) continue
+            buffer.setCell(cx, cy, {
+                char: line[i],
+                fg: visuals.fg, bg: visuals.bg,
+                bold: visuals.bold, italic: visuals.italic,
+                underline: visuals.underline, strikethrough: visuals.strikethrough,
+                dim: visuals.dim,
+            })
+        }
     }
 }
 

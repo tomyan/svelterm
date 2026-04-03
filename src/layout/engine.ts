@@ -1,6 +1,7 @@
 import { TermNode } from '../renderer/node.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
+import { measureText } from './text.js'
 import { resolveSize, constrain } from './size.js'
 
 export interface LayoutBox {
@@ -28,18 +29,21 @@ function layoutNode(
     x: number, y: number,
     availWidth: number, availHeight: number,
 ): { width: number; height: number } {
-    if (node.nodeType === 'text') return layoutText(node, boxes, x, y)
+    if (node.nodeType === 'text') return layoutText(node, boxes, x, y, availWidth)
     if (node.nodeType === 'comment') return { width: 0, height: 0 }
     if (node.nodeType === 'fragment') return layoutFragment(node, styles, boxes, x, y, availWidth, availHeight)
     return layoutElement(node, styles, boxes, x, y, availWidth, availHeight)
 }
 
-function layoutText(node: TermNode, boxes: Map<number, LayoutBox>, x: number, y: number) {
+function layoutText(node: TermNode, boxes: Map<number, LayoutBox>, x: number, y: number, availWidth: number = Infinity) {
     const text = node.text ?? ''
-    const w = text.length
-    const h = w > 0 ? 1 : 0
-    boxes.set(node.id, { x, y, width: w, height: h })
-    return { width: w, height: h }
+    if (text === '') {
+        boxes.set(node.id, { x, y, width: 0, height: 0 })
+        return { width: 0, height: 0 }
+    }
+    const measured = measureText(text, availWidth > 0 ? availWidth : Infinity)
+    boxes.set(node.id, { x, y, width: measured.width, height: measured.height })
+    return measured
 }
 
 function layoutFragment(

@@ -112,7 +112,7 @@ describe('overflow: hidden', () => {
         assert.equal(buffer.getCell(5, 1)?.char, '3')
     })
 
-    it('without overflow:hidden, content is not clipped', () => {
+    it('without overflow:hidden, wrapped text extends beyond container height', () => {
         const buffer = renderWithCSS(
             '.box{width:5px;height:1px}',
             (root) => {
@@ -123,8 +123,9 @@ describe('overflow: hidden', () => {
                 root.insertBefore(box, null)
             },
         )
-        // Default overflow is visible — text extends beyond container
-        assert.equal(buffer.getCell(5, 0)?.char, ' ') // space char
-        assert.equal(buffer.getCell(6, 0)?.char, 'W')
+        // Text wraps at container width, but without overflow:hidden
+        // it renders beyond the container height
+        assert.equal(buffer.getCell(0, 0)?.char, 'H') // "Hello" on line 0
+        assert.equal(buffer.getCell(0, 1)?.char, 'W') // "World" on line 1 (extends past height:1)
     })
 })
