@@ -53,6 +53,7 @@ export interface ResolvedStyle {
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
     textOverflow: 'clip' | 'ellipsis'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
+    textAlign: 'left' | 'center' | 'right'
     position: 'static' | 'relative' | 'absolute' | 'fixed'
     top: number | null
     right: number | null
@@ -91,6 +92,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         overflow: 'visible',
         textOverflow: 'clip',
         whiteSpace: 'normal',
+        textAlign: 'left',
         position: 'static',
         top: null, right: null, bottom: null, left: null,
         zIndex: 0,
@@ -247,6 +249,10 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'white-space':
             if (value === 'nowrap' || value === 'pre') style.whiteSpace = value
             else style.whiteSpace = 'normal'
+            break
+        case 'text-align':
+            if (value === 'center' || value === 'right') style.textAlign = value
+            else style.textAlign = 'left'
             break
         case 'position':
             if (value === 'relative' || value === 'absolute' || value === 'fixed') style.position = value

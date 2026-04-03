@@ -61,7 +61,8 @@ function paintNode(
 
     if (node.nodeType === 'text') {
         const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
-        paintText(node, buffer, box, visuals, clip, parentStyle)
+        const parentBox = node.parent ? layout?.get(node.parent.id) : undefined
+        paintText(node, buffer, box, visuals, clip, parentStyle, parentBox)
         return
     }
 
@@ -106,13 +107,24 @@ function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
 function paintText(
     node: TermNode, buffer: CellBuffer, box: LayoutBox | undefined,
     visuals: InheritedVisuals, clip: ClipRect | null,
-    parentStyle?: ResolvedStyle,
+    parentStyle?: ResolvedStyle, parentBox?: LayoutBox,
 ): void {
     const text = node.text ?? ''
     if (!text) return
-    const x = box?.x ?? 0
+    let x = box?.x ?? 0
     const y = box?.y ?? 0
     const width = box?.width ?? buffer.width
+
+    // Apply text-align
+    const align = parentStyle?.textAlign ?? 'left'
+    if (align !== 'left' && parentBox) {
+        const textWidth = text.length
+        if (align === 'center') {
+            x = parentBox.x + Math.floor((parentBox.width - textWidth) / 2)
+        } else if (align === 'right') {
+            x = parentBox.x + parentBox.width - textWidth
+        }
+    }
 
     const noWrap = parentStyle?.whiteSpace === 'nowrap'
     const ellipsis = parentStyle?.textOverflow === 'ellipsis'
