@@ -160,6 +160,33 @@ describe('border rendering', () => {
             assert.equal(buffer.getCell(0, 1)?.char, '┃')
         })
 
+        it('borderLeft only renders left vertical edge', () => {
+            const buffer = renderWithCSS('.box{border-style:single;border-left:true;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '│')
+            assert.equal(buffer.getCell(0, 1)?.char, '│')
+            assert.equal(buffer.getCell(0, 2)?.char, '│')
+            // No top/right/bottom borders
+            assert.equal(buffer.getCell(1, 0)?.char, ' ')
+            assert.equal(buffer.getCell(4, 1)?.char, ' ')
+        })
+
+        it('borderBottom only renders bottom horizontal edge', () => {
+            const buffer = renderWithCSS('.box{border-style:single;border-bottom:true;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 2)?.char, '─')
+            assert.equal(buffer.getCell(4, 2)?.char, '─')
+            // No top/left/right borders
+            assert.equal(buffer.getCell(0, 0)?.char, ' ')
+            assert.equal(buffer.getCell(0, 1)?.char, ' ')
+        })
+
         it('border:none renders no border characters', () => {
             const buffer = renderWithCSS('.box{border:none;width:5px;height:3px}', (root) => {
                 const box = new TermNode('element', 'div')

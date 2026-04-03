@@ -36,6 +36,10 @@ export interface ResolvedStyle {
     flexShrink: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
+    borderTop: boolean
+    borderRight: boolean
+    borderBottom: boolean
+    borderLeft: boolean
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
 }
 
@@ -55,6 +59,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1,
         borderStyle: 'none', borderColor: 'default',
+        borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
     }
 }
@@ -140,6 +145,10 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
         case 'border-color': style.borderColor = resolveColor(value); break
+        case 'border-top': setIndividualBorderSide(style, 'borderTop', value); break
+        case 'border-right': setIndividualBorderSide(style, 'borderRight', value); break
+        case 'border-bottom': setIndividualBorderSide(style, 'borderBottom', value); break
+        case 'border-left': setIndividualBorderSide(style, 'borderLeft', value); break
         case 'overflow':
             if (value === 'hidden' || value === 'scroll' || value === 'auto') style.overflow = value
             else style.overflow = 'visible'
@@ -148,3 +157,15 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
 }
 
 const BORDER_STYLES = new Set(['none', 'single', 'double', 'rounded', 'heavy'])
+
+function setIndividualBorderSide(style: ResolvedStyle, side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft', value: string): void {
+    const enabled = value === 'true' || value === '1'
+    // When setting individual sides, disable all others first (if this is the first individual side set)
+    if (enabled && style.borderTop && style.borderRight && style.borderBottom && style.borderLeft) {
+        style.borderTop = false
+        style.borderRight = false
+        style.borderBottom = false
+        style.borderLeft = false
+    }
+    style[side] = enabled
+}

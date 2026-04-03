@@ -26,22 +26,50 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
 
     const fg = style.borderColor !== 'default' ? style.borderColor : undefined
     const { x, y, width, height } = box
+    const top = style.borderTop
+    const right = style.borderRight
+    const bottom = style.borderBottom
+    const left = style.borderLeft
 
-    // Corners
-    buffer.setCell(x, y, { char: chars.topLeft, fg })
-    buffer.setCell(x + width - 1, y, { char: chars.topRight, fg })
-    buffer.setCell(x, y + height - 1, { char: chars.bottomLeft, fg })
-    buffer.setCell(x + width - 1, y + height - 1, { char: chars.bottomRight, fg })
+    // Corners (only where two adjacent sides meet)
+    if (top && left) buffer.setCell(x, y, { char: chars.topLeft, fg })
+    if (top && right) buffer.setCell(x + width - 1, y, { char: chars.topRight, fg })
+    if (bottom && left) buffer.setCell(x, y + height - 1, { char: chars.bottomLeft, fg })
+    if (bottom && right) buffer.setCell(x + width - 1, y + height - 1, { char: chars.bottomRight, fg })
 
-    // Top and bottom edges
-    for (let col = x + 1; col < x + width - 1; col++) {
-        buffer.setCell(col, y, { char: chars.horizontal, fg })
-        buffer.setCell(col, y + height - 1, { char: chars.horizontal, fg })
+    // Top edge
+    if (top) {
+        const startCol = left ? x + 1 : x
+        const endCol = right ? x + width - 1 : x + width
+        for (let col = startCol; col < endCol; col++) {
+            buffer.setCell(col, y, { char: chars.horizontal, fg })
+        }
     }
 
-    // Left and right edges
-    for (let row = y + 1; row < y + height - 1; row++) {
-        buffer.setCell(x, row, { char: chars.vertical, fg })
-        buffer.setCell(x + width - 1, row, { char: chars.vertical, fg })
+    // Bottom edge
+    if (bottom) {
+        const startCol = left ? x + 1 : x
+        const endCol = right ? x + width - 1 : x + width
+        for (let col = startCol; col < endCol; col++) {
+            buffer.setCell(col, y + height - 1, { char: chars.horizontal, fg })
+        }
+    }
+
+    // Left edge
+    if (left) {
+        const startRow = top ? y + 1 : y
+        const endRow = bottom ? y + height - 1 : y + height
+        for (let row = startRow; row < endRow; row++) {
+            buffer.setCell(x, row, { char: chars.vertical, fg })
+        }
+    }
+
+    // Right edge
+    if (right) {
+        const startRow = top ? y + 1 : y
+        const endRow = bottom ? y + height - 1 : y + height
+        for (let row = startRow; row < endRow; row++) {
+            buffer.setCell(x + width - 1, row, { char: chars.vertical, fg })
+        }
     }
 }
