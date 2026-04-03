@@ -56,6 +56,10 @@ function layoutElement(
     const style = styles.get(node.id)
     if (style?.display === 'none') return { width: 0, height: 0 }
 
+    const margin = {
+        top: style?.marginTop ?? 0, right: style?.marginRight ?? 0,
+        bottom: style?.marginBottom ?? 0, left: style?.marginLeft ?? 0,
+    }
     const borderWidth = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
     const inset = {
         top: (style?.paddingTop ?? 0) + borderWidth,
@@ -63,26 +67,31 @@ function layoutElement(
         bottom: (style?.paddingBottom ?? 0) + borderWidth,
         left: (style?.paddingLeft ?? 0) + borderWidth,
     }
-    const nodeWidth = resolveSize(style?.width, availWidth)
-    const nodeHeight = resolveSize(style?.height, availHeight)
 
-    const innerW = (nodeWidth ?? availWidth) - inset.left - inset.right
-    const innerH = (nodeHeight ?? availHeight) - inset.top - inset.bottom
+    // Margin offsets the element position
+    const boxX = x + margin.left
+    const boxY = y + margin.top
+    const nodeWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
+    const nodeHeight = resolveSize(style?.height, availHeight - margin.top - margin.bottom)
+
+    const innerW = (nodeWidth ?? (availWidth - margin.left - margin.right)) - inset.left - inset.right
+    const innerH = (nodeHeight ?? (availHeight - margin.top - margin.bottom)) - inset.top - inset.bottom
 
     const content = positionChildren(
         node.children, styles, boxes,
-        x + inset.left, y + inset.top, innerW, innerH,
+        boxX + inset.left, boxY + inset.top, innerW, innerH,
         style?.flexDirection ?? 'column', style?.gap ?? 0,
         style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
     )
 
-    const autoWidth = (style?.flexGrow ?? 0) > 0 ? availWidth : content.width + inset.left + inset.right
+    const autoWidth = (style?.flexGrow ?? 0) > 0 ? (availWidth - margin.left - margin.right) : content.width + inset.left + inset.right
     const autoHeight = content.height + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 
-    boxes.set(node.id, { x, y, width: finalWidth, height: finalHeight })
-    return { width: finalWidth, height: finalHeight }
+    boxes.set(node.id, { x: boxX, y: boxY, width: finalWidth, height: finalHeight })
+    // Return outer size including margin
+    return { width: finalWidth + margin.left + margin.right, height: finalHeight + margin.top + margin.bottom }
 }
 
 function positionChildren(

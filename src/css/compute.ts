@@ -28,6 +28,10 @@ export interface ResolvedStyle {
     minHeight: number | null
     maxWidth: number | null
     maxHeight: number | null
+    marginTop: number
+    marginRight: number
+    marginBottom: number
+    marginLeft: number
     flexGrow: number
     flexShrink: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
@@ -48,6 +52,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0,
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
+        marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1,
         borderStyle: 'none', borderColor: 'default',
         overflow: 'visible',
@@ -116,6 +121,16 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'min-height': style.minHeight = parseCellValue(value); break
         case 'max-width': style.maxWidth = parseCellValue(value); break
         case 'max-height': style.maxHeight = parseCellValue(value); break
+        case 'margin': {
+            const m = parsePadding(value) // same shorthand logic
+            style.marginTop = m.top; style.marginRight = m.right
+            style.marginBottom = m.bottom; style.marginLeft = m.left
+            break
+        }
+        case 'margin-top': style.marginTop = parseCellValue(value); break
+        case 'margin-right': style.marginRight = parseCellValue(value); break
+        case 'margin-bottom': style.marginBottom = parseCellValue(value); break
+        case 'margin-left': style.marginLeft = parseCellValue(value); break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
         case 'border':
