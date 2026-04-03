@@ -153,6 +153,14 @@ function positionChildren(
     dir: 'row' | 'column', gap: number,
     justify: ResolvedStyle['justifyContent'], align: ResolvedStyle['alignItems'],
 ): { width: number; height: number } {
+    // Layout absolute children first (they don't affect flow)
+    for (const child of children) {
+        const s = styles.get(child.id)
+        if (s?.position === 'absolute' || s?.position === 'fixed') {
+            layoutNode(child, styles, boxes, innerX, innerY, innerW, innerH)
+        }
+    }
+
     const visible = children.filter(c => {
         if (c.nodeType === 'comment') return false
         const s = styles.get(c.id)
@@ -202,14 +210,6 @@ function positionChildren(
         mainPos += mainSize + (i < visible.length - 1 ? itemGap : 0)
         contentWidth = dir === 'row' ? mainPos : Math.max(contentWidth, sizes[i].width)
         contentHeight = dir === 'column' ? mainPos : Math.max(contentHeight, sizes[i].height)
-    }
-
-    // Layout absolute/fixed children (not in flow)
-    for (const child of children) {
-        const s = styles.get(child.id)
-        if (s?.position === 'absolute' || s?.position === 'fixed') {
-            layoutNode(child, styles, boxes, innerX, innerY, innerW, innerH)
-        }
     }
 
     return { width: contentWidth, height: contentHeight }
