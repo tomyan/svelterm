@@ -56,25 +56,28 @@ function layoutElement(
     const style = styles.get(node.id)
     if (style?.display === 'none') return { width: 0, height: 0 }
 
-    const pad = {
-        top: style?.paddingTop ?? 0, right: style?.paddingRight ?? 0,
-        bottom: style?.paddingBottom ?? 0, left: style?.paddingLeft ?? 0,
+    const borderWidth = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
+    const inset = {
+        top: (style?.paddingTop ?? 0) + borderWidth,
+        right: (style?.paddingRight ?? 0) + borderWidth,
+        bottom: (style?.paddingBottom ?? 0) + borderWidth,
+        left: (style?.paddingLeft ?? 0) + borderWidth,
     }
     const nodeWidth = resolveSize(style?.width, availWidth)
     const nodeHeight = resolveSize(style?.height, availHeight)
 
-    const innerW = (nodeWidth ?? availWidth) - pad.left - pad.right
-    const innerH = (nodeHeight ?? availHeight) - pad.top - pad.bottom
+    const innerW = (nodeWidth ?? availWidth) - inset.left - inset.right
+    const innerH = (nodeHeight ?? availHeight) - inset.top - inset.bottom
 
     const content = positionChildren(
         node.children, styles, boxes,
-        x + pad.left, y + pad.top, innerW, innerH,
+        x + inset.left, y + inset.top, innerW, innerH,
         style?.flexDirection ?? 'column', style?.gap ?? 0,
         style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
     )
 
-    const autoWidth = (style?.flexGrow ?? 0) > 0 ? availWidth : content.width + pad.left + pad.right
-    const autoHeight = content.height + pad.top + pad.bottom
+    const autoWidth = (style?.flexGrow ?? 0) > 0 ? availWidth : content.width + inset.left + inset.right
+    const autoHeight = content.height + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 
