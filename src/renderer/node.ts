@@ -1,6 +1,16 @@
+import type { ResolvedStyle } from '../css/compute.js'
+import type { LayoutBox } from '../layout/engine.js'
+
 let nextId = 1
 
 export type NodeType = 'element' | 'text' | 'comment' | 'fragment'
+
+export interface RenderCache {
+    resolvedStyle: ResolvedStyle | null
+    layoutBox: LayoutBox | null
+    contentSize: { width: number; height: number } | null
+    classAttr: string
+}
 
 export class TermNode {
     readonly id: number
@@ -13,6 +23,7 @@ export class TermNode {
     attributes: Map<string, string> = new Map()
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
+    cache: RenderCache = { resolvedStyle: null, layoutBox: null, contentSize: null, classAttr: '' }
 
     constructor(nodeType: NodeType, tagOrText?: string) {
         this.id = nextId++
@@ -89,5 +100,20 @@ export class TermNode {
         if (this.nodeType === 'text') return this.text ?? ''
         if (this.nodeType === 'comment') return ''
         return this.children.map(c => c.collectText()).join('')
+    }
+
+    invalidateStyle(): void {
+        this.cache.resolvedStyle = null
+        this.cache.classAttr = ''
+    }
+
+    invalidateLayout(): void {
+        this.cache.layoutBox = null
+        this.cache.contentSize = null
+    }
+
+    invalidateAll(): void {
+        this.invalidateStyle()
+        this.invalidateLayout()
     }
 }
