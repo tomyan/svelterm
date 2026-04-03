@@ -47,4 +47,25 @@ export class RenderQueue {
         this.layoutBubble.clear()
         this.fullRecompute = false
     }
+
+    /** Returns a frozen copy of the current state and clears this queue. */
+    snapshot(): RenderQueueSnapshot {
+        const snap: RenderQueueSnapshot = {
+            paintOnly: new Set(this.paintOnly),
+            styleResolve: new Set(this.styleResolve),
+            layoutSubtree: new Set(this.layoutSubtree),
+            layoutBubble: new Set(this.layoutBubble),
+            fullRecompute: this.fullRecompute,
+        }
+        this.clear()
+        return snap
+    }
+}
+
+export interface RenderQueueSnapshot {
+    readonly paintOnly: Set<TermNode>
+    readonly styleResolve: Set<TermNode>
+    readonly layoutSubtree: Set<TermNode>
+    readonly layoutBubble: Set<TermNode>
+    readonly fullRecompute: boolean
 }

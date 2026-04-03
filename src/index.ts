@@ -66,17 +66,16 @@ export function mount<Props extends Record<string, any>>(
 
 
     const processQueue = () => {
-        const queue = ctx.queue
+        const snap = ctx.queue.snapshot()
 
-        if (queue.fullRecompute || !lastStyles || !lastLayout) {
+        if (snap.fullRecompute || !lastStyles || !lastLayout) {
             // Full recompute — initial render, resize, or CSS reload
             fullRender()
-        } else if (!queue.isEmpty()) {
+        } else if (snap.paintOnly.size > 0 || snap.styleResolve.size > 0
+            || snap.layoutSubtree.size > 0 || snap.layoutBubble.size > 0) {
             // Incremental render
-            incrementalRender(queue)
+            incrementalRender(snap)
         }
-
-        queue.clear()
     }
 
     const fullRender = () => {
@@ -97,26 +96,25 @@ export function mount<Props extends Record<string, any>>(
         }
     }
 
-    const incrementalRender = (queue: import('./render/queue.js').RenderQueue) => {
+    const incrementalRender = (snap: import('./render/queue.js').RenderQueueSnapshot) => {
         const size = getTerminalSize()
 
+        // Mutable copies for promoted nodes during processing
+        const layoutSubtree = new Set(snap.layoutSubtree)
+        const layoutBubble = new Set(snap.layoutBubble)
+
         // Step 1: Incremental style resolution
-        if (queue.styleResolve.size > 0 && lastStyles && stylesheet) {
-            const layoutDirty: TermNode[] = []
+        if (snap.styleResolve.size > 0 && lastStyles && stylesheet) {
             lastStyles = resolveStylesIncremental(
-                root, stylesheet, lastStyles, queue.styleResolve,
+                root, stylesheet, lastStyles, snap.styleResolve,
                 undefined,
-                (node) => { layoutDirty.push(node) },
+                (node) => { layoutSubtree.add(node) },
             )
-            // Promote layout-affected nodes
-            for (const node of layoutDirty) {
-                queue.enqueueLayoutSubtree(node)
-            }
         }
 
         // Step 2: Incremental layout
-        if (queue.layoutSubtree.size > 0 || queue.layoutBubble.size > 0) {
-            const dirtyLayoutNodes = new Set([...queue.layoutSubtree, ...queue.layoutBubble])
+        if (layoutSubtree.size > 0 || layoutBubble.size > 0) {
+            const dirtyLayoutNodes = new Set([...layoutSubtree, ...layoutBubble])
             if (lastStyles && lastLayout) {
                 lastLayout = computeLayoutIncremental(
                     root, lastStyles, lastLayout, dirtyLayoutNodes, size.width, size.height,
@@ -127,15 +125,14 @@ export function mount<Props extends Record<string, any>>(
         }
 
         // Step 3: Repaint
-        const isPaintOnly = queue.paintOnly.size > 0
-            && queue.styleResolve.size === 0
-            && queue.layoutSubtree.size === 0
-            && queue.layoutBubble.size === 0
+        const isPaintOnly = snap.paintOnly.size > 0
+            && snap.styleResolve.size === 0
+            && layoutSubtree.size === 0
+            && layoutBubble.size === 0
 
         if (isPaintOnly && prevBuffer && lastStyles && lastLayout) {
-            // Incremental paint: create new buffer from prev, apply only dirty nodes
             const buffer = prevBuffer.clone()
-            paintNodes(queue.paintOnly, buffer, lastStyles, lastLayout, root)
+            paintNodes(snap.paintOnly, buffer, lastStyles, lastLayout, root)
             const output = diffBuffers(prevBuffer, buffer)
             if (output.length > 0) writeOutput(output)
             prevBuffer = buffer
