@@ -130,7 +130,7 @@ function layoutElement(
         content = layoutBlockFlow(node.children, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
     }
 
-    const autoWidth = (style?.flexGrow ?? 0) > 0 ? (availWidth - margin.left - margin.right) : content.width + inset.left + inset.right
+    const autoWidth = content.width + inset.left + inset.right
     const autoHeight = content.height + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
@@ -472,6 +472,13 @@ function positionChildren(
         const childAvailW = baseDir === 'row' ? mainSize : innerW
         const childAvailH = baseDir === 'row' ? innerH : mainSize
         layoutNode(ordered[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
+
+        // Override main-axis size for flex-grown/shrunk items
+        const box = boxes.get(ordered[i].id)
+        if (box) {
+            if (baseDir === 'row' && box.width !== mainSize) box.width = mainSize
+            if (baseDir === 'column' && box.height !== mainSize) box.height = mainSize
+        }
 
         lineHeight = Math.max(lineHeight, baseDir === 'row' ? sizes[i].height : sizes[i].width)
         mainPos += mainSize + (i < ordered.length - 1 ? itemGap : 0)

@@ -113,7 +113,7 @@ describe('computeLayout', () => {
     describe('gap', () => {
         it('adds space between children in column', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', gap: 2 })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'column', gap: 2 })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'A')
                 const b = addChild(root, 'div', styles)
