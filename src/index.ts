@@ -53,6 +53,7 @@ export function mount<Props extends Record<string, any>>(
     let lastStyles: Map<number, import('./css/compute.js').ResolvedStyle> | undefined
     let lastLayout: Map<number, import('./layout/engine.js').LayoutBox> | undefined
     let renderScheduled = false
+    let initialRegistrationDone = false
 
     const scheduleRender = () => {
         if (renderScheduled) return
@@ -88,9 +89,12 @@ export function mount<Props extends Record<string, any>>(
         if (output.length > 0) writeOutput(output)
         prevBuffer = buffer
 
-        // Register focusable elements and mutation callbacks after tree is stable
-        registerFocusableNodes(root, focusManager)
-        registerMutationCallbacks(root, ctx, scheduleRender)
+        // Register focusable elements and mutation callbacks after initial render
+        if (!initialRegistrationDone) {
+            registerFocusableNodes(root, focusManager)
+            registerMutationCallbacks(root, ctx, scheduleRender)
+            initialRegistrationDone = true
+        }
     }
 
     const incrementalRender = (queue: import('./render/queue.js').RenderQueue) => {
@@ -130,9 +134,6 @@ export function mount<Props extends Record<string, any>>(
         const output = diffBuffers(prevBuffer, buffer)
         if (output.length > 0) writeOutput(output)
         prevBuffer = buffer
-
-        registerFocusableNodes(root, focusManager)
-        registerMutationCallbacks(root, ctx, scheduleRender)
     }
 
     const focusManager = new FocusManager()
@@ -141,6 +142,11 @@ export function mount<Props extends Record<string, any>>(
     const origInsert = ctx.onInsert.bind(ctx)
     ctx.onInsert = (parent: TermNode, child: TermNode) => {
         origInsert(parent, child)
+        // Register focusable/mutation callbacks on newly inserted nodes
+        if (initialRegistrationDone) {
+            registerFocusableNodes(child, focusManager)
+            registerMutationCallbacks(child, ctx, scheduleRender)
+        }
         scheduleRender()
     }
 
