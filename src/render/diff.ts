@@ -4,6 +4,7 @@ import * as ansi from './ansi.js'
 export function diffBuffers(prev: CellBuffer | null, next: CellBuffer): string {
     const parts: string[] = []
     let lastStyle: string | null = null
+    let currentHyperlink: string | undefined = undefined
 
     for (let row = 0; row < next.height; row++) {
         for (let col = 0; col < next.width; col++) {
@@ -21,13 +22,18 @@ export function diffBuffers(prev: CellBuffer | null, next: CellBuffer): string {
                 lastStyle = styleCode
             }
 
+            if (cell.hyperlink !== currentHyperlink) {
+                if (currentHyperlink) parts.push(ansi.hyperlinkClose())
+                if (cell.hyperlink) parts.push(ansi.hyperlinkOpen(cell.hyperlink))
+                currentHyperlink = cell.hyperlink
+            }
+
             parts.push(cell.char)
         }
     }
 
-    if (parts.length > 0) {
-        parts.push(ansi.resetStyle())
-    }
+    if (currentHyperlink) parts.push(ansi.hyperlinkClose())
+    if (parts.length > 0) parts.push(ansi.resetStyle())
 
     return parts.join('')
 }

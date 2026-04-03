@@ -83,6 +83,14 @@ const ANSI_FG: Record<string, number> = {
     default: 39,
 }
 
+export function hyperlinkOpen(url: string): string {
+    return `\x1b]8;;${url}\x1b\\`
+}
+
+export function hyperlinkClose(): string {
+    return `\x1b]8;;\x1b\\`
+}
+
 const ANSI_BG: Record<string, number> = {
     black: 40, red: 41, green: 42, yellow: 43,
     blue: 44, magenta: 45, cyan: 46, white: 47,

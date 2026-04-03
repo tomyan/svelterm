@@ -13,6 +13,7 @@ interface InheritedVisuals {
     underline: boolean
     strikethrough: boolean
     dim: boolean
+    hyperlink?: string
 }
 
 interface ClipRect {
@@ -125,6 +126,7 @@ function paintText(
                 bold: visuals.bold, italic: visuals.italic,
                 underline: visuals.underline, strikethrough: visuals.strikethrough,
                 dim: visuals.dim,
+                hyperlink: visuals.hyperlink,
             })
         }
     }
@@ -198,6 +200,8 @@ function resolveVisuals(
     const own = styles?.get(node.id)
     if (!own) return inherited
 
+    const hyperlink = node.tag === 'a' ? node.attributes.get('href') : inherited.hyperlink
+
     return {
         fg: own.fg !== 'default' ? own.fg : inherited.fg,
         bg: own.bg !== 'default' ? own.bg : inherited.bg,
@@ -206,5 +210,6 @@ function resolveVisuals(
         underline: own.underline || inherited.underline,
         strikethrough: own.strikethrough || inherited.strikethrough,
         dim: own.dim || inherited.dim,
+        hyperlink,
     }
 }
