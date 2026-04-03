@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url'
 import path from 'path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const demo = process.env.DEMO ?? 'counter'
 
 export default defineConfig({
     plugins: [
@@ -23,9 +24,9 @@ export default defineConfig({
     },
     build: {
         target: 'node22',
-        outDir: 'dist-demo',
+        outDir: `dist-demo/${demo}`,
         lib: {
-            entry: 'demo/main.ts',
+            entry: `demo/${demo}/main.ts`,
             formats: ['es'],
             fileName: 'main',
         },

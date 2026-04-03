@@ -1,4 +1,4 @@
-import { mount } from '../src/index.js'
+import { mount } from '../../src/index.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
