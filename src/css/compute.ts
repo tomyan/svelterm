@@ -6,6 +6,7 @@ import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding 
 import { collectVariables, resolveVar } from './variables.js'
 import { computeSpecificity, compareSpecificity } from './specificity.js'
 import { evaluateMediaQuery, type MediaContext } from './media.js'
+import { computeLayout } from '../layout/engine.js'
 
 const DEFAULT_MEDIA: MediaContext = {
     colorScheme: 'dark',
@@ -114,13 +115,50 @@ export function resolveStyles(
     root: TermNode,
     stylesheet: CSSStyleSheet,
     media?: MediaContext,
+    availWidth?: number,
+    availHeight?: number,
 ): Map<number, ResolvedStyle> {
     const ctx = media ?? DEFAULT_MEDIA
+    const hasContainerRules = stylesheet.rules.some(r => r.container)
+
+    // Filter out non-matching @media and @supports, but keep @container for now
     const filtered = filterByMedia(stylesheet, ctx)
-    const variables = collectVariables(root, filtered)
-    const styles = new Map<number, ResolvedStyle>()
-    resolveNode(root, filtered, styles, variables)
-    return styles
+
+    if (!hasContainerRules) {
+        // Simple path: no container queries
+        const variables = collectVariables(root, filtered)
+        const styles = new Map<number, ResolvedStyle>()
+        resolveNode(root, filtered, styles, variables)
+        return styles
+    }
+
+    // Two-pass for container queries:
+    // Pass 1: resolve without @container rules to get initial layout
+    const withoutContainer = filterContainerRules(filtered, false)
+    const variables1 = collectVariables(root, withoutContainer)
+    const styles1 = new Map<number, ResolvedStyle>()
+    resolveNode(root, withoutContainer, styles1, variables1)
+
+    // Compute layout to get container dimensions
+    const layout = computeLayout(root, styles1, availWidth ?? ctx.width, availHeight ?? ctx.height)
+
+    // Pass 2: evaluate container rules against computed layout
+    const containerRules = filtered.rules.filter(r => r.container)
+    const matchingContainerRules = containerRules.filter(r =>
+        evaluateContainerQuery(r, root, layout)
+    )
+
+    if (matchingContainerRules.length === 0) return styles1
+
+    // Re-resolve with matching container rules included
+    const withMatchingContainers: CSSStyleSheet = {
+        rules: [...withoutContainer.rules, ...matchingContainerRules],
+        keyframes: filtered.keyframes,
+    }
+    const variables2 = collectVariables(root, withMatchingContainers)
+    const styles2 = new Map<number, ResolvedStyle>()
+    resolveNode(root, withMatchingContainers, styles2, variables2)
+    return styles2
 }
 
 function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
@@ -145,6 +183,38 @@ const SUPPORTED_PROPERTIES = new Set([
     'border', 'border-style', 'border-color',
     'position', 'top', 'right', 'bottom', 'left', 'z-index',
 ])
+
+function filterContainerRules(stylesheet: CSSStyleSheet, include: boolean): CSSStyleSheet {
+    const rules = stylesheet.rules.filter(r => include ? !!r.container : !r.container)
+    return { rules, keyframes: stylesheet.keyframes }
+}
+
+function evaluateContainerQuery(
+    rule: import('./parser.js').CSSRule,
+    root: TermNode,
+    layout: Map<number, import('../layout/engine.js').LayoutBox>,
+): boolean {
+    if (!rule.container) return false
+    const condition = rule.container
+    const colonIdx = condition.indexOf(':')
+    if (colonIdx === -1) return false
+
+    const feature = condition.substring(0, colonIdx).trim()
+    const value = parseInt(condition.substring(colonIdx + 1).trim())
+
+    // Find the container: for each selector in the rule, find matching nodes
+    // and check if any ancestor has sufficient dimensions
+    // For simplicity: check all elements with a layout box
+    for (const [id, box] of layout) {
+        switch (feature) {
+            case 'min-width': if (box.width >= value) return true; break
+            case 'max-width': if (box.width <= value) return true; break
+            case 'min-height': if (box.height >= value) return true; break
+            case 'max-height': if (box.height <= value) return true; break
+        }
+    }
+    return false
+}
 
 function evaluateSupports(condition: string): boolean {
     const colonIdx = condition.indexOf(':')

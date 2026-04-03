@@ -6,8 +6,9 @@ export interface CSSDeclaration {
 export interface CSSRule {
     selectors: string[]
     declarations: CSSDeclaration[]
-    media?: string     // media query condition, if inside @media block
-    supports?: string  // @supports condition
+    media?: string      // media query condition, if inside @media block
+    supports?: string   // @supports condition
+    container?: string  // @container condition
 }
 
 export interface KeyframeStop {
@@ -37,6 +38,11 @@ export function parseCSS(css: string): CSSStyleSheet {
 
         if (css.substring(pos, pos + 9) === '@supports') {
             pos = parseSupportsBlock(css, pos, rules)
+            continue
+        }
+
+        if (css.substring(pos, pos + 10) === '@container') {
+            pos = parseContainerBlock(css, pos, rules)
             continue
         }
 
@@ -84,6 +90,32 @@ function parseMediaBlock(css: string, start: number, rules: CSSRule[]): number {
             break
         }
         pos = parseRule(css, pos, rules, condition)
+    }
+
+    return pos
+}
+
+function parseContainerBlock(css: string, start: number, rules: CSSRule[]): number {
+    let pos = start + 10 // skip "@container"
+    pos = skipWhitespace(css, pos)
+
+    const bracePos = css.indexOf('{', pos)
+    if (bracePos === -1) return skipToClosingBrace(css, pos)
+
+    let condition = css.substring(pos, bracePos).trim()
+    if (condition.startsWith('(') && !condition.includes(') and (')) {
+        condition = condition.slice(1, -1).trim()
+    }
+
+    pos = bracePos + 1
+
+    while (pos < css.length) {
+        pos = skipWhitespaceAndComments(css, pos)
+        if (pos >= css.length || css[pos] === '}') {
+            pos++
+            break
+        }
+        pos = parseRule(css, pos, rules, undefined, undefined, condition)
     }
 
     return pos
@@ -175,7 +207,7 @@ function parseSupportsBlock(css: string, start: number, rules: CSSRule[]): numbe
     return pos
 }
 
-function parseRule(css: string, start: number, rules: CSSRule[], media: string | undefined, supports?: string): number {
+function parseRule(css: string, start: number, rules: CSSRule[], media: string | undefined, supports?: string, container?: string): number {
     let pos = start
 
     const selectorEnd = css.indexOf('{', pos)
@@ -207,7 +239,7 @@ function parseRule(css: string, start: number, rules: CSSRule[], media: string |
     }
 
     if (selectors.length > 0 && declarations.length > 0) {
-        rules.push({ selectors, declarations, media, supports })
+        rules.push({ selectors, declarations, media, supports, container })
     }
 
     return pos
