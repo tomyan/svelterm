@@ -4,6 +4,7 @@ import { matchesSelector } from './selector.js'
 import { resolveColor } from './color.js'
 import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding } from './values.js'
 import { collectVariables, resolveVar } from './variables.js'
+import { computeSpecificity, compareSpecificity } from './specificity.js'
 import { evaluateMediaQuery, type MediaContext } from './media.js'
 
 const DEFAULT_MEDIA: MediaContext = {
@@ -131,16 +132,45 @@ function resolveNode(
     }
 }
 
+interface ScoredDeclaration {
+    property: string
+    value: string
+    specificity: [number, number, number]
+    order: number
+}
+
 function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>): ResolvedStyle {
     const style = defaultStyle(node.tag)
 
+    // Collect all matching declarations with specificity
+    const scored: ScoredDeclaration[] = []
+    let order = 0
+
     for (const rule of stylesheet.rules) {
-        if (!rule.selectors.some(sel => matchesSelector(node, sel))) continue
-        for (const decl of rule.declarations) {
-            if (decl.property.startsWith('--')) continue // skip variable declarations
-            const value = resolveVar(decl.value, vars)
-            applyDeclaration(style, decl.property, value)
+        for (const selector of rule.selectors) {
+            if (!matchesSelector(node, selector)) continue
+            const specificity = computeSpecificity(selector)
+            for (const decl of rule.declarations) {
+                if (decl.property.startsWith('--')) continue
+                scored.push({
+                    property: decl.property,
+                    value: resolveVar(decl.value, vars),
+                    specificity,
+                    order: order++,
+                })
+            }
         }
+    }
+
+    // Sort by specificity (ascending), then by source order (ascending)
+    // Later application = higher priority, so lower specificity first
+    scored.sort((a, b) => {
+        const specCmp = compareSpecificity(a.specificity, b.specificity)
+        return specCmp !== 0 ? specCmp : a.order - b.order
+    })
+
+    for (const decl of scored) {
+        applyDeclaration(style, decl.property, decl.value)
     }
 
     return style

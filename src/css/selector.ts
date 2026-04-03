@@ -2,6 +2,7 @@ import { TermNode } from '../renderer/node.js'
 
 export interface ParsedSelector {
     tag?: string
+    id?: string
     classes: string[]
     pseudo?: string
 }
@@ -17,9 +18,14 @@ export function parseSelector(selector: string): ParsedSelector {
         result.tag = selector.substring(start, pos)
     }
 
-    // Parse classes and pseudo-classes
+    // Parse id, classes, and pseudo-classes
     while (pos < selector.length) {
-        if (selector[pos] === '.') {
+        if (selector[pos] === '#') {
+            pos++
+            const start = pos
+            while (pos < selector.length && /[a-zA-Z0-9_-]/.test(selector[pos])) pos++
+            result.id = selector.substring(start, pos)
+        } else if (selector[pos] === '.') {
             pos++
             const start = pos
             while (pos < selector.length && /[a-zA-Z0-9_-]/.test(selector[pos])) pos++
@@ -48,6 +54,7 @@ export function matchesSelector(node: TermNode, selector: string): boolean {
     const parsed = parseSelector(trimmed)
 
     if (parsed.tag && node.tag !== parsed.tag) return false
+    if (parsed.id && node.attributes.get('id') !== parsed.id) return false
 
     const nodeClasses = node.classes
     for (const cls of parsed.classes) {
