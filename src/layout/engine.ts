@@ -306,32 +306,37 @@ function layoutGrid(
     if (children.length === 0) return { width: 0, height: 0 }
 
     const colWidths = parseGridTemplate(style.gridTemplateColumns ?? '', availW)
+    const rowHeights = parseGridTemplate(style.gridTemplateRows ?? '', availH)
     const numCols = colWidths.length || 1
     const gap = style.gap ?? 0
 
     let rowY = y
     let maxWidth = 0
     let col = 0
-    let rowHeight = 0
+    let rowIdx = 0
+    let currentRowHeight = 0 // auto-computed from content
 
     for (const child of children) {
         if (col >= numCols) {
-            // Wrap to next row
-            rowY += rowHeight + gap
+            const explicitH = rowHeights[rowIdx]
+            rowY += (explicitH ?? currentRowHeight) + gap
             col = 0
-            rowHeight = 0
+            rowIdx++
+            currentRowHeight = 0
         }
 
         const colX = x + colWidths.slice(0, col).reduce((sum, w) => sum + w + gap, 0)
         const colW = colWidths[col] ?? availW
+        const explicitRowH = rowHeights[rowIdx]
 
-        const size = layoutNode(child, styles, boxes, colX, rowY, colW, availH - (rowY - y))
-        rowHeight = Math.max(rowHeight, size.height)
+        const size = layoutNode(child, styles, boxes, colX, rowY, colW, explicitRowH ?? (availH - (rowY - y)))
+        currentRowHeight = Math.max(currentRowHeight, size.height)
         maxWidth = Math.max(maxWidth, colX - x + colW)
         col++
     }
 
-    return { width: maxWidth, height: (rowY - y) + rowHeight }
+    const finalRowH = rowHeights[rowIdx] ?? currentRowHeight
+    return { width: maxWidth, height: (rowY - y) + finalRowH }
 }
 
 function parseGridTemplate(template: string, availW: number): number[] {

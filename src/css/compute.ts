@@ -49,6 +49,7 @@ export interface ResolvedStyle {
     flexWrap: 'nowrap' | 'wrap'
     order: number
     gridTemplateColumns: string | null
+    gridTemplateRows: string | null
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
@@ -96,7 +97,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap', order: 0,
-        gridTemplateColumns: null,
+        gridTemplateColumns: null, gridTemplateRows: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
@@ -230,7 +231,8 @@ function resolveNode(
 ): void {
     if (node.nodeType === 'element') {
         const vars = variables.get(node.id) ?? new Map()
-        styles.set(node.id, computeStyle(node, stylesheet, vars))
+        const parentStyle = node.parent ? styles.get(node.parent.id) : undefined
+        styles.set(node.id, computeStyle(node, stylesheet, vars, parentStyle))
     }
     for (const child of node.children) {
         resolveNode(child, stylesheet, styles, variables)
@@ -244,7 +246,7 @@ interface ScoredDeclaration {
     order: number
 }
 
-function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>): ResolvedStyle {
+function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>, parentStyle?: ResolvedStyle): ResolvedStyle {
     const style = defaultStyle(node.tag)
 
     // Collect all matching declarations with specificity
@@ -275,10 +277,52 @@ function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<strin
     })
 
     for (const decl of scored) {
-        applyDeclaration(style, decl.property, decl.value)
+        if (decl.value === 'inherit' && parentStyle) {
+            applyInherit(style, decl.property, parentStyle)
+        } else if (decl.value === 'initial') {
+            applyInitial(style, decl.property, node.tag)
+        } else if (decl.value === 'unset') {
+            if (INHERITABLE_PROPERTIES.has(decl.property) && parentStyle) {
+                applyInherit(style, decl.property, parentStyle)
+            } else {
+                applyInitial(style, decl.property, node.tag)
+            }
+        } else {
+            applyDeclaration(style, decl.property, decl.value)
+        }
     }
 
     return style
+}
+
+const INHERITABLE_PROPERTIES = new Set([
+    'color', 'font-weight', 'font-style', 'text-decoration',
+    'white-space', 'text-align', 'visibility', 'opacity',
+])
+
+function applyInherit(style: ResolvedStyle, property: string, parentStyle: ResolvedStyle): void {
+    switch (property) {
+        case 'color': style.fg = parentStyle.fg; break
+        case 'background-color': case 'background': style.bg = parentStyle.bg; break
+        case 'font-weight': style.bold = parentStyle.bold; break
+        case 'font-style': style.italic = parentStyle.italic; break
+        case 'text-decoration': style.underline = parentStyle.underline; style.strikethrough = parentStyle.strikethrough; break
+        case 'white-space': style.whiteSpace = parentStyle.whiteSpace; break
+        case 'text-align': style.textAlign = parentStyle.textAlign; break
+        case 'visibility': style.visibility = parentStyle.visibility; break
+        case 'opacity': style.dim = parentStyle.dim; break
+    }
+}
+
+function applyInitial(style: ResolvedStyle, property: string, tag?: string): void {
+    const initial = defaultStyle(tag)
+    switch (property) {
+        case 'color': style.fg = initial.fg; break
+        case 'background-color': case 'background': style.bg = initial.bg; break
+        case 'font-weight': style.bold = initial.bold; break
+        case 'font-style': style.italic = initial.italic; break
+        case 'text-decoration': style.underline = initial.underline; style.strikethrough = initial.strikethrough; break
+    }
 }
 
 function applyDeclaration(style: ResolvedStyle, property: string, value: string): void {
@@ -363,6 +407,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'flex-wrap': style.flexWrap = value === 'wrap' ? 'wrap' : 'nowrap'; break
         case 'order': style.order = parseInt(value) || 0; break
         case 'grid-template-columns': style.gridTemplateColumns = value; break
+        case 'grid-template-rows': style.gridTemplateRows = value; break
         case 'animation': parseAnimationShorthand(style, value); break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
@@ -407,7 +452,13 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'left': style.left = parseCellValue(value); break
         case 'z-index': style.zIndex = parseInt(value) || 0; break
         case 'visibility': style.visibility = value === 'hidden' ? 'hidden' : 'visible'; break
-        case 'opacity': style.dim = value === 'dim'; break
+        case 'opacity':
+            if (value === 'dim') { style.dim = true }
+            else {
+                const num = parseFloat(value)
+                style.dim = !isNaN(num) && num < 1
+            }
+            break
     }
 }
 

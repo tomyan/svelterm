@@ -75,5 +75,28 @@ function parseCSI(data: Buffer): KeyEvent {
         }
     }
 
+    // Modified keys: ESC [ 1 ; modifier X (e.g. Shift+Arrow)
+    if (data.length >= 6 && third === 0x31 && data[3] === 0x3b) {
+        const modifier = data[4] - 0x30
+        const keyCode = data[5]
+        const mods = parseModifier(modifier)
+        const keyName = CSI_KEYS[keyCode]
+        if (keyName) return { key: keyName, ...mods }
+    }
+
     return { key: 'Escape', ...base }
+}
+
+const CSI_KEYS: Record<number, string> = {
+    0x41: 'ArrowUp', 0x42: 'ArrowDown', 0x43: 'ArrowRight', 0x44: 'ArrowLeft',
+    0x48: 'Home', 0x46: 'End',
+}
+
+function parseModifier(mod: number): { ctrl: boolean; shift: boolean; meta: boolean } {
+    // CSI modifier values: 1=none, 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Shift+Ctrl, 7=Alt+Ctrl, 8=Shift+Alt+Ctrl
+    return {
+        shift: (mod & 1) !== 0,
+        meta: (mod & 2) !== 0,
+        ctrl: (mod & 4) !== 0,
+    }
 }

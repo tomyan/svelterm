@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { dispatchEvent } from '../src/input/dispatch.js'
+import { dispatchEvent, type TermEvent } from '../src/input/dispatch.js'
 import { TermNode } from '../src/renderer/node.js'
 
 describe('dispatchEvent', () => {
@@ -14,13 +14,16 @@ describe('dispatchEvent', () => {
         assert.ok(called)
     })
 
-    it('passes event data to listener', () => {
+    it('passes event object to listener', () => {
         const node = new TermNode('element', 'button')
-        let received: any = null
-        node.listeners.set('keydown', new Set([(e: any) => { received = e }]))
+        let received: TermEvent | null = null
+        node.listeners.set('keydown', new Set([(e: TermEvent) => { received = e }]))
 
         dispatchEvent(node, 'keydown', { key: 'Enter' })
-        assert.equal(received?.key, 'Enter')
+        assert.ok(received)
+        assert.equal((received as TermEvent).type, 'keydown')
+        assert.equal((received as TermEvent).data?.key, 'Enter')
+        assert.equal((received as TermEvent).target, node)
     })
 
     it('calls all listeners for the event type', () => {
@@ -63,5 +66,26 @@ describe('dispatchEvent', () => {
 
         dispatchEvent(child, 'click')
         assert.deepEqual(order, ['child', 'parent'])
+    })
+
+    it('stopPropagation prevents bubbling', () => {
+        const parent = new TermNode('element', 'div')
+        const child = new TermNode('element', 'button')
+        parent.insertBefore(child, null)
+
+        let parentCalled = false
+        child.listeners.set('click', new Set([(e: TermEvent) => { e.stopPropagation() }]))
+        parent.listeners.set('click', new Set([() => { parentCalled = true }]))
+
+        dispatchEvent(child, 'click')
+        assert.ok(!parentCalled, 'parent should not be called after stopPropagation')
+    })
+
+    it('preventDefault sets flag on event', () => {
+        const node = new TermNode('element', 'button')
+        node.listeners.set('click', new Set([(e: TermEvent) => { e.preventDefault() }]))
+
+        const event = dispatchEvent(node, 'click')
+        assert.ok(event.defaultPrevented)
     })
 })
