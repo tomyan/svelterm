@@ -126,14 +126,26 @@ export function mount<Props extends Record<string, any>>(
             }
         }
 
-        // Step 3: Repaint — full paint + buffer diff
-        // The diff ensures only changed cells are written to terminal.
-        // True incremental paint (skipping unchanged subtrees) is a future optimization.
-        const buffer = new CellBuffer(size.width, size.height)
-        paint(root, buffer, lastStyles, lastLayout)
-        const output = diffBuffers(prevBuffer, buffer)
-        if (output.length > 0) writeOutput(output)
-        prevBuffer = buffer
+        // Step 3: Repaint
+        const isPaintOnly = queue.paintOnly.size > 0
+            && queue.styleResolve.size === 0
+            && queue.layoutSubtree.size === 0
+            && queue.layoutBubble.size === 0
+
+        if (isPaintOnly && prevBuffer && lastStyles && lastLayout) {
+            // Incremental paint: create new buffer from prev, apply only dirty nodes
+            const buffer = prevBuffer.clone()
+            paintNodes(queue.paintOnly, buffer, lastStyles, lastLayout, root)
+            const output = diffBuffers(prevBuffer, buffer)
+            if (output.length > 0) writeOutput(output)
+            prevBuffer = buffer
+        } else {
+            const buffer = new CellBuffer(size.width, size.height)
+            paint(root, buffer, lastStyles, lastLayout)
+            const output = diffBuffers(prevBuffer, buffer)
+            if (output.length > 0) writeOutput(output)
+            prevBuffer = buffer
+        }
     }
 
     const focusManager = new FocusManager()

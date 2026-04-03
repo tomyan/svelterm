@@ -70,6 +70,13 @@ export class CellBuffer {
             })
         }
     }
+    clone(): CellBuffer {
+        const copy = new CellBuffer(this.width, this.height)
+        for (let i = 0; i < this.cells.length; i++) {
+            copy.cells[i] = { ...this.cells[i] }
+        }
+        return copy
+    }
 }
 
 export function cellsEqual(a: Cell, b: Cell): boolean {

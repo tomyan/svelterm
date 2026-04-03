@@ -268,6 +268,20 @@ function resolveNode(
     }
 }
 
+/**
+ * Resolve style for a single node, given the stylesheet and parent style.
+ * Used by incremental style resolution.
+ */
+export function resolveNodeStyle(
+    node: TermNode,
+    stylesheet: CSSStyleSheet,
+    parentStyle?: ResolvedStyle,
+): ResolvedStyle {
+    const variables = collectVariables(node, stylesheet)
+    const vars = variables.get(node.id) ?? new Map()
+    return computeStyle(node, stylesheet, vars, parentStyle)
+}
+
 interface ScoredDeclaration {
     property: string
     value: string

@@ -8,6 +8,42 @@ import type { ResolvedStyle } from '../src/css/compute.js'
 
 describe('incremental style resolution', () => {
 
+    it('does NOT re-resolve clean nodes (truly incremental)', () => {
+        const root = new TermNode('element', 'root')
+        const css = '.red{color:red}.blue{color:blue}'
+        const sheet = parseCSS(css)
+
+        const a = new TermNode('element', 'div')
+        a.attributes.set('class', 'red')
+        root.insertBefore(a, null)
+
+        const b = new TermNode('element', 'div')
+        b.attributes.set('class', 'blue')
+        root.insertBefore(b, null)
+
+        const styles = resolveStyles(root, sheet)
+        for (const [id, style] of styles) {
+            const node = findNode(root, id)
+            if (node) node.cache.resolvedStyle = style
+        }
+
+        // Change only a
+        a.attributes.set('class', 'blue')
+
+        // Track which nodes get resolved
+        const resolvedNodeIds: number[] = []
+        const newStyles = resolveStylesIncremental(
+            root, sheet, styles, new Set([a]),
+            (nodeId) => { resolvedNodeIds.push(nodeId) },
+        )
+
+        // a was resolved, b was NOT
+        assert.ok(resolvedNodeIds.includes(a.id), 'dirty node a should be resolved')
+        assert.ok(!resolvedNodeIds.includes(b.id), 'clean node b should NOT be resolved')
+        assert.equal(newStyles.get(a.id)?.fg, 'blue')
+        assert.equal(newStyles.get(b.id)?.fg, 'blue')
+    })
+
     it('re-resolves only dirty nodes', () => {
         const root = new TermNode('element', 'root')
         const css = '.red{color:red}.blue{color:blue}'
@@ -37,15 +73,12 @@ describe('incremental style resolution', () => {
         const dirtyNodes = new Set([a])
 
         // Incremental resolve
-        let resolveCount = 0
-        const newStyles = resolveStylesIncremental(root, sheet, styles, dirtyNodes, () => { resolveCount++ })
+        const resolvedIds: number[] = []
+        const newStyles = resolveStylesIncremental(root, sheet, styles, dirtyNodes, (id) => { resolvedIds.push(id) })
 
-        // a should be re-resolved to blue
         assert.equal(newStyles.get(a.id)?.fg, 'blue')
-        // b should be unchanged (cached)
         assert.equal(newStyles.get(b.id)?.fg, 'blue')
-        // Only the dirty node was resolved
-        assert.ok(resolveCount > 0 && resolveCount < 10, `expected few resolves, got ${resolveCount}`)
+        assert.ok(resolvedIds.includes(a.id))
     })
 
     it('detects layout-affecting style changes', () => {
@@ -66,7 +99,7 @@ describe('incremental style resolution', () => {
         const dirtyNodes = new Set([el])
 
         const layoutAffected: TermNode[] = []
-        resolveStylesIncremental(root, sheet, styles, dirtyNodes, () => {}, (node) => {
+        resolveStylesIncremental(root, sheet, styles, dirtyNodes, undefined, (node) => {
             layoutAffected.push(node)
         })
 
@@ -86,7 +119,7 @@ describe('incremental style resolution', () => {
         el.cache.resolvedStyle = styles.get(el.id)!
 
         // No dirty nodes — should reuse all cached
-        const newStyles = resolveStylesIncremental(root, sheet, styles, new Set(), () => {})
+        const newStyles = resolveStylesIncremental(root, sheet, styles, new Set())
         assert.equal(newStyles.get(el.id)?.fg, 'red')
     })
 })
