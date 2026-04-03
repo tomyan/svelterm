@@ -21,10 +21,20 @@ hr { height: 1cell; width: 100%; margin-top: 1cell; margin-bottom: 1cell; }
 blockquote { margin-left: 2cell; border-left: true; border-style: single; border-color: gray; padding-left: 1cell; }
 li { padding-left: 3cell; }
 ul, ol { margin-top: 1cell; margin-bottom: 1cell; }
+mark { background-color: yellow; color: black; }
+kbd { border: single; border-color: gray; padding: 0 1cell; }
+abbr { text-decoration: underline; }
+samp { color: cyan; }
+var { font-style: italic; }
+dt { font-weight: bold; }
+dd { margin-left: 2cell; }
+figure { margin-left: 2cell; margin-right: 2cell; margin-top: 1cell; margin-bottom: 1cell; }
+figcaption { font-style: italic; }
 
 @media (prefers-color-scheme: dark) {
     code { color: cyan; }
     a { color: #5599ff; }
+    mark { background-color: #666600; color: white; }
 }
 
 @media (prefers-color-scheme: light) {
