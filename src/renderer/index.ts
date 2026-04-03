@@ -1,8 +1,11 @@
 import { createRenderer as svelteCreateRenderer, type Renderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './node.js'
+import { RenderContext } from '../render/context.js'
 
-export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
+export function createTermRenderer(
+    ctx?: RenderContext,
+): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
     return svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>({
         createFragment(): TermNode {
             return new TermNode('fragment')
@@ -13,7 +16,14 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
         },
 
         createTextNode(data: string): TermNode {
-            return new TermNode('text', data)
+            const node = new TermNode('text', data)
+            if (ctx) {
+                node.onMutate = () => {
+                    ctx.queue.enqueuePaintOnly(node)
+                    ctx.onScheduleRender?.()
+                }
+            }
+            return node
         },
 
         createComment(data: string): TermNode {
@@ -35,11 +45,19 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
         },
 
         setAttribute(element: TermNode, key: string, value: any): void {
-            element.attributes.set(key, String(value))
+            if (ctx) {
+                ctx.onSetAttribute(element, key, String(value))
+            } else {
+                element.attributes.set(key, String(value))
+            }
         },
 
         removeAttribute(element: TermNode, name: string): void {
-            element.attributes.delete(name)
+            if (ctx) {
+                ctx.onRemoveAttribute(element, name)
+            } else {
+                element.attributes.delete(name)
+            }
         },
 
         hasAttribute(element: TermNode, name: string): boolean {
@@ -48,12 +66,17 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
 
         setText(node: TermNode, text: string): void {
             if (node.nodeType === 'text' || node.nodeType === 'comment') {
-                node.text = text
+                if (ctx) {
+                    ctx.onSetText(node, text)
+                } else {
+                    node.text = text
+                }
             } else {
                 node.children = []
                 const textNode = new TermNode('text', text)
                 textNode.parent = node
                 node.children.push(textNode)
+                if (ctx) ctx.onInsert(node, textNode)
             }
         },
 
@@ -71,10 +94,13 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
 
         insert(parent: TermNode, node: TermNode, anchor: TermNode | null): void {
             parent.insertBefore(node, anchor)
+            if (ctx) ctx.onInsert(parent, node)
         },
 
         remove(node: TermNode): void {
+            const parent = node.parent
             node.remove()
+            if (ctx && parent) ctx.onRemove(node, parent)
         },
 
         getParent(node: TermNode): TermNode | null {

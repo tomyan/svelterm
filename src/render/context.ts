@@ -8,6 +8,7 @@ import { RenderQueue } from './queue.js'
  */
 export class RenderContext {
     readonly queue = new RenderQueue()
+    onScheduleRender?: () => void
 
     onSetText(node: TermNode, newText: string): void {
         const oldText = node.text ?? ''

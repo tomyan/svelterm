@@ -6,6 +6,7 @@ import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
 import { resolveStyles } from './css/compute.js'
 import { computeLayout } from './layout/engine.js'
+import { RenderContext } from './render/context.js'
 import { parseKeyEvent } from './input/keyboard.js'
 import { parseMouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
@@ -35,11 +36,19 @@ export function mount<Props extends Record<string, any>>(
     const fullscreen = options?.fullscreen ?? true
     const mouseEnabled = options?.mouse ?? false
     const stylesheet = options?.css ? parseCSS(options.css) : null
-    let lastLayout: Map<number, import('./layout/engine.js').LayoutBox> | undefined
 
-    const renderer = createTermRenderer()
+    // Render context tracks mutations and determines minimum work
+    const ctx = new RenderContext()
+    const renderer = createTermRenderer(ctx)
     const root = new TermNode('element', 'root')
+
+    // Wire schedule callback (defined below, hoisted via closure)
+    ctx.onScheduleRender = () => scheduleRender()
+
+    // Persisted render state
     let prevBuffer: CellBuffer | null = null
+    let lastStyles: Map<number, import('./css/compute.js').ResolvedStyle> | undefined
+    let lastLayout: Map<number, import('./layout/engine.js').LayoutBox> | undefined
     let renderScheduled = false
 
     const scheduleRender = () => {
@@ -47,33 +56,74 @@ export function mount<Props extends Record<string, any>>(
         renderScheduled = true
         queueMicrotask(() => {
             renderScheduled = false
-            render()
+            processQueue()
         })
     }
 
-    const render = () => {
+    const processQueue = () => {
+        const queue = ctx.queue
+
+        if (queue.fullRecompute || !lastStyles || !lastLayout) {
+            // Full recompute — initial render, resize, or CSS reload
+            fullRender()
+        } else {
+            // Incremental render — process queue items
+            // For now, fall back to full render for any queued work.
+            // Steps 4-6 will replace this with incremental processing.
+            if (!queue.isEmpty()) {
+                fullRender()
+            }
+        }
+
+        queue.clear()
+    }
+
+    const fullRender = () => {
         const size = getTerminalSize()
         const buffer = new CellBuffer(size.width, size.height)
-        const styles = stylesheet ? resolveStyles(root, stylesheet) : undefined
-        const layout = styles ? computeLayout(root, styles, size.width, size.height) : undefined
-        lastLayout = layout
-        paint(root, buffer, styles, layout)
+        lastStyles = stylesheet ? resolveStyles(root, stylesheet) : undefined
+        lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
+        paint(root, buffer, lastStyles, lastLayout)
         const output = diffBuffers(prevBuffer, buffer)
         if (output.length > 0) writeOutput(output)
         prevBuffer = buffer
+
+        // Register focusable elements and mutation callbacks after tree is stable
+        registerFocusableNodes(root, focusManager)
+        registerMutationCallbacks(root, ctx, scheduleRender)
     }
 
     const focusManager = new FocusManager()
 
-    // Pass root and layout to input handler for mouse hit testing
-    const getRoot = () => root
-    const getLayout = () => lastLayout
+    // Schedule render on mutations
+    const origInsert = ctx.onInsert.bind(ctx)
+    ctx.onInsert = (parent: TermNode, child: TermNode) => {
+        origInsert(parent, child)
+        scheduleRender()
+    }
 
-    // Re-render when tree mutates, auto-register focusable elements
-    const origInsert = root.insertBefore.bind(root)
-    root.insertBefore = (node: TermNode, anchor: TermNode | null) => {
-        origInsert(node, anchor)
-        registerFocusableNodes(node, focusManager)
+    // Schedule render for other mutations
+    const origSetText = ctx.onSetText.bind(ctx)
+    ctx.onSetText = (node: TermNode, text: string) => {
+        origSetText(node, text)
+        scheduleRender()
+    }
+
+    const origSetAttr = ctx.onSetAttribute.bind(ctx)
+    ctx.onSetAttribute = (node: TermNode, key: string, value: string) => {
+        origSetAttr(node, key, value)
+        scheduleRender()
+    }
+
+    const origRemoveAttr = ctx.onRemoveAttribute.bind(ctx)
+    ctx.onRemoveAttribute = (node: TermNode, key: string) => {
+        origRemoveAttr(node, key)
+        scheduleRender()
+    }
+
+    const origRemove = ctx.onRemove.bind(ctx)
+    ctx.onRemove = (child: TermNode, parent: TermNode) => {
+        origRemove(child, parent)
         scheduleRender()
     }
 
@@ -81,14 +131,17 @@ export function mount<Props extends Record<string, any>>(
     if (mouseEnabled) writeOutput(ansi.enableMouse())
     enableRawMode()
 
+    // Initial render: mount component and do full recompute
+    ctx.queue.setFullRecompute()
     const { unmount: svUnmount } = renderer.render(
         AppComponent as any,
         { target: root, props: (options as any)?.props ?? {} },
     )
-    const cleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-    setupInputHandlers(scheduleRender, cleanup, focusManager, getRoot, getLayout)
-    setupResizeHandler(scheduleRender, () => { prevBuffer = null })
     scheduleRender()
+
+    const cleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
+    setupInputHandlers(scheduleRender, cleanup, focusManager, () => root, () => lastLayout, ctx)
+    setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
     return cleanup
 }
@@ -111,9 +164,9 @@ function setupInputHandlers(
     focusManager: FocusManager,
     getRoot: () => TermNode,
     getLayout: () => Map<number, import('./layout/engine.js').LayoutBox> | undefined,
+    ctx: RenderContext,
 ): void {
     process.stdin.on('data', (data: Buffer) => {
-        // Try mouse first
         const mouse = parseMouseEvent(data)
         if (mouse) {
             handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender)
@@ -142,12 +195,15 @@ function setupInputHandlers(
 
         if (key.key === 'Enter' && focusManager.focused) {
             dispatchEvent(focusManager.focused, 'click')
+            // Force full recompute — Svelte may have updated state
+            ctx.queue.setFullRecompute()
             scheduleRender()
             return
         }
 
         if (focusManager.focused) {
             dispatchEvent(focusManager.focused, 'keydown', key)
+            ctx.queue.setFullRecompute()
             scheduleRender()
         }
     })
@@ -180,11 +236,20 @@ function handleMouse(
     }
 }
 
-function setupResizeHandler(scheduleRender: () => void, clearBuffer: () => void): void {
-    process.stdout.on('resize', () => {
-        clearBuffer()
-        scheduleRender()
-    })
+function setupResizeHandler(onResize: () => void): void {
+    process.stdout.on('resize', onResize)
+}
+
+function registerMutationCallbacks(node: TermNode, ctx: RenderContext, scheduleRender: () => void): void {
+    if (node.nodeType === 'text') {
+        node.onMutate = () => {
+            ctx.queue.enqueuePaintOnly(node)
+            scheduleRender()
+        }
+    }
+    for (const child of node.children) {
+        registerMutationCallbacks(child, ctx, scheduleRender)
+    }
 }
 
 const FOCUSABLE_TAGS = new Set(['button', 'input', 'textarea', 'a', 'select'])

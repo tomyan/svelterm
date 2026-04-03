@@ -18,12 +18,42 @@ export class TermNode {
     tag: string | undefined
     text: string | undefined
 
+    onMutate?: () => void
+
     parent: TermNode | null = null
     children: TermNode[] = []
     attributes: Map<string, string> = new Map()
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
     cache: RenderCache = { resolvedStyle: null, layoutBox: null, contentSize: null, classAttr: '' }
+
+    /** DOM compatibility — Svelte's effects set nodeValue directly when renderer is not pushed */
+    get nodeValue(): string | null {
+        if (this.nodeType === 'text' || this.nodeType === 'comment') return this.text ?? null
+        return null
+    }
+
+    set nodeValue(value: string | null) {
+        if (this.nodeType === 'text' || this.nodeType === 'comment') {
+            const old = this.text
+            this.text = value ?? ''
+            if (old !== this.text) {
+                this.onMutate?.()
+            }
+        }
+    }
+
+    /** DOM compatibility — Svelte may also use textContent */
+    get textContent(): string {
+        return this.collectText()
+    }
+
+    set textContent(value: string) {
+        if (this.nodeType === 'text') {
+            this.text = value
+            this.onMutate?.()
+        }
+    }
 
     constructor(nodeType: NodeType, tagOrText?: string) {
         this.id = nextId++
