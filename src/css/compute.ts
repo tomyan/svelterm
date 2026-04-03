@@ -24,9 +24,10 @@ export interface ResolvedStyle {
     dim: boolean
 
     display: 'block' | 'inline' | 'inline-block' | 'flex' | 'table' | 'table-row' | 'table-cell' | 'none'
-    flexDirection: 'row' | 'column'
+    flexDirection: 'row' | 'column' | 'row-reverse' | 'column-reverse'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
+    alignSelf: 'auto' | 'start' | 'end' | 'center' | 'stretch'
     gap: number
     paddingTop: number
     paddingRight: number
@@ -81,7 +82,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         bold: false, italic: false, underline: false, strikethrough: false, dim: false,
         display: defaultDisplay(tag),
         flexDirection: 'column',
-        justifyContent: 'start', alignItems: 'start',
+        justifyContent: 'start', alignItems: 'start', alignSelf: 'auto',
         gap: 0,
         paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0,
         width: null, height: null,
@@ -196,10 +197,17 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             }
             break
         case 'flex-direction':
-            if (value === 'row' || value === 'column') style.flexDirection = value
+            if (['row', 'column', 'row-reverse', 'column-reverse'].includes(value)) {
+                style.flexDirection = value as ResolvedStyle['flexDirection']
+            }
             break
         case 'justify-content': style.justifyContent = parseJustify(value); break
         case 'align-items': style.alignItems = parseAlign(value); break
+        case 'align-self':
+            if (['auto', 'start', 'end', 'center', 'stretch', 'flex-start', 'flex-end'].includes(value)) {
+                style.alignSelf = value === 'flex-start' ? 'start' : value === 'flex-end' ? 'end' : value as ResolvedStyle['alignSelf']
+            }
+            break
         case 'gap': style.gap = parseCellValue(value); break
         case 'padding': {
             const p = parsePadding(value)
@@ -230,6 +238,12 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'margin-bottom': style.marginBottom = parseCellValue(value); break
         case 'margin-left':
             style.marginLeft = value === 'auto' ? -1 : parseCellValue(value)
+            break
+        case 'flex':
+            // flex shorthand: flex: <grow> [<shrink> [<basis>]]
+            const flexParts = value.split(/\s+/)
+            style.flexGrow = parseFloat(flexParts[0]) || 0
+            if (flexParts.length > 1) style.flexShrink = parseFloat(flexParts[1]) || 1
             break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break

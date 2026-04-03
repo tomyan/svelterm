@@ -101,7 +101,8 @@ function layoutElement(
 
     const boxX = x + margin.left
     const boxY = y + margin.top
-    const nodeWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
+    const explicitWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
+    const nodeWidth = explicitWidth !== null ? Math.min(explicitWidth, availWidth - margin.left - margin.right) : null
     const nodeHeight = resolveSize(style?.height, availHeight - margin.top - margin.bottom)
 
     const innerW = (nodeWidth ?? (availWidth - margin.left - margin.right)) - inset.left - inset.right
@@ -279,7 +280,7 @@ function layoutTable(
 function positionChildren(
     children: TermNode[], styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     innerX: number, innerY: number, innerW: number, innerH: number,
-    dir: 'row' | 'column', gap: number,
+    dir: ResolvedStyle['flexDirection'], gap: number,
     justify: ResolvedStyle['justifyContent'], align: ResolvedStyle['alignItems'],
     wrap: 'nowrap' | 'wrap' = 'nowrap',
 ): { width: number; height: number } {
@@ -300,32 +301,44 @@ function positionChildren(
     })
     if (visible.length === 0) return { width: 0, height: 0 }
 
+    // Handle reverse directions
+    const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
+    const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
+    const ordered = isReverse ? [...visible].reverse() : visible
+
     // Measure
-    const sizes = visible.map(child => layoutNode(child, styles, boxes, 0, 0, innerW, innerH))
-    const growValues = visible.map(child => styles.get(child.id)?.flexGrow ?? 0)
+    const sizes = ordered.map(child => layoutNode(child, styles, boxes, 0, 0, innerW, innerH))
+    const growValues = ordered.map(child => styles.get(child.id)?.flexGrow ?? 0)
+    const shrinkValues = ordered.map(child => styles.get(child.id)?.flexShrink ?? 1)
     const totalGrow = growValues.reduce((a, b) => a + b, 0)
 
     const totalMain = sizes.reduce((sum, s, i) => {
-        return sum + (dir === 'row' ? s.width : s.height) + (i > 0 ? gap : 0)
+        return sum + (baseDir === 'row' ? s.width : s.height) + (i > 0 ? gap : 0)
     }, 0)
 
-    const availMain = dir === 'row' ? innerW : innerH
+    const availMain = baseDir === 'row' ? innerW : innerH
     const freeSpace = Math.max(0, availMain - totalMain)
+    const overflow = Math.max(0, totalMain - availMain)
     const hasGrow = totalGrow > 0
+    const totalShrink = overflow > 0 ? shrinkValues.reduce((a, b) => a + b, 0) : 0
 
     // Position
-    let mainPos = computeMainStart(justify, freeSpace, visible.length, hasGrow)
-    const itemGap = computeItemGap(justify, gap, freeSpace, visible.length, hasGrow)
+    let mainPos = computeMainStart(justify, freeSpace, ordered.length, hasGrow)
+    const itemGap = computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
 
     let contentWidth = 0
     let contentHeight = 0
-    let crossPos = 0     // tracks wrap lines
-    let lineHeight = 0   // max cross size of current line
+    let crossPos = 0
+    let lineHeight = 0
 
-    for (let i = 0; i < visible.length; i++) {
-        let mainSize = dir === 'row' ? sizes[i].width : sizes[i].height
+    for (let i = 0; i < ordered.length; i++) {
+        let mainSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
         if (hasGrow && growValues[i] > 0) {
             mainSize += Math.floor(freeSpace * growValues[i] / totalGrow)
+        }
+        if (overflow > 0 && totalShrink > 0 && shrinkValues[i] > 0) {
+            mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
+            mainSize = Math.max(0, mainSize)
         }
 
         // Wrap check
@@ -335,21 +348,25 @@ function positionChildren(
             lineHeight = 0
         }
 
-        const crossSize = dir === 'row' ? sizes[i].height : sizes[i].width
-        const crossAvail = dir === 'row' ? innerH : innerW
-        const crossOffset = computeCrossOffset(align, crossAvail, crossSize)
+        const crossSize = baseDir === 'row' ? sizes[i].height : sizes[i].width
+        const crossAvail = baseDir === 'row' ? innerH : innerW
 
-        const finalCx = dir === 'row' ? innerX + mainPos : innerX + crossOffset
-        const finalCy = dir === 'row' ? innerY + crossPos + crossOffset : innerY + mainPos
+        // Check align-self
+        const childStyle = styles.get(ordered[i].id)
+        const selfAlign = childStyle?.alignSelf !== 'auto' ? (childStyle?.alignSelf ?? align) : align
+        const crossOffset = computeCrossOffset(selfAlign as any, crossAvail, crossSize)
 
-        const childAvailW = dir === 'row' ? mainSize : innerW
-        const childAvailH = dir === 'row' ? innerH : mainSize
-        layoutNode(visible[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
+        const finalCx = baseDir === 'row' ? innerX + mainPos : innerX + crossOffset
+        const finalCy = baseDir === 'row' ? innerY + crossPos + crossOffset : innerY + mainPos
 
-        lineHeight = Math.max(lineHeight, dir === 'row' ? sizes[i].height : sizes[i].width)
-        mainPos += mainSize + (i < visible.length - 1 ? itemGap : 0)
-        contentWidth = dir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
-        contentHeight = dir === 'row' ? crossPos + lineHeight : mainPos
+        const childAvailW = baseDir === 'row' ? mainSize : innerW
+        const childAvailH = baseDir === 'row' ? innerH : mainSize
+        layoutNode(ordered[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
+
+        lineHeight = Math.max(lineHeight, baseDir === 'row' ? sizes[i].height : sizes[i].width)
+        mainPos += mainSize + (i < ordered.length - 1 ? itemGap : 0)
+        contentWidth = baseDir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
+        contentHeight = baseDir === 'row' ? crossPos + lineHeight : mainPos
     }
 
     return { width: contentWidth, height: contentHeight }
