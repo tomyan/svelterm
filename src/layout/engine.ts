@@ -73,8 +73,10 @@ function layoutElement(
         style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
     )
 
-    const finalWidth = constrain(nodeWidth ?? (content.width + pad.left + pad.right), style?.minWidth, style?.maxWidth)
-    const finalHeight = constrain(nodeHeight ?? (content.height + pad.top + pad.bottom), style?.minHeight, style?.maxHeight)
+    const autoWidth = (style?.flexGrow ?? 0) > 0 ? availWidth : content.width + pad.left + pad.right
+    const autoHeight = content.height + pad.top + pad.bottom
+    const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
+    const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 
     boxes.set(node.id, { x, y, width: finalWidth, height: finalHeight })
     return { width: finalWidth, height: finalHeight }
@@ -122,7 +124,9 @@ function positionChildren(
         const cx = dir === 'row' ? innerX + mainPos : innerX + crossOffset
         const cy = dir === 'column' ? innerY + mainPos : innerY + crossOffset
 
-        layoutNode(visible[i], styles, boxes, cx, cy, mainSize, dir === 'row' ? innerH : mainSize)
+        const childAvailW = dir === 'row' ? mainSize : innerW
+        const childAvailH = dir === 'row' ? innerH : mainSize
+        layoutNode(visible[i], styles, boxes, cx, cy, childAvailW, childAvailH)
 
         mainPos += mainSize + (i < visible.length - 1 ? itemGap : 0)
         contentWidth = dir === 'row' ? mainPos : Math.max(contentWidth, sizes[i].width)
