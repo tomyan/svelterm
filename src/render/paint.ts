@@ -69,6 +69,10 @@ function paintNode(
         if (ownStyle && ownStyle.borderStyle !== 'none') {
             renderBorder(buffer, box, ownStyle)
         }
+        if (node.tag === 'hr') {
+            paintHorizontalRule(buffer, box, visuals, clip)
+            return
+        }
     }
 
     // Determine clip and scroll for children
@@ -132,6 +136,15 @@ function fillBackground(
             if (clip && !inClip(col, row, clip)) continue
             buffer.setCell(col, row, { bg: visuals.bg })
         }
+    }
+}
+
+function paintHorizontalRule(
+    buffer: CellBuffer, box: LayoutBox, visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    for (let col = box.x; col < box.x + box.width; col++) {
+        if (clip && !inClip(col, box.y, clip)) continue
+        buffer.setCell(col, box.y, { char: '─', fg: visuals.fg, dim: true })
     }
 }
 
