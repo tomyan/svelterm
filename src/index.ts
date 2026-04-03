@@ -7,6 +7,7 @@ import { parseCSS } from './css/parser.js'
 import { resolveStyles } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout } from './layout/engine.js'
+import { computeLayoutIncremental } from './layout/incremental.js'
 import { RenderContext } from './render/context.js'
 import { paintNodes } from './render/incremental-paint.js'
 import { parseKeyEvent } from './input/keyboard.js'
@@ -109,9 +110,16 @@ export function mount<Props extends Record<string, any>>(
             }
         }
 
-        // Step 2: Layout (for now, full re-layout if any layout items)
+        // Step 2: Incremental layout
         if (queue.layoutSubtree.size > 0 || queue.layoutBubble.size > 0) {
-            lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
+            const dirtyLayoutNodes = new Set([...queue.layoutSubtree, ...queue.layoutBubble])
+            if (lastStyles && lastLayout) {
+                lastLayout = computeLayoutIncremental(
+                    root, lastStyles, lastLayout, dirtyLayoutNodes, size.width, size.height,
+                )
+            } else {
+                lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
+            }
         }
 
         // Step 3: Repaint — full paint + buffer diff
