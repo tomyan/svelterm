@@ -2,6 +2,7 @@ import { TermNode } from '../renderer/node.js'
 import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
+import { renderBorder } from './border.js'
 
 /** Visual properties that inherit from parent to child. */
 interface InheritedVisuals {
@@ -47,6 +48,10 @@ function paintNode(
 
     if (node.nodeType === 'element' && box) {
         fillBackground(buffer, box, visuals)
+        const ownStyle = styles?.get(node.id)
+        if (ownStyle && ownStyle.borderStyle !== 'none') {
+            renderBorder(buffer, box, ownStyle)
+        }
     }
 
     for (const child of node.children) {

@@ -30,6 +30,8 @@ export interface ResolvedStyle {
     maxHeight: number | null
     flexGrow: number
     flexShrink: number
+    borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
+    borderColor: string
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small'])
@@ -46,6 +48,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         flexGrow: 0, flexShrink: 1,
+        borderStyle: 'none', borderColor: 'default',
     }
 }
 
@@ -113,5 +116,14 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'max-height': style.maxHeight = parseCellValue(value); break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
+        case 'border':
+            if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
+            break
+        case 'border-style':
+            if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
+            break
+        case 'border-color': style.borderColor = resolveColor(value); break
     }
 }
+
+const BORDER_STYLES = new Set(['none', 'single', 'double', 'rounded', 'heavy'])
