@@ -40,7 +40,12 @@ export function parseSelector(selector: string): ParsedSelector {
 export function matchesSelector(node: TermNode, selector: string): boolean {
     if (node.nodeType !== 'element') return false
 
-    const parsed = parseSelector(selector.trim())
+    const trimmed = selector.trim()
+
+    // :root matches the root element (no parent)
+    if (trimmed === ':root') return node.parent === null
+
+    const parsed = parseSelector(trimmed)
 
     if (parsed.tag && node.tag !== parsed.tag) return false
 

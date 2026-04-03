@@ -3,6 +3,7 @@ import { CSSStyleSheet } from './parser.js'
 import { matchesSelector } from './selector.js'
 import { resolveColor } from './color.js'
 import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding } from './values.js'
+import { collectVariables, resolveVar } from './variables.js'
 
 export interface ResolvedStyle {
     fg: string
@@ -78,27 +79,35 @@ export function defaultStyle(tag?: string): ResolvedStyle {
 }
 
 export function resolveStyles(root: TermNode, stylesheet: CSSStyleSheet): Map<number, ResolvedStyle> {
+    const variables = collectVariables(root, stylesheet)
     const styles = new Map<number, ResolvedStyle>()
-    resolveNode(root, stylesheet, styles)
+    resolveNode(root, stylesheet, styles, variables)
     return styles
 }
 
-function resolveNode(node: TermNode, stylesheet: CSSStyleSheet, styles: Map<number, ResolvedStyle>): void {
+function resolveNode(
+    node: TermNode, stylesheet: CSSStyleSheet,
+    styles: Map<number, ResolvedStyle>,
+    variables: Map<number, Map<string, string>>,
+): void {
     if (node.nodeType === 'element') {
-        styles.set(node.id, computeStyle(node, stylesheet))
+        const vars = variables.get(node.id) ?? new Map()
+        styles.set(node.id, computeStyle(node, stylesheet, vars))
     }
     for (const child of node.children) {
-        resolveNode(child, stylesheet, styles)
+        resolveNode(child, stylesheet, styles, variables)
     }
 }
 
-function computeStyle(node: TermNode, stylesheet: CSSStyleSheet): ResolvedStyle {
+function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>): ResolvedStyle {
     const style = defaultStyle(node.tag)
 
     for (const rule of stylesheet.rules) {
         if (!rule.selectors.some(sel => matchesSelector(node, sel))) continue
         for (const decl of rule.declarations) {
-            applyDeclaration(style, decl.property, decl.value)
+            if (decl.property.startsWith('--')) continue // skip variable declarations
+            const value = resolveVar(decl.value, vars)
+            applyDeclaration(style, decl.property, value)
         }
     }
 
