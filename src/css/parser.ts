@@ -37,20 +37,18 @@ function parseMediaBlock(css: string, start: number, rules: CSSRule[]): number {
     let pos = start + 6 // skip "@media"
     pos = skipWhitespace(css, pos)
 
-    // Parse condition — content between ( and ) before the {
-    // Handle both @media(condition) and @media (condition)
-    const condStart = css.indexOf('(', pos)
-    if (condStart === -1) return skipToClosingBrace(css, pos)
+    // Capture everything between @media and { as the condition string
+    const bracePos = css.indexOf('{', pos)
+    if (bracePos === -1) return skipToClosingBrace(css, pos)
 
-    const condEnd = css.indexOf(')', condStart)
-    if (condEnd === -1) return skipToClosingBrace(css, pos)
+    const rawCondition = css.substring(pos, bracePos).trim()
+    // Strip outer parens if single condition: "(foo: bar)" -> "foo: bar"
+    // Keep as-is for compound: "(foo: bar) and (baz: qux)"
+    const condition = rawCondition.startsWith('(') && !rawCondition.includes(') and (')
+        ? rawCondition.slice(1, -1).trim()
+        : rawCondition
 
-    const condition = css.substring(condStart + 1, condEnd).trim()
-
-    pos = condEnd + 1
-    pos = skipWhitespace(css, pos)
-    if (pos >= css.length || css[pos] !== '{') return pos
-    pos++ // skip {
+    pos = bracePos + 1
 
     // Parse rules inside the @media block
     while (pos < css.length) {

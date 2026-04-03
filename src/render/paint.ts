@@ -59,16 +59,21 @@ function paintNode(
     const rawBox = layout?.get(node.id)
     const box = rawBox ? applyScroll(rawBox, scroll) : undefined
 
+    // Check visibility — hidden elements take space but don't render
+    const ownStyle = node.nodeType === 'element' ? styles?.get(node.id) : undefined
+    const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
+    const isHidden = ownStyle?.visibility === 'hidden' || parentStyle?.visibility === 'hidden'
+
     if (node.nodeType === 'text') {
-        const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
-        const parentBox = node.parent ? layout?.get(node.parent.id) : undefined
-        paintText(node, buffer, box, visuals, clip, parentStyle, parentBox)
+        if (!isHidden) {
+            const parentBox = node.parent ? layout?.get(node.parent.id) : undefined
+            paintText(node, buffer, box, visuals, clip, parentStyle, parentBox, styles)
+        }
         return
     }
 
-    if (node.nodeType === 'element' && box) {
+    if (node.nodeType === 'element' && box && !isHidden) {
         fillBackground(buffer, box, visuals, clip)
-        const ownStyle = styles?.get(node.id)
         if (ownStyle && ownStyle.borderStyle !== 'none') {
             renderBorder(buffer, box, ownStyle)
         }
@@ -107,7 +112,8 @@ function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
 function paintText(
     node: TermNode, buffer: CellBuffer, box: LayoutBox | undefined,
     visuals: InheritedVisuals, clip: ClipRect | null,
-    parentStyle?: ResolvedStyle, parentBox?: LayoutBox,
+    parentStyle: ResolvedStyle | undefined, parentBox: LayoutBox | undefined,
+    styles?: Map<number, ResolvedStyle>,
 ): void {
     const text = node.text ?? ''
     if (!text) return
@@ -115,8 +121,8 @@ function paintText(
     const y = box?.y ?? 0
     const width = box?.width ?? buffer.width
 
-    // Apply text-align
-    const align = parentStyle?.textAlign ?? 'left'
+    // Apply text-align (inherits from ancestors)
+    const align = findInherited(node, styles, s => s.textAlign !== 'left' ? s.textAlign : undefined) ?? 'left'
     if (align !== 'left' && parentBox) {
         const textWidth = text.length
         if (align === 'center') {
@@ -126,8 +132,8 @@ function paintText(
         }
     }
 
-    const noWrap = parentStyle?.whiteSpace === 'nowrap'
-    const ellipsis = parentStyle?.textOverflow === 'ellipsis'
+    const noWrap = findInherited(node, styles, s => s.whiteSpace !== 'normal' ? s.whiteSpace : undefined) === 'nowrap'
+    const ellipsis = findInherited(node, styles, s => s.textOverflow !== 'clip' ? s.textOverflow : undefined) === 'ellipsis'
 
     // For truncation, use clip width (parent container) if available
     const truncWidth = clip ? (clip.x + clip.width - x) : width
@@ -202,6 +208,23 @@ function paintHorizontalRule(
         if (clip && !inClip(col, box.y, clip)) continue
         buffer.setCell(col, box.y, { char: '─', fg: visuals.fg, dim: true })
     }
+}
+
+function findInherited<T>(
+    node: TermNode,
+    styles: Map<number, ResolvedStyle> | undefined,
+    getter: (s: ResolvedStyle) => T,
+): T | undefined {
+    let current: TermNode | null = node.parent
+    while (current) {
+        const s = styles?.get(current.id)
+        if (s) {
+            const val = getter(s)
+            if (val !== undefined) return val
+        }
+        current = current.parent
+    }
+    return undefined
 }
 
 function inClip(col: number, row: number, clip: ClipRect): boolean {

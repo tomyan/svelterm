@@ -62,6 +62,7 @@ export interface ResolvedStyle {
     bottom: number | null
     left: number | null
     zIndex: number
+    visibility: 'visible' | 'hidden'
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small', 'sub', 'sup'])
@@ -98,6 +99,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         position: 'static',
         top: null, right: null, bottom: null, left: null,
         zIndex: 0,
+        visibility: 'visible',
     }
 }
 
@@ -283,6 +285,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'bottom': style.bottom = parseCellValue(value); break
         case 'left': style.left = parseCellValue(value); break
         case 'z-index': style.zIndex = parseInt(value) || 0; break
+        case 'visibility': style.visibility = value === 'hidden' ? 'hidden' : 'visible'; break
         case 'opacity': style.dim = value === 'dim'; break
     }
 }
