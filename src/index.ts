@@ -125,14 +125,16 @@ export function mount<Props extends Record<string, any>>(
         }
 
         // Step 3: Repaint
-        const isPaintOnly = snap.paintOnly.size > 0
-            && snap.styleResolve.size === 0
-            && layoutSubtree.size === 0
-            && layoutBubble.size === 0
+        const noLayoutChanges = layoutSubtree.size === 0 && layoutBubble.size === 0
+        const dirtyPaintNodes = new Set(snap.paintOnly)
+        // Style-resolved nodes that didn't affect layout still need repaint
+        if (noLayoutChanges) {
+            for (const node of snap.styleResolve) dirtyPaintNodes.add(node)
+        }
 
-        if (isPaintOnly && prevBuffer && lastStyles && lastLayout) {
+        if (noLayoutChanges && dirtyPaintNodes.size > 0 && prevBuffer && lastStyles && lastLayout) {
             const buffer = prevBuffer.clone()
-            paintNodes(snap.paintOnly, buffer, lastStyles, lastLayout, root)
+            paintNodes(dirtyPaintNodes, buffer, lastStyles, lastLayout, root)
             const output = diffBuffers(prevBuffer, buffer)
             if (output.length > 0) writeOutput(output)
             prevBuffer = buffer
