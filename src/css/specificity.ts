@@ -11,7 +11,9 @@ export function computeSpecificity(selector: string): [number, number, number] {
     while (pos < selector.length) {
         const ch = selector[pos]
 
-        if (ch === '#') {
+        if (ch === '*') {
+            pos++ // universal: 0 specificity
+        } else if (ch === '#') {
             ids++
             pos++
             pos = skipName(selector, pos)
@@ -19,17 +21,40 @@ export function computeSpecificity(selector: string): [number, number, number] {
             classes++
             pos++
             pos = skipName(selector, pos)
+        } else if (ch === '[') {
+            classes++ // attribute selector = class-level
+            pos = skipUntil(selector, pos, ']') + 1
         } else if (ch === ':') {
-            // Pseudo-class counts as class-level specificity
-            // (pseudo-elements :: would be element-level but we don't support them)
-            classes++
             pos++
+            const nameStart = pos
             pos = skipName(selector, pos)
+            const name = selector.substring(nameStart, pos)
+
+            if (name === 'not' && pos < selector.length && selector[pos] === '(') {
+                // :not() specificity = specificity of its argument
+                pos++
+                const argStart = pos
+                let depth = 1
+                while (pos < selector.length && depth > 0) {
+                    if (selector[pos] === '(') depth++
+                    else if (selector[pos] === ')') depth--
+                    if (depth > 0) pos++
+                }
+                const arg = selector.substring(argStart, pos)
+                pos++ // skip )
+                const argSpec = computeSpecificity(arg)
+                ids += argSpec[0]; classes += argSpec[1]; elements += argSpec[2]
+            } else if (pos < selector.length && selector[pos] === '(') {
+                classes++ // other functional pseudo-class
+                pos = skipUntil(selector, pos, ')') + 1
+            } else {
+                classes++ // simple pseudo-class
+            }
         } else if (/[a-zA-Z]/.test(ch)) {
             elements++
             pos = skipName(selector, pos)
         } else {
-            pos++
+            pos++ // whitespace, combinators
         }
     }
 
@@ -38,6 +63,11 @@ export function computeSpecificity(selector: string): [number, number, number] {
 
 function skipName(selector: string, pos: number): number {
     while (pos < selector.length && /[a-zA-Z0-9_-]/.test(selector[pos])) pos++
+    return pos
+}
+
+function skipUntil(selector: string, pos: number, char: string): number {
+    while (pos < selector.length && selector[pos] !== char) pos++
     return pos
 }
 
