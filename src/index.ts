@@ -266,11 +266,13 @@ function setupInputHandlers(
 
         if (key.key === 'Enter' && focusManager.focused) {
             dispatchEvent(focusManager.focused, 'click')
+            scheduleRender()
             return
         }
 
         if (focusManager.focused) {
             dispatchEvent(focusManager.focused, 'keydown', key)
+            scheduleRender()
         }
     })
 
