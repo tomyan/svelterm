@@ -7,8 +7,8 @@ export interface TerminalSize {
 
 export function getTerminalSize(): TerminalSize {
     return {
-        width: process.stdout.columns ?? 80,
-        height: process.stdout.rows ?? 24,
+        width: Math.max(1, process.stdout.columns ?? 80),
+        height: Math.max(1, process.stdout.rows ?? 24),
     }
 }
 
