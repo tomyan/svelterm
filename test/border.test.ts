@@ -108,4 +108,65 @@ describe('border rendering', () => {
             assert.equal(buffer.getCell(3, 2)?.char, 'i')
         })
     })
+
+    describe('border color', () => {
+        it('renders border characters in specified color', () => {
+            const buffer = renderWithCSS('.box{border:single;border-color:cyan;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '┌')
+            assert.equal(buffer.getCell(0, 0)?.fg, 'cyan')
+            assert.equal(buffer.getCell(4, 0)?.fg, 'cyan')
+            assert.equal(buffer.getCell(0, 2)?.fg, 'cyan')
+        })
+    })
+
+    describe('border styles', () => {
+        it('rounded border uses ╭╮╰╯', () => {
+            const buffer = renderWithCSS('.box{border:rounded;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '╭')
+            assert.equal(buffer.getCell(4, 0)?.char, '╮')
+            assert.equal(buffer.getCell(0, 2)?.char, '╰')
+            assert.equal(buffer.getCell(4, 2)?.char, '╯')
+        })
+
+        it('double border uses ╔╗╚╝═║', () => {
+            const buffer = renderWithCSS('.box{border:double;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '╔')
+            assert.equal(buffer.getCell(4, 0)?.char, '╗')
+            assert.equal(buffer.getCell(2, 0)?.char, '═')
+            assert.equal(buffer.getCell(0, 1)?.char, '║')
+        })
+
+        it('heavy border uses ┏┓┗┛━┃', () => {
+            const buffer = renderWithCSS('.box{border:heavy;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '┏')
+            assert.equal(buffer.getCell(4, 0)?.char, '┓')
+            assert.equal(buffer.getCell(2, 0)?.char, '━')
+            assert.equal(buffer.getCell(0, 1)?.char, '┃')
+        })
+
+        it('border:none renders no border characters', () => {
+            const buffer = renderWithCSS('.box{border:none;width:5px;height:3px}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, ' ')
+        })
+    })
 })
