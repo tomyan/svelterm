@@ -4,14 +4,15 @@ import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
 import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
-import { resolveStyles } from './css/compute.js'
+import { resolveStyles, type ResolvedStyle } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
-import { computeLayout } from './layout/engine.js'
+import { computeLayout, type LayoutBox } from './layout/engine.js'
 import { computeLayoutIncremental } from './layout/incremental.js'
 import { RenderContext } from './render/context.js'
 import { paintNodes } from './render/incremental-paint.js'
+import { type RenderQueueSnapshot } from './render/queue.js'
 import { parseKeyEvent } from './input/keyboard.js'
-import { parseMouseEvent } from './input/mouse.js'
+import { parseMouseEvent, type MouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
@@ -50,8 +51,8 @@ export function mount<Props extends Record<string, any>>(
 
     // Persisted render state
     let prevBuffer: CellBuffer | null = null
-    let lastStyles: Map<number, import('./css/compute.js').ResolvedStyle> | undefined
-    let lastLayout: Map<number, import('./layout/engine.js').LayoutBox> | undefined
+    let lastStyles: Map<number, ResolvedStyle> | undefined
+    let lastLayout: Map<number, LayoutBox> | undefined
     let renderScheduled = false
     let initialRegistrationDone = false
 
@@ -96,7 +97,7 @@ export function mount<Props extends Record<string, any>>(
         }
     }
 
-    const incrementalRender = (snap: import('./render/queue.js').RenderQueueSnapshot) => {
+    const incrementalRender = (snap: RenderQueueSnapshot) => {
         const size = getTerminalSize()
 
         // Mutable copies for promoted nodes during processing
@@ -224,7 +225,7 @@ function setupInputHandlers(
     cleanup: () => void,
     focusManager: FocusManager,
     getRoot: () => TermNode,
-    getLayout: () => Map<number, import('./layout/engine.js').LayoutBox> | undefined,
+    getLayout: () => Map<number, LayoutBox> | undefined,
     ctx: RenderContext,
 ): void {
     process.stdin.on('data', (data: Buffer) => {
@@ -275,9 +276,9 @@ function setupInputHandlers(
 }
 
 function handleMouse(
-    mouse: import('./input/mouse.js').MouseEvent,
+    mouse: MouseEvent,
     root: TermNode,
-    layout: Map<number, import('./layout/engine.js').LayoutBox> | undefined,
+    layout: Map<number, LayoutBox> | undefined,
     focusManager: FocusManager,
     scheduleRender: () => void,
 ): void {
