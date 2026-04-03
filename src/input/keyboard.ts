@@ -62,6 +62,7 @@ function parseCSI(data: Buffer): KeyEvent {
         case 0x44: return { key: 'ArrowLeft', ...base }
         case 0x48: return { key: 'Home', ...base }
         case 0x46: return { key: 'End', ...base }
+        case 0x5a: return { key: 'Tab', ctrl: false, shift: true, meta: false } // Shift+Tab (Back Tab)
     }
 
     // Extended keys: ESC [ N ~

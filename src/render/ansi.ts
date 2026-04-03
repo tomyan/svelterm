@@ -91,6 +91,14 @@ export function hyperlinkClose(): string {
     return `\x1b]8;;\x1b\\`
 }
 
+export function enableMouse(): string {
+    return `${CSI}?1000h${CSI}?1006h` // enable button tracking + SGR mode
+}
+
+export function disableMouse(): string {
+    return `${CSI}?1006l${CSI}?1000l`
+}
+
 const ANSI_BG: Record<string, number> = {
     black: 40, red: 41, green: 42, yellow: 43,
     blue: 44, magenta: 45, cyan: 46, white: 47,
