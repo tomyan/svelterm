@@ -12,13 +12,15 @@
     .box-a {
         width: 20;
         padding: 1;
-        background-color: blue;
+        border: rounded;
+        border-color: cyan;
         color: white;
     }
     .box-b {
         width: 20;
         padding: 1;
-        background-color: magenta;
+        border: single;
+        border-color: magenta;
         color: white;
         font-weight: bold;
     }
@@ -29,13 +31,13 @@
 </style>
 
 <div>
-    <span class="title">Svelterm Layout Demo</span>
+    <span class="title">Svelterm — Borders Demo</span>
     <div class="container">
         <div class="box-a">
-            <span>Box A</span>
+            <span>Rounded</span>
         </div>
         <div class="box-b">
-            <span>Box B</span>
+            <span>Single</span>
         </div>
     </div>
 </div>
