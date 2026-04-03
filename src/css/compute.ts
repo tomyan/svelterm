@@ -264,6 +264,7 @@ function resolveNode(
         const resolved = computeStyle(node, stylesheet, vars, parentStyle)
         styles.set(node.id, resolved)
         node.cache.resolvedStyle = resolved
+        node.cache.classAttr = node.attributes.get('class') ?? ''
     }
     for (const child of node.children) {
         resolveNode(child, stylesheet, styles, variables)
