@@ -83,10 +83,10 @@ function layoutElement(
     }
     const borderWidth = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
     const inset = {
-        top: (style?.paddingTop ?? 0) + borderWidth,
-        right: (style?.paddingRight ?? 0) + borderWidth,
-        bottom: (style?.paddingBottom ?? 0) + borderWidth,
-        left: (style?.paddingLeft ?? 0) + borderWidth,
+        top: resolvePadding(style?.paddingTop, availWidth) + borderWidth,
+        right: resolvePadding(style?.paddingRight, availWidth) + borderWidth,
+        bottom: resolvePadding(style?.paddingBottom, availWidth) + borderWidth,
+        left: resolvePadding(style?.paddingLeft, availWidth) + borderWidth,
     }
 
     // Resolve auto margins for centering
@@ -144,10 +144,10 @@ function layoutAbsolute(
 ) {
     const borderWidth = (style.borderStyle && style.borderStyle !== 'none') ? 1 : 0
     const inset = {
-        top: (style.paddingTop ?? 0) + borderWidth,
-        right: (style.paddingRight ?? 0) + borderWidth,
-        bottom: (style.paddingBottom ?? 0) + borderWidth,
-        left: (style.paddingLeft ?? 0) + borderWidth,
+        top: resolvePadding(style.paddingTop, availWidth) + borderWidth,
+        right: resolvePadding(style.paddingRight, availWidth) + borderWidth,
+        bottom: resolvePadding(style.paddingBottom, availWidth) + borderWidth,
+        left: resolvePadding(style.paddingLeft, availWidth) + borderWidth,
     }
     const nodeWidth = resolveSize(style.width, availWidth)
     const nodeHeight = resolveSize(style.height, availHeight)
@@ -168,6 +168,13 @@ function layoutAbsolute(
     boxes.set(node.id, { x, y, width: finalWidth, height: finalHeight })
     // Return zero size — absolute elements don't consume space in flow
     return { width: 0, height: 0 }
+}
+
+/** Resolve a padding/margin value that may be a number or a % string */
+function resolvePadding(value: number | string | undefined, availWidth: number): number {
+    if (value === undefined) return 0
+    if (typeof value === 'number') return value
+    return resolveSize(value, availWidth) ?? 0
 }
 
 function layoutBlockFlow(

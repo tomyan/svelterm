@@ -21,7 +21,7 @@ function render(css: string, buildTree: (root: TermNode) => void, width = 40, he
 
 describe('% for padding and margin', () => {
 
-    it.skip('padding in % resolves relative to parent width (TODO: deferred resolution)', () => {
+    it('padding in % resolves relative to parent width', () => {
         const { layout } = render(
             '.parent{width:40cell}.child{padding-left:10%}',
             (root) => {

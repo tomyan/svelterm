@@ -30,10 +30,10 @@ export interface ResolvedStyle {
     alignItems: 'start' | 'end' | 'center' | 'stretch'
     alignSelf: 'auto' | 'start' | 'end' | 'center' | 'stretch'
     gap: number
-    paddingTop: number
-    paddingRight: number
-    paddingBottom: number
-    paddingLeft: number
+    paddingTop: number | string
+    paddingRight: number | string
+    paddingBottom: number | string
+    paddingLeft: number | string
     width: number | string | null
     height: number | string | null
     minWidth: number | null
@@ -311,15 +311,27 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             break
         case 'gap': style.gap = parseCellValue(value); break
         case 'padding': {
-            const p = parsePadding(value)
-            style.paddingTop = p.top; style.paddingRight = p.right
-            style.paddingBottom = p.bottom; style.paddingLeft = p.left
+            const parts = value.split(/\s+/)
+            const parsed = parts.map(parseSizeOrCell)
+            if (parsed.length === 1) {
+                style.paddingTop = style.paddingRight = style.paddingBottom = style.paddingLeft = parsed[0]
+            } else if (parsed.length === 2) {
+                style.paddingTop = style.paddingBottom = parsed[0]
+                style.paddingRight = style.paddingLeft = parsed[1]
+            } else if (parsed.length === 3) {
+                style.paddingTop = parsed[0]
+                style.paddingRight = style.paddingLeft = parsed[1]
+                style.paddingBottom = parsed[2]
+            } else if (parsed.length >= 4) {
+                style.paddingTop = parsed[0]; style.paddingRight = parsed[1]
+                style.paddingBottom = parsed[2]; style.paddingLeft = parsed[3]
+            }
             break
         }
-        case 'padding-top': style.paddingTop = parseCellValue(value); break
-        case 'padding-right': style.paddingRight = parseCellValue(value); break
-        case 'padding-bottom': style.paddingBottom = parseCellValue(value); break
-        case 'padding-left': style.paddingLeft = parseCellValue(value); break
+        case 'padding-top': style.paddingTop = parseSizeOrCell(value); break
+        case 'padding-right': style.paddingRight = parseSizeOrCell(value); break
+        case 'padding-bottom': style.paddingBottom = parseSizeOrCell(value); break
+        case 'padding-left': style.paddingLeft = parseSizeOrCell(value); break
         case 'width': style.width = parseSizeValue(value); break
         case 'height': style.height = parseSizeValue(value); break
         case 'min-width': style.minWidth = parseCellValue(value); break
@@ -411,6 +423,12 @@ function setIndividualBorderSide(style: ResolvedStyle, side: 'borderTop' | 'bord
         style.borderLeft = false
     }
     style[side] = enabled
+}
+
+function parseSizeOrCell(value: string): number | string {
+    if (value.endsWith('%')) return value
+    if (value.startsWith('calc(') || value.startsWith('min(') || value.startsWith('max(') || value.startsWith('clamp(')) return value
+    return parseCellValue(value)
 }
 
 function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
