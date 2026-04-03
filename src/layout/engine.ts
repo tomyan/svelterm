@@ -461,8 +461,10 @@ function positionChildren(
 
         // Check align-self
         const childStyle = styles.get(ordered[i].id)
-        const selfAlign = childStyle?.alignSelf !== 'auto' ? (childStyle?.alignSelf ?? align) : align
-        const crossOffset = computeCrossOffset(selfAlign as any, crossAvail, crossSize)
+        const selfAlign: ResolvedStyle['alignItems'] = childStyle?.alignSelf !== 'auto'
+            ? (childStyle?.alignSelf as ResolvedStyle['alignItems']) ?? align
+            : align
+        const crossOffset = computeCrossOffset(selfAlign, crossAvail, crossSize)
 
         const finalCx = baseDir === 'row' ? innerX + mainPos : innerX + crossOffset
         const finalCy = baseDir === 'row' ? innerY + crossPos + crossOffset : innerY + mainPos
