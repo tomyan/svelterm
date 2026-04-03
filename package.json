@@ -8,7 +8,14 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test dist/**/*.test.js",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "demo": "DEMO=${DEMO:-counter} npx vite build && node dist-demo/${DEMO:-counter}/main.js",
+    "demo:counter": "DEMO=counter npx vite build && node dist-demo/counter/main.js",
+    "demo:dashboard": "DEMO=dashboard npx vite build && node dist-demo/dashboard/main.js",
+    "demo:todo": "DEMO=todo npx vite build && node dist-demo/todo/main.js",
+    "demo:showcase": "DEMO=showcase npx vite build && node dist-demo/showcase/main.js",
+    "demo:keyboard-hero": "DEMO=keyboard-hero npx vite build && node dist-demo/keyboard-hero/main.js",
+    "demo:snake": "DEMO=snake npx vite build && node dist-demo/snake/main.js"
   },
   "peerDependencies": {
     "svelte": "file:../svelte-fork/packages/svelte"
