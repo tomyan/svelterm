@@ -152,6 +152,8 @@ export function mount<Props extends Record<string, any>>(
     }
 
     const focusManager = new FocusManager()
+    focusManager.onSetAttribute = (node, key, value) => ctx.onSetAttribute(node, key, value)
+    focusManager.onRemoveAttribute = (node, key) => ctx.onRemoveAttribute(node, key)
 
     // Schedule render on mutations
     const origInsert = ctx.onInsert.bind(ctx)
@@ -247,19 +249,13 @@ function setupInputHandlers(
         }
 
         if (key.key === 'Tab' && key.shift) {
-            const prev = focusManager.focused
             focusManager.focusPrevious()
-            if (prev) ctx.queue.enqueueStyleResolve(prev)
-            if (focusManager.focused) ctx.queue.enqueueStyleResolve(focusManager.focused)
             scheduleRender()
             return
         }
 
         if (key.key === 'Tab') {
-            const prev = focusManager.focused
             focusManager.focusNext()
-            if (prev) ctx.queue.enqueueStyleResolve(prev)
-            if (focusManager.focused) ctx.queue.enqueueStyleResolve(focusManager.focused)
             scheduleRender()
             return
         }

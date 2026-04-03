@@ -3,6 +3,8 @@ import { TermNode } from '../renderer/node.js'
 export class FocusManager {
     private elements: TermNode[] = []
     private focusIndex: number = -1
+    onSetAttribute?: (node: TermNode, key: string, value: string) => void
+    onRemoveAttribute?: (node: TermNode, key: string) => void
 
     get focused(): TermNode | null {
         if (this.focusIndex < 0 || this.focusIndex >= this.elements.length) return null
@@ -57,10 +59,20 @@ export class FocusManager {
         if (prev) this.clearFocusAttribute(prev)
         this.focusIndex = index
         const next = this.focused
-        if (next) next.attributes.set('data-focused', 'true')
+        if (next) {
+            if (this.onSetAttribute) {
+                this.onSetAttribute(next, 'data-focused', 'true')
+            } else {
+                next.attributes.set('data-focused', 'true')
+            }
+        }
     }
 
     private clearFocusAttribute(node: TermNode): void {
-        node.attributes.delete('data-focused')
+        if (this.onRemoveAttribute) {
+            this.onRemoveAttribute(node, 'data-focused')
+        } else {
+            node.attributes.delete('data-focused')
+        }
     }
 }
