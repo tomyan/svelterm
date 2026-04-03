@@ -121,10 +121,32 @@ export function resolveStyles(
 
 function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
     const rules = stylesheet.rules.filter(rule => {
-        if (!rule.media) return true
-        return evaluateMediaQuery(rule.media, context)
+        if (rule.media && !evaluateMediaQuery(rule.media, context)) return false
+        if (rule.supports && !evaluateSupports(rule.supports)) return false
+        return true
     })
     return { rules }
+}
+
+const SUPPORTED_PROPERTIES = new Set([
+    'display', 'flex-direction', 'justify-content', 'align-items', 'align-self',
+    'gap', 'flex-grow', 'flex-shrink', 'flex-wrap', 'flex', 'order',
+    'grid-template-columns',
+    'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+    'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+    'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+    'color', 'background-color', 'background',
+    'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow',
+    'white-space', 'overflow', 'visibility', 'opacity',
+    'border', 'border-style', 'border-color',
+    'position', 'top', 'right', 'bottom', 'left', 'z-index',
+])
+
+function evaluateSupports(condition: string): boolean {
+    const colonIdx = condition.indexOf(':')
+    if (colonIdx === -1) return false
+    const property = condition.substring(0, colonIdx).trim()
+    return SUPPORTED_PROPERTIES.has(property)
 }
 
 function resolveNode(
