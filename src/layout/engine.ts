@@ -121,6 +121,8 @@ function layoutElement(
         )
     } else if (display === 'table') {
         content = layoutTable(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
+    } else if (display === 'grid' && style) {
+        content = layoutGrid(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH, style)
     } else {
         // block or inline — use block flow (inline children flow horizontally within)
         content = layoutBlockFlow(node.children, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
@@ -287,6 +289,81 @@ function layoutTable(
 
     const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + colGap * Math.max(0, numCols - 1)
     return { width: totalWidth, height: rowY - y }
+}
+
+function layoutGrid(
+    node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availW: number, availH: number, style: ResolvedStyle,
+): { width: number; height: number } {
+    const children = node.children.filter(c => c.nodeType === 'element' && styles.get(c.id)?.display !== 'none')
+    if (children.length === 0) return { width: 0, height: 0 }
+
+    const colWidths = parseGridTemplate(style.gridTemplateColumns ?? '', availW)
+    const numCols = colWidths.length || 1
+    const gap = style.gap ?? 0
+
+    let rowY = y
+    let maxWidth = 0
+    let col = 0
+    let rowHeight = 0
+
+    for (const child of children) {
+        if (col >= numCols) {
+            // Wrap to next row
+            rowY += rowHeight + gap
+            col = 0
+            rowHeight = 0
+        }
+
+        const colX = x + colWidths.slice(0, col).reduce((sum, w) => sum + w + gap, 0)
+        const colW = colWidths[col] ?? availW
+
+        const size = layoutNode(child, styles, boxes, colX, rowY, colW, availH - (rowY - y))
+        rowHeight = Math.max(rowHeight, size.height)
+        maxWidth = Math.max(maxWidth, colX - x + colW)
+        col++
+    }
+
+    return { width: maxWidth, height: (rowY - y) + rowHeight }
+}
+
+function parseGridTemplate(template: string, availW: number): number[] {
+    if (!template) return []
+
+    const parts = template.trim().split(/\s+/)
+    const widths: number[] = []
+    const frParts: { index: number; fr: number }[] = []
+    let fixedTotal = 0
+
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]
+        if (part.endsWith('cell')) {
+            const w = Math.round(parseFloat(part))
+            widths.push(w)
+            fixedTotal += w
+        } else if (part.endsWith('%')) {
+            const w = Math.floor(availW * parseFloat(part) / 100)
+            widths.push(w)
+            fixedTotal += w
+        } else if (part.endsWith('fr')) {
+            const fr = parseFloat(part)
+            widths.push(0) // placeholder
+            frParts.push({ index: i, fr })
+        } else {
+            widths.push(0)
+        }
+    }
+
+    // Distribute remaining space to fr units
+    if (frParts.length > 0) {
+        const totalFr = frParts.reduce((sum, p) => sum + p.fr, 0)
+        const remaining = Math.max(0, availW - fixedTotal)
+        for (const { index, fr } of frParts) {
+            widths[index] = Math.floor(remaining * fr / totalFr)
+        }
+    }
+
+    return widths
 }
 
 function positionChildren(

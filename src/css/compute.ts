@@ -23,7 +23,7 @@ export interface ResolvedStyle {
     strikethrough: boolean
     dim: boolean
 
-    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'table' | 'table-row' | 'table-cell' | 'none'
+    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'table' | 'table-row' | 'table-cell' | 'none'
     flexDirection: 'row' | 'column' | 'row-reverse' | 'column-reverse'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
@@ -47,6 +47,7 @@ export interface ResolvedStyle {
     flexShrink: number
     flexWrap: 'nowrap' | 'wrap'
     order: number
+    gridTemplateColumns: string | null
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
     borderTop: boolean
@@ -91,6 +92,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap', order: 0,
+        gridTemplateColumns: null,
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
@@ -195,7 +197,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (value.includes('line-through')) style.strikethrough = true
             break
         case 'display':
-            if (['block', 'inline', 'inline-block', 'flex', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
+            if (['block', 'inline', 'inline-block', 'flex', 'grid', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
                 style.display = value as ResolvedStyle['display']
             }
             break
@@ -252,6 +254,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
         case 'flex-wrap': style.flexWrap = value === 'wrap' ? 'wrap' : 'nowrap'; break
         case 'order': style.order = parseInt(value) || 0; break
+        case 'grid-template-columns': style.gridTemplateColumns = value; break
         case 'border':
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
