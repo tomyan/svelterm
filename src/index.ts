@@ -62,6 +62,7 @@ export function mount<Props extends Record<string, any>>(
         })
     }
 
+
     const processQueue = () => {
         const queue = ctx.queue
 
@@ -215,29 +216,30 @@ function setupInputHandlers(
         }
 
         if (key.key === 'Tab' && key.shift) {
+            const prev = focusManager.focused
             focusManager.focusPrevious()
+            if (prev) ctx.queue.enqueueStyleResolve(prev)
+            if (focusManager.focused) ctx.queue.enqueueStyleResolve(focusManager.focused)
             scheduleRender()
             return
         }
 
         if (key.key === 'Tab') {
+            const prev = focusManager.focused
             focusManager.focusNext()
+            if (prev) ctx.queue.enqueueStyleResolve(prev)
+            if (focusManager.focused) ctx.queue.enqueueStyleResolve(focusManager.focused)
             scheduleRender()
             return
         }
 
         if (key.key === 'Enter' && focusManager.focused) {
             dispatchEvent(focusManager.focused, 'click')
-            // Force full recompute — Svelte may have updated state
-            ctx.queue.setFullRecompute()
-            scheduleRender()
             return
         }
 
         if (focusManager.focused) {
             dispatchEvent(focusManager.focused, 'keydown', key)
-            ctx.queue.setFullRecompute()
-            scheduleRender()
         }
     })
 

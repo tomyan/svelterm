@@ -125,4 +125,11 @@ export function createTermRenderer(
     })
 }
 
+/**
+ * Keep the custom renderer active globally so Svelte's effects
+ * use our renderer methods (setText, setAttribute, etc.) instead
+ * of falling back to DOM operations (node.nodeValue, etc.).
+ *
+ * Call this AFTER renderer.render() which pops the renderer.
+ */
 export { TermNode } from './node.js'

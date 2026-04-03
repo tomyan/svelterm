@@ -11,7 +11,7 @@
     "dev": "tsc --watch"
   },
   "peerDependencies": {
-    "svelte": "https://pkg.pr.new/svelte@18042"
+    "svelte": "file:../svelte-fork/packages/svelte"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
