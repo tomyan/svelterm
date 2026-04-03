@@ -3,13 +3,29 @@ import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 
+/** Visual properties that inherit from parent to child. */
+interface InheritedVisuals {
+    fg: string
+    bg: string
+    bold: boolean
+    italic: boolean
+    underline: boolean
+    strikethrough: boolean
+    dim: boolean
+}
+
+const DEFAULT_VISUALS: InheritedVisuals = {
+    fg: 'default', bg: 'default',
+    bold: false, italic: false, underline: false, strikethrough: false, dim: false,
+}
+
 export function paint(
     root: TermNode,
     buffer: CellBuffer,
     styles?: Map<number, ResolvedStyle>,
     layout?: Map<number, LayoutBox>,
 ): void {
-    paintNode(root, buffer, styles, layout)
+    paintNode(root, buffer, styles, layout, DEFAULT_VISUALS)
 }
 
 function paintNode(
@@ -17,51 +33,49 @@ function paintNode(
     buffer: CellBuffer,
     styles?: Map<number, ResolvedStyle>,
     layout?: Map<number, LayoutBox>,
-    inheritedStyle?: ResolvedStyle,
+    inherited: InheritedVisuals = DEFAULT_VISUALS,
 ): void {
     if (node.nodeType === 'comment') return
 
-    // Merge: node's own style overrides inherited, but only for non-default values
-    const ownStyle = node.nodeType === 'element' ? styles?.get(node.id) : undefined
-    const effectiveStyle = mergeStyles(inheritedStyle, ownStyle)
+    const visuals = resolveVisuals(node, styles, inherited)
     const box = layout?.get(node.id)
 
     if (node.nodeType === 'text') {
-        const text = node.text ?? ''
-        if (!text) return
-        const x = box?.x ?? 0
-        const y = box?.y ?? 0
-        buffer.writeText(x, y, text, {
-            fg: effectiveStyle?.fg,
-            bg: effectiveStyle?.bg,
-            bold: effectiveStyle?.bold,
-            italic: effectiveStyle?.italic,
-            underline: effectiveStyle?.underline,
-            strikethrough: effectiveStyle?.strikethrough,
-            dim: effectiveStyle?.dim,
-        })
+        paintText(node, buffer, box, visuals)
         return
     }
 
-    // Fill background for elements with bg color
-    if (node.nodeType === 'element' && box && effectiveStyle?.bg && effectiveStyle.bg !== 'default') {
-        for (let row = box.y; row < box.y + box.height; row++) {
-            for (let col = box.x; col < box.x + box.width; col++) {
-                buffer.setCell(col, row, { bg: effectiveStyle.bg })
-            }
-        }
+    if (node.nodeType === 'element' && box) {
+        fillBackground(buffer, box, visuals)
     }
 
     for (const child of node.children) {
-        paintNode(child, buffer, styles, layout, effectiveStyle)
+        paintNode(child, buffer, styles, layout, visuals)
     }
 }
 
-function mergeStyles(
-    inherited: ResolvedStyle | undefined,
-    own: ResolvedStyle | undefined,
-): ResolvedStyle | undefined {
-    if (!inherited) return own
+function paintText(node: TermNode, buffer: CellBuffer, box: LayoutBox | undefined, visuals: InheritedVisuals): void {
+    const text = node.text ?? ''
+    if (!text) return
+    buffer.writeText(box?.x ?? 0, box?.y ?? 0, text, visuals)
+}
+
+function fillBackground(buffer: CellBuffer, box: LayoutBox, visuals: InheritedVisuals): void {
+    if (visuals.bg === 'default') return
+    for (let row = box.y; row < box.y + box.height; row++) {
+        for (let col = box.x; col < box.x + box.width; col++) {
+            buffer.setCell(col, row, { bg: visuals.bg })
+        }
+    }
+}
+
+function resolveVisuals(
+    node: TermNode,
+    styles: Map<number, ResolvedStyle> | undefined,
+    inherited: InheritedVisuals,
+): InheritedVisuals {
+    if (node.nodeType !== 'element') return inherited
+    const own = styles?.get(node.id)
     if (!own) return inherited
 
     return {
@@ -72,23 +86,5 @@ function mergeStyles(
         underline: own.underline || inherited.underline,
         strikethrough: own.strikethrough || inherited.strikethrough,
         dim: own.dim || inherited.dim,
-
-        display: own.display,
-        flexDirection: own.flexDirection,
-        justifyContent: own.justifyContent,
-        alignItems: own.alignItems,
-        gap: own.gap,
-        paddingTop: own.paddingTop,
-        paddingRight: own.paddingRight,
-        paddingBottom: own.paddingBottom,
-        paddingLeft: own.paddingLeft,
-        width: own.width,
-        height: own.height,
-        minWidth: own.minWidth,
-        minHeight: own.minHeight,
-        maxWidth: own.maxWidth,
-        maxHeight: own.maxHeight,
-        flexGrow: own.flexGrow,
-        flexShrink: own.flexShrink,
     }
 }
