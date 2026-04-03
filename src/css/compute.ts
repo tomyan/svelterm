@@ -261,7 +261,9 @@ function resolveNode(
     if (node.nodeType === 'element') {
         const vars = variables.get(node.id) ?? new Map()
         const parentStyle = node.parent ? styles.get(node.parent.id) : undefined
-        styles.set(node.id, computeStyle(node, stylesheet, vars, parentStyle))
+        const resolved = computeStyle(node, stylesheet, vars, parentStyle)
+        styles.set(node.id, resolved)
+        node.cache.resolvedStyle = resolved
     }
     for (const child of node.children) {
         resolveNode(child, stylesheet, styles, variables)
