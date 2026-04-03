@@ -147,4 +147,12 @@ export class TermNode {
         this.invalidateStyle()
         this.invalidateLayout()
     }
+
+    cleanup(): void {
+        this.listeners.clear()
+        this.onMutate = undefined
+        for (const child of this.children) {
+            child.cleanup()
+        }
+    }
 }

@@ -184,6 +184,8 @@ export function mount<Props extends Record<string, any>>(
     const origRemove = ctx.onRemove.bind(ctx)
     ctx.onRemove = (child: TermNode, parent: TermNode) => {
         origRemove(child, parent)
+        unregisterFocusableNodes(child, focusManager)
+        child.cleanup()
         scheduleRender()
     }
 
@@ -321,6 +323,15 @@ function registerFocusableNodes(node: TermNode, focusManager: FocusManager): voi
     }
     for (const child of node.children) {
         registerFocusableNodes(child, focusManager)
+    }
+}
+
+function unregisterFocusableNodes(node: TermNode, focusManager: FocusManager): void {
+    if (node.nodeType === 'element' && FOCUSABLE_TAGS.has(node.tag ?? '')) {
+        focusManager.unregister(node)
+    }
+    for (const child of node.children) {
+        unregisterFocusableNodes(child, focusManager)
     }
 }
 
