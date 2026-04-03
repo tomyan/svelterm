@@ -22,7 +22,7 @@ describe(':focus pseudo-class', () => {
 
     it('unfocused button has default border color', () => {
         const buffer = renderWithCSS(
-            'button{border:single;border-color:white;width:10px;height:3px}button:focus{border-color:cyan}',
+            'button{border:single;border-color:white;width:10cell;height:3cell}button:focus{border-color:cyan}',
             (root) => {
                 const btn = new TermNode('element', 'button')
                 root.insertBefore(btn, null)
@@ -33,7 +33,7 @@ describe(':focus pseudo-class', () => {
 
     it('focused button gets :focus border color', () => {
         const buffer = renderWithCSS(
-            'button{border:single;border-color:white;width:10px;height:3px}button:focus{border-color:cyan}',
+            'button{border:single;border-color:white;width:10cell;height:3cell}button:focus{border-color:cyan}',
             (root) => {
                 const btn = new TermNode('element', 'button')
                 btn.attributes.set('data-focused', 'true')
@@ -45,7 +45,7 @@ describe(':focus pseudo-class', () => {
 
     it('focused button with class selector', () => {
         const buffer = renderWithCSS(
-            '.btn{border:single;border-color:white;width:10px;height:3px}.btn:focus{border-color:green}',
+            '.btn{border:single;border-color:white;width:10cell;height:3cell}.btn:focus{border-color:green}',
             (root) => {
                 const btn = new TermNode('element', 'button')
                 btn.attributes.set('class', 'btn')

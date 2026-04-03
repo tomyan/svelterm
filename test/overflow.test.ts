@@ -22,7 +22,7 @@ describe('overflow: hidden', () => {
 
     it('text wider than container is clipped horizontally', () => {
         const buffer = renderWithCSS(
-            '.box{overflow:hidden;width:5px;height:3px}',
+            '.box{overflow:hidden;width:5cell;height:3cell}',
             (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
@@ -40,7 +40,7 @@ describe('overflow: hidden', () => {
 
     it('children taller than container are clipped vertically', () => {
         const buffer = renderWithCSS(
-            '.box{overflow:hidden;width:10px;height:2px}',
+            '.box{overflow:hidden;width:10cell;height:2cell}',
             (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
@@ -62,7 +62,7 @@ describe('overflow: hidden', () => {
 
     it('clipping works with border', () => {
         const buffer = renderWithCSS(
-            '.box{overflow:hidden;border:single;width:10px;height:4px}',
+            '.box{overflow:hidden;border:single;width:10cell;height:4cell}',
             (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
@@ -85,7 +85,7 @@ describe('overflow: hidden', () => {
 
     it('scroll offset shifts visible content', () => {
         const root = new TermNode('element', 'root')
-        const stylesheet = parseCSS('.box{overflow:scroll;width:10px;height:2px}')
+        const stylesheet = parseCSS('.box{overflow:scroll;width:10cell;height:2cell}')
 
         const box = new TermNode('element', 'div')
         box.attributes.set('class', 'box')
@@ -114,7 +114,7 @@ describe('overflow: hidden', () => {
 
     it('without overflow:hidden, wrapped text extends beyond container height', () => {
         const buffer = renderWithCSS(
-            '.box{width:5px;height:1px}',
+            '.box{width:5cell;height:1cell}',
             (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')

@@ -43,6 +43,12 @@ export interface ResolvedStyle {
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
     textOverflow: 'clip' | 'ellipsis'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
+    position: 'static' | 'relative' | 'absolute' | 'fixed'
+    top: number | null
+    right: number | null
+    bottom: number | null
+    left: number | null
+    zIndex: number
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small'])
@@ -65,6 +71,9 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         overflow: 'visible',
         textOverflow: 'clip',
         whiteSpace: 'normal',
+        position: 'static',
+        top: null, right: null, bottom: null, left: null,
+        zIndex: 0,
     }
 }
 
@@ -164,6 +173,15 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (value === 'nowrap' || value === 'pre') style.whiteSpace = value
             else style.whiteSpace = 'normal'
             break
+        case 'position':
+            if (value === 'relative' || value === 'absolute' || value === 'fixed') style.position = value
+            else style.position = 'static'
+            break
+        case 'top': style.top = parseCellValue(value); break
+        case 'right': style.right = parseCellValue(value); break
+        case 'bottom': style.bottom = parseCellValue(value); break
+        case 'left': style.left = parseCellValue(value); break
+        case 'z-index': style.zIndex = parseInt(value) || 0; break
     }
 }
 

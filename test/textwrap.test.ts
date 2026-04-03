@@ -60,7 +60,7 @@ describe('text wrapping in layout + paint', () => {
 
     it('long text wraps inside narrow container', () => {
         const root = new TermNode('element', 'root')
-        const stylesheet = parseCSS('.box{width:10px}')
+        const stylesheet = parseCSS('.box{width:10cell}')
         const box = new TermNode('element', 'div')
         box.attributes.set('class', 'box')
         const text = new TermNode('text', 'Hello World')
@@ -81,7 +81,7 @@ describe('text wrapping in layout + paint', () => {
 
     it('wrapped text increases container height', () => {
         const root = new TermNode('element', 'root')
-        const stylesheet = parseCSS('.box{width:5px;background-color:blue}')
+        const stylesheet = parseCSS('.box{width:5cell;background-color:blue}')
         const box = new TermNode('element', 'div')
         box.attributes.set('class', 'box')
         const text = new TermNode('text', 'Hello World')

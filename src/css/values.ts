@@ -1,15 +1,24 @@
 import type { ResolvedStyle } from './compute.js'
 
+/**
+ * Parse a cell value from CSS. Accepts:
+ * - `5cell` → 5
+ * - `0` → 0 (unitless zero is valid CSS)
+ * - Returns 0 for unrecognised values (browser-only units like px, em, rem)
+ */
 export function parseCellValue(value: string): number {
-    const stripped = value.replace(/px$/, '')
-    const num = parseFloat(stripped)
-    return isNaN(num) ? 0 : Math.round(num)
+    if (value === '0') return 0
+    if (value.endsWith('cell')) {
+        const num = parseFloat(value)
+        return isNaN(num) ? 0 : Math.round(num)
+    }
+    return 0
 }
 
 export function parseSizeValue(value: string): number | string | null {
     if (value === 'auto') return null
     if (value.endsWith('%')) return value
-    return parseCellValue(value.replace(/px$/, ''))
+    return parseCellValue(value)
 }
 
 export function parseJustify(value: string): ResolvedStyle['justifyContent'] {

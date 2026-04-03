@@ -62,7 +62,7 @@ describe('paint', () => {
 
     describe('background fill', () => {
         it('fills element background when bg is set', () => {
-            const buffer = renderWithCSS('.box{background-color:blue;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{background-color:blue;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -74,7 +74,7 @@ describe('paint', () => {
         })
 
         it('does not fill when bg is default', () => {
-            const buffer = renderWithCSS('.box{width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -135,7 +135,7 @@ describe('paint', () => {
         })
 
         it('bg inherits from parent to text', () => {
-            const buffer = renderWithCSS('.parent{background-color:blue;width:10px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.parent{background-color:blue;width:10cell;height:3cell}', (root) => {
                 const parent = new TermNode('element', 'div')
                 parent.attributes.set('class', 'parent')
                 const text = new TermNode('text', 'On blue')

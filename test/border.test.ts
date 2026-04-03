@@ -22,7 +22,7 @@ describe('border rendering', () => {
 
     describe('single border', () => {
         it('renders ┌ at top-left corner', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -31,7 +31,7 @@ describe('border rendering', () => {
         })
 
         it('renders all four corners', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -43,7 +43,7 @@ describe('border rendering', () => {
         })
 
         it('renders horizontal edges', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -59,7 +59,7 @@ describe('border rendering', () => {
         })
 
         it('renders vertical edges', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -71,7 +71,7 @@ describe('border rendering', () => {
         })
 
         it('interior cells are empty (space)', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -81,7 +81,7 @@ describe('border rendering', () => {
         })
 
         it('content starts inside the border', () => {
-            const buffer = renderWithCSS('.box{border:single;width:10px;height:5px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:10cell;height:5cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 const text = new TermNode('text', 'Hi')
@@ -96,7 +96,7 @@ describe('border rendering', () => {
         })
 
         it('content with padding starts inside border + padding', () => {
-            const buffer = renderWithCSS('.box{border:single;width:12px;height:5px;padding:1px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;width:12cell;height:5cell;padding:1cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 const text = new TermNode('text', 'Hi')
@@ -111,7 +111,7 @@ describe('border rendering', () => {
 
     describe('border color', () => {
         it('renders border characters in specified color', () => {
-            const buffer = renderWithCSS('.box{border:single;border-color:cyan;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border:single;border-color:cyan;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -125,7 +125,7 @@ describe('border rendering', () => {
 
     describe('border styles', () => {
         it('rounded border uses ╭╮╰╯', () => {
-            const buffer = renderWithCSS('.box{border:rounded;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border:rounded;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -137,7 +137,7 @@ describe('border rendering', () => {
         })
 
         it('double border uses ╔╗╚╝═║', () => {
-            const buffer = renderWithCSS('.box{border:double;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border:double;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -149,7 +149,7 @@ describe('border rendering', () => {
         })
 
         it('heavy border uses ┏┓┗┛━┃', () => {
-            const buffer = renderWithCSS('.box{border:heavy;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border:heavy;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -161,7 +161,7 @@ describe('border rendering', () => {
         })
 
         it('borderLeft only renders left vertical edge', () => {
-            const buffer = renderWithCSS('.box{border-style:single;border-left:true;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border-style:single;border-left:true;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -175,7 +175,7 @@ describe('border rendering', () => {
         })
 
         it('borderBottom only renders bottom horizontal edge', () => {
-            const buffer = renderWithCSS('.box{border-style:single;border-bottom:true;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border-style:single;border-bottom:true;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)
@@ -188,7 +188,7 @@ describe('border rendering', () => {
         })
 
         it('border:none renders no border characters', () => {
-            const buffer = renderWithCSS('.box{border:none;width:5px;height:3px}', (root) => {
+            const buffer = renderWithCSS('.box{border:none;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')
                 box.attributes.set('class', 'box')
                 root.insertBefore(box, null)

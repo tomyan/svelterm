@@ -39,7 +39,7 @@ describe('text-overflow: ellipsis in CSS', () => {
 
     it('truncates text in overflow:hidden container with text-overflow:ellipsis', () => {
         const root = new TermNode('element', 'root')
-        const css = '.box{overflow:hidden;text-overflow:ellipsis;width:8px;white-space:nowrap}'
+        const css = '.box{overflow:hidden;text-overflow:ellipsis;width:8cell;white-space:nowrap}'
         const stylesheet = parseCSS(css)
 
         const box = new TermNode('element', 'div')

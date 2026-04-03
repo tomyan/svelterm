@@ -70,6 +70,13 @@ function layoutElement(
     const style = styles.get(node.id)
     if (style?.display === 'none') return { width: 0, height: 0 }
 
+    // Absolute positioning: use top/left offsets relative to parent, don't consume space in flow
+    if (style?.position === 'absolute' || style?.position === 'fixed') {
+        const absX = x + (style.left ?? 0)
+        const absY = y + (style.top ?? 0)
+        return layoutAbsolute(node, styles, boxes, absX, absY, availWidth, availHeight, style)
+    }
+
     const margin = {
         top: style?.marginTop ?? 0, right: style?.marginRight ?? 0,
         bottom: style?.marginBottom ?? 0, left: style?.marginLeft ?? 0,
@@ -108,13 +115,51 @@ function layoutElement(
     return { width: finalWidth + margin.left + margin.right, height: finalHeight + margin.top + margin.bottom }
 }
 
+function layoutAbsolute(
+    node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availWidth: number, availHeight: number, style: ResolvedStyle,
+) {
+    const borderWidth = (style.borderStyle && style.borderStyle !== 'none') ? 1 : 0
+    const inset = {
+        top: (style.paddingTop ?? 0) + borderWidth,
+        right: (style.paddingRight ?? 0) + borderWidth,
+        bottom: (style.paddingBottom ?? 0) + borderWidth,
+        left: (style.paddingLeft ?? 0) + borderWidth,
+    }
+    const nodeWidth = resolveSize(style.width, availWidth)
+    const nodeHeight = resolveSize(style.height, availHeight)
+
+    const innerW = (nodeWidth ?? availWidth) - inset.left - inset.right
+    const innerH = (nodeHeight ?? availHeight) - inset.top - inset.bottom
+
+    const content = positionChildren(
+        node.children, styles, boxes,
+        x + inset.left, y + inset.top, innerW, innerH,
+        style.flexDirection ?? 'column', style.gap ?? 0,
+        style.justifyContent ?? 'start', style.alignItems ?? 'start',
+    )
+
+    const finalWidth = constrain(nodeWidth ?? (content.width + inset.left + inset.right), style.minWidth, style.maxWidth)
+    const finalHeight = constrain(nodeHeight ?? (content.height + inset.top + inset.bottom), style.minHeight, style.maxHeight)
+
+    boxes.set(node.id, { x, y, width: finalWidth, height: finalHeight })
+    // Return zero size — absolute elements don't consume space in flow
+    return { width: 0, height: 0 }
+}
+
 function positionChildren(
     children: TermNode[], styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     innerX: number, innerY: number, innerW: number, innerH: number,
     dir: 'row' | 'column', gap: number,
     justify: ResolvedStyle['justifyContent'], align: ResolvedStyle['alignItems'],
 ): { width: number; height: number } {
-    const visible = children.filter(c => c.nodeType !== 'comment' && styles.get(c.id)?.display !== 'none')
+    const visible = children.filter(c => {
+        if (c.nodeType === 'comment') return false
+        const s = styles.get(c.id)
+        if (s?.display === 'none') return false
+        if (s?.position === 'absolute' || s?.position === 'fixed') return false
+        return true
+    })
     if (visible.length === 0) return { width: 0, height: 0 }
 
     // Measure
@@ -157,6 +202,14 @@ function positionChildren(
         mainPos += mainSize + (i < visible.length - 1 ? itemGap : 0)
         contentWidth = dir === 'row' ? mainPos : Math.max(contentWidth, sizes[i].width)
         contentHeight = dir === 'column' ? mainPos : Math.max(contentHeight, sizes[i].height)
+    }
+
+    // Layout absolute/fixed children (not in flow)
+    for (const child of children) {
+        const s = styles.get(child.id)
+        if (s?.position === 'absolute' || s?.position === 'fixed') {
+            layoutNode(child, styles, boxes, innerX, innerY, innerW, innerH)
+        }
     }
 
     return { width: contentWidth, height: contentHeight }

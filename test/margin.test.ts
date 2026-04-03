@@ -21,7 +21,7 @@ function render(css: string, buildTree: (root: TermNode) => void, width = 40, he
 describe('margin', () => {
 
     it('margin-top pushes element down', () => {
-        const { layout } = render('.box{margin-top:3px}', (root) => {
+        const { layout } = render('.box{margin-top:3cell}', (root) => {
             const box = new TermNode('element', 'div')
             box.attributes.set('class', 'box')
             const text = new TermNode('text', 'Hi')
@@ -33,7 +33,7 @@ describe('margin', () => {
     })
 
     it('margin-left pushes element right', () => {
-        const { layout } = render('.box{margin-left:5px}', (root) => {
+        const { layout } = render('.box{margin-left:5cell}', (root) => {
             const box = new TermNode('element', 'div')
             box.attributes.set('class', 'box')
             const text = new TermNode('text', 'Hi')
@@ -45,7 +45,7 @@ describe('margin', () => {
     })
 
     it('margin between siblings in column layout', () => {
-        const { buffer } = render('.b{margin-top:2px}', (root) => {
+        const { buffer } = render('.b{margin-top:2cell}', (root) => {
             const a = new TermNode('element', 'div')
             const aText = new TermNode('text', 'AAA')
             a.insertBefore(aText, null)
@@ -64,7 +64,7 @@ describe('margin', () => {
     })
 
     it('margin shorthand with one value', () => {
-        const { layout } = render('.box{margin:2px}', (root) => {
+        const { layout } = render('.box{margin:2cell}', (root) => {
             const box = new TermNode('element', 'div')
             box.attributes.set('class', 'box')
             const text = new TermNode('text', 'Hi')
@@ -77,7 +77,7 @@ describe('margin', () => {
 
     it('margin in row layout pushes siblings apart', () => {
         const { buffer } = render(
-            '.container{display:flex;flex-direction:row}.b{margin-left:3px}',
+            '.container{display:flex;flex-direction:row}.b{margin-left:3cell}',
             (root) => {
                 const container = new TermNode('element', 'div')
                 container.attributes.set('class', 'container')

@@ -17,7 +17,7 @@ mkdirSync(snapshotDir, { recursive: true })
 // Test: headless render with manual component + CSS (no Svelte compilation needed)
 console.log('Test: Headless render with CSS layout')
 
-const css = `.container{display:flex;flex-direction:row;gap:2px;padding:1px 2px}.box-a{width:20px;padding:1px;background-color:#00f;color:#fff}.box-b{width:20px;padding:1px;background-color:#f0f;color:#fff;font-weight:700}.title{color:#0ff;font-weight:700}`
+const css = `.container{display:flex;flex-direction:row;gap:2cell;padding:1cell 2cell}.box-a{width:20cell;padding:1cell;background-color:#00f;color:#fff}.box-b{width:20cell;padding:1cell;background-color:#f0f;color:#fff;font-weight:700}.title{color:#0ff;font-weight:700}`
 
 const stylesheet = parseCSS(css)
 

@@ -3,25 +3,22 @@ import assert from 'node:assert/strict'
 import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding } from '../src/css/values.js'
 
 describe('parseCellValue', () => {
-    it('parses bare number', () => assert.equal(parseCellValue('10'), 10))
-    it('strips px suffix', () => assert.equal(parseCellValue('20px'), 20))
-    it('rounds to integer', () => assert.equal(parseCellValue('3.7'), 4))
-    it('rounds px with decimal', () => assert.equal(parseCellValue('1.5px'), 2))
+    it('parses cell unit', () => assert.equal(parseCellValue('10cell'), 10))
+    it('rounds cell value', () => assert.equal(parseCellValue('3.7cell'), 4))
+    it('parses zero without unit', () => assert.equal(parseCellValue('0'), 0))
+    it('returns 0 for bare number (no unit)', () => assert.equal(parseCellValue('10'), 0))
+    it('returns 0 for px (browser unit)', () => assert.equal(parseCellValue('20px'), 0))
+    it('returns 0 for em (browser unit)', () => assert.equal(parseCellValue('2em'), 0))
     it('returns 0 for non-numeric', () => assert.equal(parseCellValue('auto'), 0))
     it('returns 0 for empty string', () => assert.equal(parseCellValue(''), 0))
-    it('parses zero', () => assert.equal(parseCellValue('0'), 0))
-    it('parses 0px', () => assert.equal(parseCellValue('0px'), 0))
 })
 
 describe('parseSizeValue', () => {
     it('returns null for auto', () => assert.equal(parseSizeValue('auto'), null))
     it('returns percentage string as-is', () => assert.equal(parseSizeValue('50%'), '50%'))
-    it('returns cell count for bare number', () => assert.equal(parseSizeValue('20'), 20))
-    it('strips px and returns cell count', () => assert.equal(parseSizeValue('30px'), 30))
-    it('returns percentage with px suffix stripped', () => {
-        // 100% should stay as percentage
-        assert.equal(parseSizeValue('100%'), '100%')
-    })
+    it('returns cell count for cell unit', () => assert.equal(parseSizeValue('20cell'), 20))
+    it('returns 0 for px (ignored)', () => assert.equal(parseSizeValue('30px'), 0))
+    it('returns percentage for 100%', () => assert.equal(parseSizeValue('100%'), '100%'))
 })
 
 describe('parseJustify', () => {
@@ -45,27 +42,27 @@ describe('parseAlign', () => {
 
 describe('parsePadding', () => {
     it('single value sets all sides', () => {
-        const p = parsePadding('5')
+        const p = parsePadding('5cell')
         assert.deepEqual(p, { top: 5, right: 5, bottom: 5, left: 5 })
     })
 
     it('two values: vertical horizontal', () => {
-        const p = parsePadding('1 2')
+        const p = parsePadding('1cell 2cell')
         assert.deepEqual(p, { top: 1, right: 2, bottom: 1, left: 2 })
     })
 
     it('three values: top horizontal bottom', () => {
-        const p = parsePadding('1 2 3')
+        const p = parsePadding('1cell 2cell 3cell')
         assert.deepEqual(p, { top: 1, right: 2, bottom: 3, left: 2 })
     })
 
     it('four values: top right bottom left', () => {
-        const p = parsePadding('1 2 3 4')
+        const p = parsePadding('1cell 2cell 3cell 4cell')
         assert.deepEqual(p, { top: 1, right: 2, bottom: 3, left: 4 })
     })
 
-    it('strips px from shorthand values', () => {
-        const p = parsePadding('1px 2px')
-        assert.deepEqual(p, { top: 1, right: 2, bottom: 1, left: 2 })
+    it('zero without unit works in shorthand', () => {
+        const p = parsePadding('0 2cell')
+        assert.deepEqual(p, { top: 0, right: 2, bottom: 0, left: 2 })
     })
 })

@@ -44,7 +44,7 @@ describe('truecolor end-to-end', () => {
     })
 
     it('hex bg color produces 48;2;r;g;b ANSI sequence', () => {
-        const { ansi } = renderAndDiff('.t{background-color:#1a1a2e;width:3px;height:1px}', (root) => {
+        const { ansi } = renderAndDiff('.t{background-color:#1a1a2e;width:3cell;height:1cell}', (root) => {
             const div = new TermNode('element', 'div')
             div.attributes.set('class', 't')
             root.insertBefore(div, null)
