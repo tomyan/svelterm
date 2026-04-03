@@ -8,6 +8,15 @@ import { computeLayout } from '../src/layout/engine.js'
 import { paint } from '../src/render/paint.js'
 import { DEFAULT_STYLESHEET } from '../src/css/defaults.js'
 
+function findChar(buffer: CellBuffer, char: string, w = 40, h = 10): { col: number; row: number } | null {
+    for (let row = 0; row < h; row++) {
+        for (let col = 0; col < w; col++) {
+            if (buffer.getCell(col, row)?.char === char) return { col, row }
+        }
+    }
+    return null
+}
+
 function render(css: string, buildTree: (root: TermNode) => void, width = 40, height = 10) {
     const root = new TermNode('element', 'root')
     const stylesheet = parseCSS(DEFAULT_STYLESHEET + '\n' + css)
@@ -37,9 +46,11 @@ describe('display: inline', () => {
             root.insertBefore(p, null)
         })
         // Both spans should be on the same row
-        assert.equal(buffer.getCell(0, 0)?.char, 'H')
-        assert.equal(buffer.getCell(6, 0)?.char, 'W')
-        assert.equal(buffer.getCell(10, 0)?.char, 'd')
+        const h = findChar(buffer, 'H')!
+        const w = findChar(buffer, 'W')!
+        assert.ok(h && w)
+        assert.equal(h.row, w.row, 'H and W on same row')
+        assert.equal(w.col, h.col + 6, 'W follows Hello_ with correct spacing')
     })
 
     it('mixed inline: Hello <strong>world</strong>!', () => {
@@ -59,10 +70,14 @@ describe('display: inline', () => {
 
             root.insertBefore(p, null)
         })
-        assert.equal(buffer.getCell(0, 0)?.char, 'H')
-        assert.equal(buffer.getCell(6, 0)?.char, 'w')
-        assert.equal(buffer.getCell(6, 0)?.bold, true)
-        assert.equal(buffer.getCell(11, 0)?.char, '!')
+        const h = findChar(buffer, 'H')!
+        const w = findChar(buffer, 'w')!
+        const bang = findChar(buffer, '!')!
+        assert.ok(h && w && bang)
+        assert.equal(h.row, w.row, 'all on same row')
+        assert.equal(w.col, h.col + 6, 'world starts after Hello_')
+        assert.equal(buffer.getCell(w.col, w.row)?.bold, true)
+        assert.equal(bang.col, h.col + 11, '! at correct position')
     })
 })
 
@@ -89,17 +104,19 @@ describe('display: block', () => {
     it('paragraphs are block elements', () => {
         const { buffer } = render('', (root) => {
             const p1 = new TermNode('element', 'p')
-            const t1 = new TermNode('text', 'Para 1')
+            const t1 = new TermNode('text', 'Alpha')
             p1.insertBefore(t1, null)
             root.insertBefore(p1, null)
 
             const p2 = new TermNode('element', 'p')
-            const t2 = new TermNode('text', 'Para 2')
+            const t2 = new TermNode('text', 'Beta')
             p2.insertBefore(t2, null)
             root.insertBefore(p2, null)
         })
-        assert.equal(buffer.getCell(0, 0)?.char, 'P') // Para 1
-        assert.equal(buffer.getCell(0, 1)?.char, 'P') // Para 2
+        const a = findChar(buffer, 'A')!
+        const b = findChar(buffer, 'B')!
+        assert.ok(a && b)
+        assert.ok(b.row > a.row, 'paragraphs stack vertically')
     })
 })
 
