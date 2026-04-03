@@ -256,7 +256,9 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'border-style':
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
-        case 'border-color': style.borderColor = resolveColor(value); break
+        case 'border-color':
+            style.borderColor = value === 'currentColor' ? style.fg : resolveColor(value)
+            break
         case 'border-top': setIndividualBorderSide(style, 'borderTop', value); break
         case 'border-right': setIndividualBorderSide(style, 'borderRight', value); break
         case 'border-bottom': setIndividualBorderSide(style, 'borderBottom', value); break
