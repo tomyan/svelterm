@@ -184,6 +184,7 @@ function layoutBlockFlow(
     let cursorY = y
     let lineHeight = 0
     let maxWidth = 0
+    let prevBlockMarginBottom = 0
 
     for (const child of children) {
         if (child.nodeType === 'comment') continue
@@ -199,6 +200,7 @@ function layoutBlockFlow(
             cursorX += size.width
             lineHeight = Math.max(lineHeight, size.height)
             maxWidth = Math.max(maxWidth, cursorX - x)
+            prevBlockMarginBottom = 0
         } else {
             // Block element — new line first if we have inline content
             if (cursorX > x) {
@@ -206,9 +208,19 @@ function layoutBlockFlow(
                 cursorX = x
                 lineHeight = 0
             }
+
+            // Margin collapsing: adjacent vertical margins collapse to the larger
+            const childMarginTop = s?.marginTop ?? 0
+            if (prevBlockMarginBottom > 0 && childMarginTop > 0) {
+                const collapsed = Math.max(prevBlockMarginBottom, childMarginTop)
+                const overlap = prevBlockMarginBottom + childMarginTop - collapsed
+                cursorY -= overlap
+            }
+
             const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
             cursorY += size.height
             maxWidth = Math.max(maxWidth, size.width)
+            prevBlockMarginBottom = s?.marginBottom ?? 0
         }
     }
 
