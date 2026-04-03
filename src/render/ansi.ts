@@ -1,6 +1,13 @@
 const ESC = '\x1b'
 const CSI = `${ESC}[`
 
+function expandHex(color: string): string {
+    if (color.length === 4) {
+        return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3]
+    }
+    return color
+}
+
 export function moveTo(col: number, row: number): string {
     return `${CSI}${row};${col}H`
 }
@@ -54,9 +61,10 @@ export function fgColor(color: string): string {
     if (code !== undefined) return `${CSI}${code}m`
 
     if (color.startsWith('#')) {
-        const r = parseInt(color.slice(1, 3), 16)
-        const g = parseInt(color.slice(3, 5), 16)
-        const b = parseInt(color.slice(5, 7), 16)
+        const hex = expandHex(color)
+        const r = parseInt(hex.slice(1, 3), 16)
+        const g = parseInt(hex.slice(3, 5), 16)
+        const b = parseInt(hex.slice(5, 7), 16)
         return `${CSI}38;2;${r};${g};${b}m`
     }
 
@@ -68,9 +76,10 @@ export function bgColor(color: string): string {
     if (code !== undefined) return `${CSI}${code}m`
 
     if (color.startsWith('#')) {
-        const r = parseInt(color.slice(1, 3), 16)
-        const g = parseInt(color.slice(3, 5), 16)
-        const b = parseInt(color.slice(5, 7), 16)
+        const hex = expandHex(color)
+        const r = parseInt(hex.slice(1, 3), 16)
+        const g = parseInt(hex.slice(3, 5), 16)
+        const b = parseInt(hex.slice(5, 7), 16)
         return `${CSI}48;2;${r};${g};${b}m`
     }
 
