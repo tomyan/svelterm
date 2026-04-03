@@ -313,10 +313,15 @@ function positionChildren(
     })
     if (visible.length === 0) return { width: 0, height: 0 }
 
-    // Handle reverse directions
+    // Sort by order property, then handle reverse
+    const sorted = [...visible].sort((a, b) => {
+        const orderA = styles.get(a.id)?.order ?? 0
+        const orderB = styles.get(b.id)?.order ?? 0
+        return orderA - orderB
+    })
     const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
     const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
-    const ordered = isReverse ? [...visible].reverse() : visible
+    const ordered = isReverse ? sorted.reverse() : sorted
 
     // Measure
     const sizes = ordered.map(child => layoutNode(child, styles, boxes, 0, 0, innerW, innerH))

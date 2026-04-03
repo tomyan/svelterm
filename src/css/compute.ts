@@ -46,6 +46,7 @@ export interface ResolvedStyle {
     flexGrow: number
     flexShrink: number
     flexWrap: 'nowrap' | 'wrap'
+    order: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
     borderTop: boolean
@@ -89,7 +90,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
-        flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap',
+        flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap', order: 0,
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
@@ -250,6 +251,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
         case 'flex-wrap': style.flexWrap = value === 'wrap' ? 'wrap' : 'nowrap'; break
+        case 'order': style.order = parseInt(value) || 0; break
         case 'border':
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
