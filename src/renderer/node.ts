@@ -25,6 +25,7 @@ export class TermNode {
     attributes: Map<string, string> = new Map()
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
+    scrollLeft: number = 0
     cache: RenderCache = { resolvedStyle: null, layoutBox: null, contentSize: null, classAttr: '' }
 
     /** DOM compatibility — Svelte's effects set nodeValue directly when renderer is not pushed */

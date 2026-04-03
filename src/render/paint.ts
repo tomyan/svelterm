@@ -94,8 +94,8 @@ function paintNode(
         if (ownStyle && ownStyle.overflow !== 'visible') {
             childClip = intersectClip(clip, box)
         }
-        if (node.scrollTop !== 0) {
-            childScroll = { x: scroll.x, y: scroll.y + node.scrollTop }
+        if (node.scrollTop !== 0 || node.scrollLeft !== 0) {
+            childScroll = { x: scroll.x + node.scrollLeft, y: scroll.y + node.scrollTop }
         }
     }
 

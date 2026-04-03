@@ -203,16 +203,45 @@ function evaluateContainerQuery(
     const feature = condition.substring(0, colonIdx).trim()
     const value = parseInt(condition.substring(colonIdx + 1).trim())
 
-    // Find the container: for each selector in the rule, find matching nodes
-    // and check if any ancestor has sufficient dimensions
-    // For simplicity: check all elements with a layout box
-    for (const [id, box] of layout) {
-        switch (feature) {
-            case 'min-width': if (box.width >= value) return true; break
-            case 'max-width': if (box.width <= value) return true; break
-            case 'min-height': if (box.height >= value) return true; break
-            case 'max-height': if (box.height <= value) return true; break
+    // Find nodes that match the rule's selectors, then check their container ancestors
+    const matchingNodes = findMatchingNodes(root, rule.selectors)
+    for (const node of matchingNodes) {
+        if (hasMatchingContainerAncestor(node, feature, value, layout)) return true
+    }
+    return false
+}
+
+function findMatchingNodes(root: TermNode, selectors: string[]): TermNode[] {
+    const result: TermNode[] = []
+    walkNodes(root, (node) => {
+        if (node.nodeType === 'element' && selectors.some(sel => matchesSelector(node, sel))) {
+            result.push(node)
         }
+    })
+    return result
+}
+
+function walkNodes(node: TermNode, fn: (n: TermNode) => void): void {
+    fn(node)
+    for (const child of node.children) walkNodes(child, fn)
+}
+
+function hasMatchingContainerAncestor(
+    node: TermNode, feature: string, value: number,
+    layout: Map<number, import('../layout/engine.js').LayoutBox>,
+): boolean {
+    let ancestor = node.parent
+    while (ancestor) {
+        const box = layout.get(ancestor.id)
+        if (box) {
+            switch (feature) {
+                case 'min-width': if (box.width >= value) return true; break
+                case 'max-width': if (box.width <= value) return true; break
+                case 'min-height': if (box.height >= value) return true; break
+                case 'max-height': if (box.height <= value) return true; break
+            }
+        }
+        ancestor = ancestor.parent
     }
     return false
 }
