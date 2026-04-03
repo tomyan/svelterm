@@ -48,6 +48,9 @@ export interface ResolvedStyle {
     flexWrap: 'nowrap' | 'wrap'
     order: number
     gridTemplateColumns: string | null
+    animationName: string | null
+    animationDuration: number
+    animationIterationCount: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
     borderTop: boolean
@@ -93,6 +96,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap', order: 0,
         gridTemplateColumns: null,
+        animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
@@ -125,7 +129,7 @@ function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSSty
         if (rule.supports && !evaluateSupports(rule.supports)) return false
         return true
     })
-    return { rules }
+    return { rules, keyframes: stylesheet.keyframes }
 }
 
 const SUPPORTED_PROPERTIES = new Set([
@@ -277,6 +281,12 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'flex-wrap': style.flexWrap = value === 'wrap' ? 'wrap' : 'nowrap'; break
         case 'order': style.order = parseInt(value) || 0; break
         case 'grid-template-columns': style.gridTemplateColumns = value; break
+        case 'animation': parseAnimationShorthand(style, value); break
+        case 'animation-name': style.animationName = value === 'none' ? null : value; break
+        case 'animation-duration': style.animationDuration = parseDuration(value); break
+        case 'animation-iteration-count':
+            style.animationIterationCount = value === 'infinite' ? Infinity : (parseInt(value) || 1)
+            break
         case 'border':
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
@@ -331,4 +341,29 @@ function setIndividualBorderSide(style: ResolvedStyle, side: 'borderTop' | 'bord
         style.borderLeft = false
     }
     style[side] = enabled
+}
+
+function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
+    if (value === 'none') {
+        style.animationName = null
+        return
+    }
+    const parts = value.split(/\s+/)
+    for (const part of parts) {
+        if (part.endsWith('s') && !part.endsWith('ss')) {
+            style.animationDuration = parseDuration(part)
+        } else if (part === 'infinite') {
+            style.animationIterationCount = Infinity
+        } else if (/^\d+$/.test(part)) {
+            style.animationIterationCount = parseInt(part)
+        } else if (!['ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'normal', 'reverse', 'alternate', 'forwards', 'backwards', 'both', 'running', 'paused'].includes(part)) {
+            style.animationName = part
+        }
+    }
+}
+
+function parseDuration(value: string): number {
+    if (value.endsWith('ms')) return parseFloat(value)
+    if (value.endsWith('s')) return parseFloat(value) * 1000
+    return 0
 }

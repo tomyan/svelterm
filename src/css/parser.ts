@@ -10,12 +10,19 @@ export interface CSSRule {
     supports?: string  // @supports condition
 }
 
+export interface KeyframeStop {
+    offset: number  // 0 to 1
+    declarations: CSSDeclaration[]
+}
+
 export interface CSSStyleSheet {
     rules: CSSRule[]
+    keyframes: Map<string, KeyframeStop[]>
 }
 
 export function parseCSS(css: string): CSSStyleSheet {
     const rules: CSSRule[] = []
+    const keyframes = new Map<string, KeyframeStop[]>()
     let pos = 0
 
     while (pos < css.length) {
@@ -33,6 +40,11 @@ export function parseCSS(css: string): CSSStyleSheet {
             continue
         }
 
+        if (css.substring(pos, pos + 11) === '@keyframes ') {
+            pos = parseKeyframesBlock(css, pos, keyframes)
+            continue
+        }
+
         if (css.substring(pos, pos + 7) === '@import') {
             // Skip @import — handled by bundler
             pos = css.indexOf(';', pos)
@@ -44,7 +56,7 @@ export function parseCSS(css: string): CSSStyleSheet {
         pos = parseRule(css, pos, rules, undefined)
     }
 
-    return { rules }
+    return { rules, keyframes }
 }
 
 function parseMediaBlock(css: string, start: number, rules: CSSRule[]): number {
@@ -72,6 +84,67 @@ function parseMediaBlock(css: string, start: number, rules: CSSRule[]): number {
             break
         }
         pos = parseRule(css, pos, rules, condition)
+    }
+
+    return pos
+}
+
+function parseKeyframesBlock(css: string, start: number, keyframes: Map<string, KeyframeStop[]>): number {
+    let pos = start + 11 // skip "@keyframes "
+    pos = skipWhitespace(css, pos)
+
+    // Parse name
+    const nameStart = pos
+    while (pos < css.length && css[pos] !== '{' && css[pos] !== ' ') pos++
+    const name = css.substring(nameStart, pos).trim()
+
+    pos = skipWhitespace(css, pos)
+    if (pos >= css.length || css[pos] !== '{') return pos
+    pos++ // skip {
+
+    const stops: KeyframeStop[] = []
+
+    while (pos < css.length) {
+        pos = skipWhitespaceAndComments(css, pos)
+        if (pos >= css.length || css[pos] === '}') {
+            pos++
+            break
+        }
+
+        // Parse offset: "from", "to", or percentage
+        const offsetEnd = css.indexOf('{', pos)
+        if (offsetEnd === -1) break
+        const offsetStr = css.substring(pos, offsetEnd).trim()
+        let offset = 0
+        if (offsetStr === 'from') offset = 0
+        else if (offsetStr === 'to') offset = 1
+        else if (offsetStr.endsWith('%')) offset = parseFloat(offsetStr) / 100
+
+        pos = offsetEnd + 1
+
+        // Parse declarations
+        const declarations: CSSDeclaration[] = []
+        while (pos < css.length) {
+            pos = skipWhitespace(css, pos)
+            if (pos >= css.length || css[pos] === '}') {
+                pos++
+                break
+            }
+            const colonPos = css.indexOf(':', pos)
+            if (colonPos === -1) break
+            const property = css.substring(pos, colonPos).trim()
+            const valueEnd = findValueEnd(css, colonPos + 1)
+            const value = css.substring(colonPos + 1, valueEnd).trim()
+            declarations.push({ property, value })
+            pos = valueEnd
+            if (pos < css.length && css[pos] === ';') pos++
+        }
+
+        stops.push({ offset, declarations })
+    }
+
+    if (name && stops.length > 0) {
+        keyframes.set(name, stops)
     }
 
     return pos
