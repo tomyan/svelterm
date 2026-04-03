@@ -191,6 +191,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'bottom': style.bottom = parseCellValue(value); break
         case 'left': style.left = parseCellValue(value); break
         case 'z-index': style.zIndex = parseInt(value) || 0; break
+        case 'opacity': style.dim = value === 'dim'; break
     }
 }
 
