@@ -8,6 +8,7 @@ import { resolveStyles } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout } from './layout/engine.js'
 import { RenderContext } from './render/context.js'
+import { paintNodes } from './render/incremental-paint.js'
 import { parseKeyEvent } from './input/keyboard.js'
 import { parseMouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
@@ -112,7 +113,9 @@ export function mount<Props extends Record<string, any>>(
             lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
         }
 
-        // Step 3: Repaint (for now, full repaint)
+        // Step 3: Repaint — full paint + buffer diff
+        // The diff ensures only changed cells are written to terminal.
+        // True incremental paint (skipping unchanged subtrees) is a future optimization.
         const buffer = new CellBuffer(size.width, size.height)
         paint(root, buffer, lastStyles, lastLayout)
         const output = diffBuffers(prevBuffer, buffer)
