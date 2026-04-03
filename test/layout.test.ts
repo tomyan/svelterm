@@ -68,7 +68,7 @@ describe('computeLayout', () => {
     describe('row direction', () => {
         it('places children side by side', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row' })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row' })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'AAA')
                 const b = addChild(root, 'div', styles)
@@ -113,7 +113,7 @@ describe('computeLayout', () => {
     describe('gap', () => {
         it('adds space between children in column', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), gap: 2 })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', gap: 2 })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'A')
                 const b = addChild(root, 'div', styles)
@@ -126,7 +126,7 @@ describe('computeLayout', () => {
 
         it('adds space between children in row', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row', gap: 3 })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row', gap: 3 })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'AA')
                 const b = addChild(root, 'div', styles)
@@ -167,7 +167,7 @@ describe('computeLayout', () => {
     describe('flex-grow', () => {
         it('distributes free space proportionally', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row', width: 30 })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row', width: 30 })
                 const a = addChild(root, 'div', styles, { flexGrow: 1 })
                 addText(a, 'A')
                 const b = addChild(root, 'div', styles, { flexGrow: 1 })
@@ -215,7 +215,7 @@ describe('computeLayout', () => {
     describe('justify-content', () => {
         it('center positions children in the middle', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row', width: 20, justifyContent: 'center' })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row', width: 20, justifyContent: 'center' })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'Hi')
             })
@@ -226,7 +226,7 @@ describe('computeLayout', () => {
 
         it('end positions children at the end', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row', width: 20, justifyContent: 'end' })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row', width: 20, justifyContent: 'end' })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'Hi')
             })
@@ -239,7 +239,7 @@ describe('computeLayout', () => {
     describe('align-items', () => {
         it('center aligns on cross axis', () => {
             const { root, styles } = makeTree((root, styles) => {
-                styles.set(root.id, { ...defaultStyle('div'), flexDirection: 'row', height: 10, alignItems: 'center' })
+                styles.set(root.id, { ...defaultStyle('div'), display: 'flex', flexDirection: 'row', height: 10, alignItems: 'center' })
                 const a = addChild(root, 'div', styles)
                 addText(a, 'Hi')
             })

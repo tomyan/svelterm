@@ -60,7 +60,7 @@ function layoutFragment(
     node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, y: number, availWidth: number, availHeight: number,
 ) {
-    return positionChildren(node.children, styles, boxes, x, y, availWidth, availHeight, 'column', 0, 'start', 'start')
+    return layoutBlockFlow(node.children, styles, boxes, x, y, availWidth, availHeight)
 }
 
 function layoutElement(
@@ -98,12 +98,22 @@ function layoutElement(
     const innerW = (nodeWidth ?? (availWidth - margin.left - margin.right)) - inset.left - inset.right
     const innerH = (nodeHeight ?? (availHeight - margin.top - margin.bottom)) - inset.top - inset.bottom
 
-    const content = positionChildren(
-        node.children, styles, boxes,
-        boxX + inset.left, boxY + inset.top, innerW, innerH,
-        style?.flexDirection ?? 'column', style?.gap ?? 0,
-        style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
-    )
+    const display = style?.display ?? 'block'
+    let content: { width: number; height: number }
+
+    if (display === 'flex') {
+        content = positionChildren(
+            node.children, styles, boxes,
+            boxX + inset.left, boxY + inset.top, innerW, innerH,
+            style?.flexDirection ?? 'column', style?.gap ?? 0,
+            style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
+        )
+    } else if (display === 'table') {
+        content = layoutTable(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
+    } else {
+        // block or inline — use block flow (inline children flow horizontally within)
+        content = layoutBlockFlow(node.children, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
+    }
 
     const autoWidth = (style?.flexGrow ?? 0) > 0 ? (availWidth - margin.left - margin.right) : content.width + inset.left + inset.right
     const autoHeight = content.height + inset.top + inset.bottom
@@ -145,6 +155,115 @@ function layoutAbsolute(
     boxes.set(node.id, { x, y, width: finalWidth, height: finalHeight })
     // Return zero size — absolute elements don't consume space in flow
     return { width: 0, height: 0 }
+}
+
+function layoutBlockFlow(
+    children: TermNode[], styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availW: number, availH: number,
+): { width: number; height: number } {
+    // Layout absolute children first
+    for (const child of children) {
+        const s = styles.get(child.id)
+        if (s?.position === 'absolute' || s?.position === 'fixed') {
+            layoutNode(child, styles, boxes, x, y, availW, availH)
+        }
+    }
+
+    let cursorX = x
+    let cursorY = y
+    let lineHeight = 0
+    let maxWidth = 0
+
+    for (const child of children) {
+        if (child.nodeType === 'comment') continue
+        const s = styles.get(child.id)
+        if (s?.display === 'none') continue
+        if (s?.position === 'absolute' || s?.position === 'fixed') continue
+
+        const isInline = child.nodeType === 'text' || s?.display === 'inline'
+
+        if (isInline) {
+            // Flow horizontally
+            const size = layoutNode(child, styles, boxes, cursorX, cursorY, availW - (cursorX - x), availH)
+            cursorX += size.width
+            lineHeight = Math.max(lineHeight, size.height)
+            maxWidth = Math.max(maxWidth, cursorX - x)
+        } else {
+            // Block element — new line first if we have inline content
+            if (cursorX > x) {
+                cursorY += lineHeight
+                cursorX = x
+                lineHeight = 0
+            }
+            const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
+            cursorY += size.height
+            maxWidth = Math.max(maxWidth, size.width)
+        }
+    }
+
+    // Account for trailing inline content
+    if (cursorX > x) {
+        cursorY += lineHeight
+    }
+
+    return { width: maxWidth, height: cursorY - y }
+}
+
+function layoutTable(
+    node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availW: number, availH: number,
+): { width: number; height: number } {
+    // Collect rows and cells
+    const rows: TermNode[][] = []
+    for (const child of node.children) {
+        if (child.tag === 'tr') {
+            const cells = child.children.filter(c => c.tag === 'td' || c.tag === 'th')
+            rows.push(cells)
+        }
+    }
+
+    if (rows.length === 0) return { width: 0, height: 0 }
+
+    const numCols = Math.max(...rows.map(r => r.length))
+    const colWidths: number[] = new Array(numCols).fill(0)
+
+    // First pass: measure all cells to find max column widths
+    for (const row of rows) {
+        for (let col = 0; col < row.length; col++) {
+            const cell = row[col]
+            const size = layoutNode(cell, styles, boxes, 0, 0, availW, availH)
+            colWidths[col] = Math.max(colWidths[col], size.width)
+        }
+    }
+
+    // Add 2 cells padding between columns
+    const colGap = 2
+
+    // Second pass: position cells with aligned columns
+    let rowY = y
+    for (const row of rows) {
+        let colX = x
+        let rowHeight = 0
+        // Layout the tr element
+        const trNode = node.children.find(c => c.tag === 'tr' && c.children.includes(row[0]))
+
+        for (let col = 0; col < row.length; col++) {
+            const cell = row[col]
+            const size = layoutNode(cell, styles, boxes, colX, rowY, colWidths[col], availH)
+            rowHeight = Math.max(rowHeight, size.height)
+            colX += colWidths[col] + colGap
+        }
+
+        if (trNode) {
+            const trWidth = colWidths.reduce((sum, w) => sum + w, 0) + colGap * (numCols - 1)
+            boxes.set(trNode.id, { x, y: rowY, width: trWidth, height: rowHeight })
+        }
+
+        rowY += rowHeight
+    }
+
+    const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + colGap * Math.max(0, numCols - 1)
+    return { width: totalWidth, height: rowY - y }
 }
 
 function positionChildren(

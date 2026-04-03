@@ -22,7 +22,7 @@ export interface ResolvedStyle {
     strikethrough: boolean
     dim: boolean
 
-    display: 'flex' | 'none'
+    display: 'block' | 'inline' | 'flex' | 'table' | 'table-row' | 'table-cell' | 'none'
     flexDirection: 'row' | 'column'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
@@ -60,14 +60,24 @@ export interface ResolvedStyle {
     zIndex: number
 }
 
-const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small'])
+const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small', 'sub', 'sup'])
+const TABLE_ELEMENTS: Record<string, ResolvedStyle['display']> = {
+    table: 'table', tr: 'table-row', td: 'table-cell', th: 'table-cell',
+}
+
+function defaultDisplay(tag?: string): ResolvedStyle['display'] {
+    if (!tag) return 'block'
+    if (INLINE_ELEMENTS.has(tag)) return 'inline'
+    if (tag in TABLE_ELEMENTS) return TABLE_ELEMENTS[tag]!
+    return 'block'
+}
 
 export function defaultStyle(tag?: string): ResolvedStyle {
     return {
         fg: 'default', bg: 'default',
         bold: false, italic: false, underline: false, strikethrough: false, dim: false,
-        display: 'flex',
-        flexDirection: INLINE_ELEMENTS.has(tag ?? '') ? 'row' : 'column',
+        display: defaultDisplay(tag),
+        flexDirection: 'column',
         justifyContent: 'start', alignItems: 'start',
         gap: 0,
         paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0,
@@ -147,7 +157,11 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (value.includes('underline')) style.underline = true
             if (value.includes('line-through')) style.strikethrough = true
             break
-        case 'display': style.display = value === 'none' ? 'none' : 'flex'; break
+        case 'display':
+            if (['block', 'inline', 'flex', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
+                style.display = value as ResolvedStyle['display']
+            }
+            break
         case 'flex-direction':
             if (value === 'row' || value === 'column') style.flexDirection = value
             break
