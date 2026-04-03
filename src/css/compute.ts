@@ -40,10 +40,10 @@ export interface ResolvedStyle {
     minHeight: number | null
     maxWidth: number | null
     maxHeight: number | null
-    marginTop: number
-    marginRight: number
-    marginBottom: number
-    marginLeft: number
+    marginTop: number | string
+    marginRight: number | string
+    marginBottom: number | string
+    marginLeft: number | string
     flexGrow: number
     flexShrink: number
     flexWrap: 'nowrap' | 'wrap'
@@ -426,19 +426,27 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'max-width': style.maxWidth = parseCellValue(value); break
         case 'max-height': style.maxHeight = parseCellValue(value); break
         case 'margin': {
-            const m = parsePadding(value) // same shorthand logic
-            style.marginTop = m.top; style.marginRight = m.right
-            style.marginBottom = m.bottom; style.marginLeft = m.left
+            const parts = value.split(/\s+/)
+            const parsed = parts.map(p => p === 'auto' ? -1 as number | string : parseSizeOrCell(p))
+            if (parsed.length === 1) {
+                style.marginTop = style.marginRight = style.marginBottom = style.marginLeft = parsed[0]
+            } else if (parsed.length === 2) {
+                style.marginTop = style.marginBottom = parsed[0]
+                style.marginRight = style.marginLeft = parsed[1]
+            } else if (parsed.length === 3) {
+                style.marginTop = parsed[0]
+                style.marginRight = style.marginLeft = parsed[1]
+                style.marginBottom = parsed[2]
+            } else if (parsed.length >= 4) {
+                style.marginTop = parsed[0]; style.marginRight = parsed[1]
+                style.marginBottom = parsed[2]; style.marginLeft = parsed[3]
+            }
             break
         }
-        case 'margin-top': style.marginTop = parseCellValue(value); break
-        case 'margin-right':
-            style.marginRight = value === 'auto' ? -1 : parseCellValue(value)
-            break
-        case 'margin-bottom': style.marginBottom = parseCellValue(value); break
-        case 'margin-left':
-            style.marginLeft = value === 'auto' ? -1 : parseCellValue(value)
-            break
+        case 'margin-top': style.marginTop = value === 'auto' ? -1 : parseSizeOrCell(value); break
+        case 'margin-right': style.marginRight = value === 'auto' ? -1 : parseSizeOrCell(value); break
+        case 'margin-bottom': style.marginBottom = value === 'auto' ? -1 : parseSizeOrCell(value); break
+        case 'margin-left': style.marginLeft = value === 'auto' ? -1 : parseSizeOrCell(value); break
         case 'flex':
             // flex shorthand: flex: <grow> [<shrink> [<basis>]]
             const flexParts = value.split(/\s+/)

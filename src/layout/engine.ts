@@ -78,8 +78,10 @@ function layoutElement(
     }
 
     let margin = {
-        top: style?.marginTop ?? 0, right: style?.marginRight ?? 0,
-        bottom: style?.marginBottom ?? 0, left: style?.marginLeft ?? 0,
+        top: resolvePadding(style?.marginTop, availWidth),
+        right: resolvePadding(style?.marginRight, availWidth),
+        bottom: resolvePadding(style?.marginBottom, availWidth),
+        left: resolvePadding(style?.marginLeft, availWidth),
     }
     const borderWidth = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
     const inset = {
@@ -219,7 +221,7 @@ function layoutBlockFlow(
             }
 
             // Margin collapsing: adjacent vertical margins collapse to the larger
-            const childMarginTop = s?.marginTop ?? 0
+            const childMarginTop = resolvePadding(s?.marginTop, availW)
             if (prevBlockMarginBottom > 0 && childMarginTop > 0) {
                 const collapsed = Math.max(prevBlockMarginBottom, childMarginTop)
                 const overlap = prevBlockMarginBottom + childMarginTop - collapsed
@@ -229,7 +231,7 @@ function layoutBlockFlow(
             const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
             cursorY += size.height
             maxWidth = Math.max(maxWidth, size.width)
-            prevBlockMarginBottom = s?.marginBottom ?? 0
+            prevBlockMarginBottom = resolvePadding(s?.marginBottom, availW)
         }
     }
 
