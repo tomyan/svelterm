@@ -8,7 +8,6 @@ describe('RenderCache on TermNode', () => {
         const node = new TermNode('element', 'div')
         assert.equal(node.cache.resolvedStyle, null)
         assert.equal(node.cache.layoutBox, null)
-        assert.equal(node.cache.contentSize, null)
         assert.equal(node.cache.classAttr, '')
     })
 
@@ -36,10 +35,8 @@ describe('RenderCache on TermNode', () => {
     it('invalidateLayout clears layout cache', () => {
         const node = new TermNode('element', 'div')
         node.cache.layoutBox = { x: 0, y: 0, width: 10, height: 5 }
-        node.cache.contentSize = { width: 10, height: 5 }
         node.invalidateLayout()
         assert.equal(node.cache.layoutBox, null)
-        assert.equal(node.cache.contentSize, null)
     })
 
     it('invalidateAll clears everything', () => {

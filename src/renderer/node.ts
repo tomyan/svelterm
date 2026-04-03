@@ -8,7 +8,6 @@ export type NodeType = 'element' | 'text' | 'comment' | 'fragment'
 export interface RenderCache {
     resolvedStyle: ResolvedStyle | null
     layoutBox: LayoutBox | null
-    contentSize: { width: number; height: number } | null
     classAttr: string
 }
 
@@ -26,7 +25,7 @@ export class TermNode {
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
     scrollLeft: number = 0
-    cache: RenderCache = { resolvedStyle: null, layoutBox: null, contentSize: null, classAttr: '' }
+    cache: RenderCache = { resolvedStyle: null, layoutBox: null, classAttr: '' }
 
     /** DOM compatibility — Svelte's effects set nodeValue directly when renderer is not pushed */
     get nodeValue(): string | null {
@@ -140,7 +139,6 @@ export class TermNode {
 
     invalidateLayout(): void {
         this.cache.layoutBox = null
-        this.cache.contentSize = null
     }
 
     invalidateAll(): void {
