@@ -4,6 +4,14 @@ import { matchesSelector } from './selector.js'
 import { resolveColor } from './color.js'
 import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding } from './values.js'
 import { collectVariables, resolveVar } from './variables.js'
+import { evaluateMediaQuery, type MediaContext } from './media.js'
+
+const DEFAULT_MEDIA: MediaContext = {
+    colorScheme: 'dark',
+    displayMode: 'terminal',
+    width: 80,
+    height: 24,
+}
 
 export interface ResolvedStyle {
     fg: string
@@ -78,11 +86,25 @@ export function defaultStyle(tag?: string): ResolvedStyle {
     }
 }
 
-export function resolveStyles(root: TermNode, stylesheet: CSSStyleSheet): Map<number, ResolvedStyle> {
-    const variables = collectVariables(root, stylesheet)
+export function resolveStyles(
+    root: TermNode,
+    stylesheet: CSSStyleSheet,
+    media?: MediaContext,
+): Map<number, ResolvedStyle> {
+    const ctx = media ?? DEFAULT_MEDIA
+    const filtered = filterByMedia(stylesheet, ctx)
+    const variables = collectVariables(root, filtered)
     const styles = new Map<number, ResolvedStyle>()
-    resolveNode(root, stylesheet, styles, variables)
+    resolveNode(root, filtered, styles, variables)
     return styles
+}
+
+function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
+    const rules = stylesheet.rules.filter(rule => {
+        if (!rule.media) return true
+        return evaluateMediaQuery(rule.media, context)
+    })
+    return { rules }
 }
 
 function resolveNode(

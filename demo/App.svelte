@@ -3,38 +3,76 @@
 </script>
 
 <style>
-    .container {
+    :root {
+        --primary: cyan;
+        --accent: yellow;
+        --muted: gray;
+        --bg-panel: blue;
+    }
+
+    .app {
         display: flex;
         flex-direction: column;
-        gap: 1;
-        padding: 1 2;
+        gap: 1cell;
+        padding: 1cell 2cell;
     }
+
     .title {
-        color: cyan;
+        color: var(--primary);
         font-weight: bold;
     }
-    .counter {
+
+    .panels {
         display: flex;
         flex-direction: row;
-        gap: 2;
+        gap: 2cell;
     }
+
+    .panel {
+        width: 25cell;
+        border: rounded;
+        border-color: var(--primary);
+        padding: 1cell;
+    }
+
     .count {
-        color: yellow;
+        color: var(--accent);
         font-weight: bold;
     }
+
     button {
         border: single;
-        border-color: white;
-        padding: 0 2;
+        border-color: var(--muted);
+        padding: 0 2cell;
+    }
+
+    button:focus {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .hint {
+        opacity: dim;
+        color: var(--muted);
     }
 </style>
 
-<div class="container">
-    <span class="title">Svelterm — Interactive Demo</span>
-    <div class="counter">
-        <span>Count: </span>
-        <span class="count">{count}</span>
+<div class="app">
+    <span class="title">Svelterm — CSS Variables + Theming</span>
+    <div class="panels">
+        <div class="panel">
+            <span>Counter</span>
+            <span class="count">{count}</span>
+            <button onclick={() => count++}>Increment</button>
+        </div>
+        <div class="panel">
+            <span>Features</span>
+            <ul>
+                <li>CSS Variables</li>
+                <li>Flexbox Layout</li>
+                <li>Borders</li>
+            </ul>
+        </div>
     </div>
-    <button onclick={() => count++}>Increment</button>
-    <span>Tab to focus button, Enter to click</span>
+    <span class="hint">Tab to focus, Enter to click, Ctrl+C to exit</span>
 </div>
