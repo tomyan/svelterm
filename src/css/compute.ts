@@ -32,6 +32,7 @@ export interface ResolvedStyle {
     flexShrink: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
     borderColor: string
+    overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small'])
@@ -49,6 +50,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         flexGrow: 0, flexShrink: 1,
         borderStyle: 'none', borderColor: 'default',
+        overflow: 'visible',
     }
 }
 
@@ -123,6 +125,10 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
         case 'border-color': style.borderColor = resolveColor(value); break
+        case 'overflow':
+            if (value === 'hidden' || value === 'scroll' || value === 'auto') style.overflow = value
+            else style.overflow = 'visible'
+            break
     }
 }
 
