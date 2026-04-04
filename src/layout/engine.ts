@@ -414,18 +414,27 @@ function positionChildren(
     })
     if (visible.length === 0) return { width: 0, height: 0 }
 
+    // Pre-measure to filter out zero-size items (e.g. whitespace text nodes)
+    const measured = visible.map(child => ({
+        child,
+        size: layoutNode(child, styles, boxes, 0, 0, innerW, innerH),
+    }))
+    const nonEmpty = measured.filter(({ size }) => size.width > 0 || size.height > 0)
+    if (nonEmpty.length === 0) return { width: 0, height: 0 }
+
     // Sort by order property, then handle reverse
-    const sorted = [...visible].sort((a, b) => {
-        const orderA = styles.get(a.id)?.order ?? 0
-        const orderB = styles.get(b.id)?.order ?? 0
+    const sorted = [...nonEmpty].sort((a, b) => {
+        const orderA = styles.get(a.child.id)?.order ?? 0
+        const orderB = styles.get(b.child.id)?.order ?? 0
         return orderA - orderB
     })
     const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
     const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
-    const ordered = isReverse ? sorted.reverse() : sorted
+    const orderedItems = isReverse ? sorted.reverse() : sorted
+    const ordered = orderedItems.map(item => item.child)
 
-    // Measure
-    const sizes = ordered.map(child => layoutNode(child, styles, boxes, 0, 0, innerW, innerH))
+    // Use pre-measured sizes
+    const sizes = orderedItems.map(item => item.size)
     const growValues = ordered.map(child => styles.get(child.id)?.flexGrow ?? 0)
     const shrinkValues = ordered.map(child => styles.get(child.id)?.flexShrink ?? 1)
     const totalGrow = growValues.reduce((a, b) => a + b, 0)
