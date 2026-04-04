@@ -1,426 +1,327 @@
-# Svelterm Plan
+# Svelterm — Comprehensive Plan
 
-Iterative plan. Each iteration delivers a working (if incomplete) package. Ordered by value — smallest slices that a human can use and verify.
+Consolidated from `todo`, sumi `wishlist.md`, and current implementation status.
+Organised into phases by dependency order and value delivery.
 
-## Iteration 1: Render a div with text
-
-**Goal:** A Svelte component renders to the terminal. No CSS, no layout engine, no input. Just proof that the custom renderer pipeline works end-to-end.
-
-**What to build:**
-- `src/renderer/node.ts` — TermNode class (virtual tree)
-- `src/renderer/index.ts` — implement `createRenderer()` against Svelte's API (PR #18042)
-- `src/render/buffer.ts` — simple cell buffer (width × height grid)
-- `src/render/paint.ts` — walk node tree, write text content to buffer cells (top-left, no layout)
-- `src/render/ansi.ts` — cursor positioning, basic SGR codes
-- `src/terminal/screen.ts` — alternate screen enter/exit, raw mode
-- `src/index.ts` — `mount(Component, { target: process.stdout })`
-
-**Test component:**
-```svelte
-<div>Hello from Svelterm</div>
-```
-
-**Validation:**
-- `bun run app.ts` renders "Hello from Svelterm" in alternate screen
-- Ctrl+C exits cleanly (restore terminal state)
-- Test: mount component, assert buffer contains expected text
+Legend: ✅ implemented, 🔧 partial, ❌ not started
 
 ---
 
-## Iteration 2: CSS engine — parse and apply scoped styles
+## Phase 1: Fix What's Broken
 
-**Goal:** Svelte's `<style>` block works. Colors and text styling render in the terminal.
+Things that should work but don't, discovered through demos and testing.
 
-**What to build:**
-- `src/css/parser.ts` — tokenise CSS string into rules (selector + declarations)
-- `src/css/selector.ts` — match class selectors against TermNode (`.foo.svelte-hash`)
-- `src/css/cascade.ts` — specificity resolution (simplified: last matching rule wins at equal specificity)
-- `src/css/compute.ts` — resolve values: `color: cyan` → fg color, `font-weight: bold` → bold flag, `background-color` → bg color
-- Integrate with renderer: after tree mutation settles, run CSS resolution before paint
+1. **Arrow key handling in demos** ❌
+   - Snake demo arrow keys don't trigger — verify keydown dispatch reaches components
+   - Test: send arrow key buffer, assert event fires on focused element
 
-**Test component:**
-```svelte
-<style>
-    .greeting { color: cyan; font-weight: bold; }
-    .name { color: yellow; }
-</style>
+2. **Mouse click on buttons** ❌
+   - Demos should be clickable as well as keyboard-controllable
+   - Mouse mode needs enabling in demos (`mouse: true` option)
+   - Test: hit-test + dispatchEvent for mouse press on button
 
-<div>
-    <span class="greeting">Hello</span>
-    <span class="name">World</span>
-</div>
-```
-
-**Validation:**
-- "Hello" renders in cyan+bold, "World" in yellow
-- Scoped class hashes (`.greeting.svelte-abc123`) match correctly
-- Test: mount component, assert cells have correct color attributes
+3. **Ctrl+Z suspend, Ctrl+D EOF** ❌
+   - Ctrl+Z should SIGTSTP (suspend to background)
+   - Ctrl+D should be configurable (EOF / exit)
+   - Wire into input handler alongside Ctrl+C
 
 ---
 
-## Iteration 3: Flexbox layout — direction, padding, sizing
+## Phase 2: Core CSS & Layout Completeness
 
-**Goal:** Components lay out with flexbox. Not just text at (0,0).
+Properties needed for real applications. Most have partial or no support.
 
-**What to build:**
-- `src/layout/engine.ts` — layout pass: traverse tree, compute LayoutBox per node
-- `src/layout/flex.ts` — flex-direction (row/column), padding, gap, width/height (fixed and percentage)
-- `src/layout/size.ts` — auto-sizing from content, min/max constraints
-- `src/layout/text.ts` — text measurement (character count for monospace), word wrapping
-- `src/render/paint.ts` — update to use layout boxes for positioning
-- `src/css/compute.ts` — add layout property resolution (display, flex-direction, padding, gap, width, height)
+4. **flex-basis** ❌
+   - Flex shorthand already parses grow/shrink but ignores basis
+   - Basis should set the initial main size before grow/shrink
 
-**Test component:**
-```svelte
-<style>
-    .container {
-        display: flex;
-        flex-direction: row;
-        gap: 2;
-        padding: 1;
-    }
-    .box {
-        width: 20;
-        padding: 1;
-        background-color: blue;
-    }
-</style>
+5. **display: contents** ❌
+   - Element is invisible to layout, children promoted to grandparent's layout context
+   - Useful for wrapper components that shouldn't affect layout
 
-<div class="container">
-    <div class="box">Left</div>
-    <div class="box">Right</div>
-</div>
-```
+6. **display: inline-block widths** 🔧
+   - Verify inline-block elements respect explicit width/height
 
-**Validation:**
-- Two boxes side by side, 2 cells apart, each 20 cells wide with 1 cell padding
-- Blue background fills each box
-- Test: assert layout positions and dimensions
+7. **Percentage heights** 🔧
+   - `height: 50%` should resolve against parent's height
+   - Currently only width percentages are resolved
+
+8. **256-color palette** ❌
+   - Support `color-196` or equivalent syntax
+   - Map to xterm 256-color codes in ANSI output
+
+9. **Truecolor passthrough** 🔧
+   - Currently maps hex to nearest ANSI — should pass through as 24-bit when terminal supports it
+   - Already partially working (ansi.ts has truecolor output)
+   - Need to stop the nearest-ANSI mapping in color.ts
 
 ---
 
-## Iteration 4: Borders
+## Phase 3: Input & Interaction
 
-**Goal:** Terminal-specific border rendering with box-drawing characters.
+10. **Verify arrow key / special key dispatch** ❌
+    - Arrow keys parsed in keyboard.ts but may not reach component event handlers
+    - keydown events need to dispatch with correct key data
 
-**What to build:**
-- `src/render/border.ts` — box-drawing character sets (single, double, rounded, heavy)
-- `src/css/compute.ts` — parse `border: single`, `border-color: cyan`
-- `src/render/paint.ts` — render borders around nodes with border styles
-- Border-aware layout: borders consume cells from content area
+11. **Mouse wheel scrolling** ❌
+    - Scroll events parsed but need to connect to overflow:scroll containers
+    - Shift+scroll for horizontal scrolling
 
-**Test component:**
-```svelte
-<style>
-    .card {
-        border: rounded;
-        border-color: cyan;
-        padding: 1;
-    }
-</style>
+12. **:hover pseudo-class** ❌
+    - Mouse motion tracking (DEC 1003 mode)
+    - Set/clear `data-hovered` attribute on mouse enter/leave
+    - Trigger style re-resolve like :focus
 
-<div class="card">
-    <span>Hello</span>
-</div>
-```
+13. **Bracketed paste** ❌
+    - Detect `\x1b[200~` ... `\x1b[201~` sequences
+    - Deliver as single paste event rather than individual keystrokes
 
-**Validation:**
-- Rounded border characters in cyan surround the content
-- Padding is inside the border
-- Test: assert border characters at expected positions
+14. **Kitty keyboard protocol** ❌
+    - CSI u sequences for unambiguous modifier detection
+    - Probe terminal capability, fall back to standard
+
+15. **Priority-based key routing** ❌
+    - Multiple handlers with priority levels
+    - Modal dialogs should capture keys before background
 
 ---
 
-## Iteration 5: Keyboard input and events
+## Phase 4: Rendering Quality
 
-**Goal:** Keyboard events work. A component can respond to key presses.
+16. **Synchronized output (DEC 2026)** ❌
+    - Wrap frame output in BSU/ESU to prevent tearing
+    - Probe terminal support via DECRQM
 
-**What to build:**
-- `src/input/keyboard.ts` — raw stdin reader, escape sequence parser, key event generation
-- `src/input/focus.ts` — focusable elements, Tab/Shift-Tab cycling, `:focus` pseudo-class
-- `src/css/compute.ts` — `:focus` pseudo-class triggers style change
-- Event dispatch: key events dispatched to focused node's listeners, bubble up tree
+17. **Virtual scrolling** ❌
+    - Only render/layout visible children in scroll containers
+    - Essential for large lists (1000+ items)
 
-**Test component:**
-```svelte
-<script>
-    let count = $state(0)
-</script>
+18. **Terminal capability detection** ❌
+    - Probe at startup: DA1/DA2, XTVERSION, DECRQM
+    - Detect color depth, keyboard protocol, mouse support, sync output
+    - Terminal identification (iTerm2, Ghostty, Kitty, VS Code, etc.)
 
-<style>
-    button { border: single; padding: 0 1; }
-    button:focus { border-color: cyan; color: cyan; }
-</style>
+19. **Color degradation** 🔧
+    - Truecolor → 256 → 16 fallback based on detected capability
+    - Perceptual color quantization (not just nearest match)
 
-<button onclick={() => count++}>Count: {count}</button>
-```
+20. **Adaptive colors (light/dark)** 🔧
+    - OSC 11 background color query for runtime detection
+    - Poll on focus / every N seconds
+    - Currently have @media (prefers-color-scheme) but no runtime detection
 
-**Validation:**
-- Button is focusable, shows focus border when focused
-- Enter key triggers onclick, count increments, display updates
-- Tab moves focus between multiple buttons
-- Test: simulate key events, assert state changes and repaint
+21. **DECSTBM hardware scroll regions** ❌
+    - Efficient partial-screen scrolling for scroll containers
+    - Avoid full repaint when only scroll position changes
 
 ---
 
-## Iteration 6: Reactive updates and differential rendering
+## Phase 5: Text & Content
 
-**Goal:** Fine-grained updates work correctly. Only changed cells are rewritten.
+22. **Raw ANSI passthrough element** ❌
+    - `<pre data-ansi>` or similar for externally-styled content
+    - Pass pre-formatted ANSI strings directly to buffer without processing
+    - Critical for syntax-highlighted code, command output embedding
 
-**What to build:**
-- `src/render/diff.ts` — compare current buffer with previous, emit only changed cells
-- `src/render/buffer.ts` — double-buffering (front buffer = last rendered, back buffer = current render)
-- Batching: collect mutations during a microtask, run one render pass
-- `src/terminal/resize.ts` — SIGWINCH handler, re-layout and full repaint on resize
+23. **Content-editable / text input** 🔧
+    - TextBuffer exists but needs integration with `<input>` and `<textarea>` elements
+    - Readline-compatible editing (Ctrl+A/E/U/K/W)
+    - Cursor rendering within input fields
 
-**Test component:**
-```svelte
-<script>
-    let time = $state(new Date().toLocaleTimeString())
-    setInterval(() => time = new Date().toLocaleTimeString(), 1000)
-</script>
+24. **Syntax highlighting** ❌
+    - Tree-sitter integration for code blocks
+    - Map tree-sitter scopes to theme colors
+    - Proven approach from hubcap project
 
-<style>
-    .clock { color: green; font-weight: bold; }
-</style>
+25. **Markdown rendering** ❌
+    - Component or utility for rendering styled markdown
+    - Headings, bold/italic, lists, tables, links, code blocks
+    - Code blocks with syntax highlighting via tree-sitter
 
-<div>
-    <span>Time: </span>
-    <span class="clock">{time}</span>
-</div>
-```
+26. **Middle truncation** ❌
+    - `text-overflow: ellipsis-middle` or similar
+    - Show start and end of text with ellipsis in middle
+    - Common for file paths
 
-**Validation:**
-- Clock updates every second, only the time characters are rewritten (not the entire screen)
-- Terminal resize causes clean re-layout
-- Test: mount, mutate state, assert diff output is minimal
-
----
-
-## Iteration 7: Scrolling and overflow
-
-**Goal:** Content that exceeds its container scrolls.
-
-**What to build:**
-- `src/css/compute.ts` — `overflow: hidden|scroll|auto`
-- `src/render/paint.ts` — clipping to parent bounds
-- Scroll state per node: scroll offset, content height vs visible height
-- Keyboard scroll: arrow keys, Page Up/Down on focused scrollable
-- Mouse scroll: wheel events
-- Scrollbar rendering: track + thumb using block characters
-
-**Test component:**
-```svelte
-<script>
-    let items = $state(Array.from({ length: 50 }, (_, i) => `Item ${i}`))
-</script>
-
-<style>
-    .list {
-        height: 10;
-        overflow: scroll;
-        border: single;
-    }
-</style>
-
-<div class="list">
-    {#each items as item}
-        <div>{item}</div>
-    {/each}
-</div>
-```
-
-**Validation:**
-- List shows 10 items, scrollbar visible
-- Arrow keys scroll one line, Page Up/Down scroll by page
-- Mouse wheel scrolls
-- Content clips at container boundary
-- Test: assert visible items change with scroll offset
+27. **word-break control** ❌
+    - `word-break: break-all` for CJK-aware line breaking
+    - `overflow-wrap: break-word`
 
 ---
 
-## Iteration 8: Mouse support
+## Phase 6: Component Library
 
-**Goal:** Click events work. Mouse-aware components.
+Separate package (`@svelterm/ui` or similar) built on the renderer.
 
-**What to build:**
-- `src/input/mouse.ts` — enable SGR mouse protocol, parse mouse escape sequences
-- Hit testing: map terminal coordinates to layout tree nodes
-- Click dispatch: find target node, fire click event, bubble
-- Hover tracking (optional): mouse motion events, `:hover` pseudo-class
+28. **Dialog / modal overlay** ❌
+    - Z-layered, dismissible, captures focus and keys
+    - Dim/shadow backdrop effect
 
-**Validation:**
-- Click on a button triggers its onclick handler
-- Click on a scrollable area and drag to scroll
-- Test: simulate mouse events, assert correct target node receives event
+29. **Selectable list** ❌
+    - Keyboard-navigable list with selection highlighting
+    - Used in pickers, menus, file browsers
 
----
+30. **Tabs** ❌
+    - Switchable tab bar with content panels
+    - Keyboard navigation between tabs
 
-## Iteration 9: Media queries
+31. **Progress bar** ❌
+    - Determinate (percentage) and indeterminate (spinner) variants
+    - Block-fill character rendering
 
-**Goal:** `@media (display-mode: terminal)` and responsive terminal queries work.
+32. **Fuzzy picker** ❌
+    - Filterable searchable list (like fzf)
+    - Incremental matching with highlighting
 
-**What to build:**
-- `src/css/media.ts` — parse and evaluate media queries
-- `display-mode: terminal` — always true in svelterm, false in browser
-- `display-mode: screen` — always false in svelterm, true in browser
-- `width > N` / `height > N` — terminal dimensions
-- `color-depth: truecolor|256color|ansi` — detected capability
-- Re-evaluate on terminal resize (width/height queries may change)
+33. **Toast / notification** ❌
+    - Transient message overlay
+    - Auto-dismiss after timeout
 
-**Test component:**
-```svelte
-<style>
-    .container { display: flex; flex-direction: column; }
+34. **Diff renderer** ❌
+    - Unified diff with line numbers
+    - Tree-sitter highlighting for code
+    - Add/remove coloring
 
-    @media (width > 80) {
-        .container { flex-direction: row; }
-    }
+35. **File browser** ❌
+    - Directory tree navigation
+    - Preview pane
+    - Already have a demo skeleton
 
-    @media (display-mode: screen) {
-        .container { border: 1px solid gray; border-radius: 4px; }
-    }
+36. **Table component** ❌
+    - Styled rows/columns with selection
+    - Column resizing, sorting indicators
 
-    @media (display-mode: terminal) {
-        .container { border: rounded; border-color: gray; }
-    }
-</style>
-
-<div class="container">
-    <div>Panel A</div>
-    <div>Panel B</div>
-</div>
-```
-
-**Validation:**
-- Narrow terminal: panels stack vertically. Wide terminal: side by side.
-- Terminal gets rounded box-drawing border. Browser gets CSS border-radius.
-- Resize terminal: layout updates, media queries re-evaluate.
-- Test: mock terminal width, assert layout direction changes at breakpoint.
+37. **Gradient text** ❌
+    - Multi-color text spans
+    - HSL interpolation across character positions
 
 ---
 
-## Iteration 10: CSS custom properties (variables)
+## Phase 7: Terminal Features
 
-**Goal:** `var(--name)` works for theming.
+38. **Cursor shape control** ❌
+    - DECSCUSR: block, underline, bar
+    - Blinking vs static variants
+    - Set cursor shape for input fields
 
-**What to build:**
-- `src/css/compute.ts` — resolve `var(--name)` and `var(--name, fallback)`
-- `:root` selector support (matches the root node)
-- Custom properties cascade through the tree (inherited)
+39. **Clipboard** ❌
+    - OSC 52 write with platform fallbacks (pbcopy, wl-copy, tmux)
+    - Clipboard read where supported
 
-**Validation:**
-- Define `--primary: cyan` in `:root`, use `color: var(--primary)` in components
-- Override in a child: `--primary: yellow` changes descendants
-- Media-query-specific variable values work
-- Test: assert resolved colors match variable definitions
+40. **Text selection** ❌
+    - Mouse drag-to-select
+    - Word (double-click) and line (triple-click) selection
+    - Copy to clipboard on selection complete
 
----
+41. **Image rendering** ❌
+    - Half-block (`▀▄`) with truecolor fg/bg
+    - Sixel or Kitty graphics protocol where supported
+    - Fallback to alt text
 
-## Iteration 11: Vite plugin
+42. **Inline rendering mode** ❌
+    - Non-alt-screen rendering within terminal scrollback
+    - For CLI tools that output styled content inline
 
-**Goal:** `vite dev` provides HMR for terminal development.
-
-**What to build:**
-- `vite-plugin/index.ts` — Vite plugin that:
-  - Sets Svelte compiler options (`customRenderer`, `css: 'external'`)
-  - Collects extracted CSS from compiled components
-  - In dev mode: starts terminal preview subprocess, pipes HMR updates
-  - In build mode: bundles for Bun/Node
-- CSS hot-swap: style-only changes repaint without component remount
-- Template changes: remount render function, preserve reactive state
-- Script changes: full component remount
-
-**Validation:**
-- `npx svelterm dev` starts terminal preview
-- Edit `<style>` block → terminal repaints instantly, state preserved
-- Edit template → component remounts, state preserved
-- Edit `<script>` → component remounts, state resets
-- `npx svelterm build` produces a runnable bundle
+43. **Color blending / alpha compositing** ❌
+    - Semi-transparent overlays
+    - Background blending for modal backdrops
 
 ---
 
-## Iteration 12: Positioned elements and z-index
+## Phase 8: Developer Experience
 
-**Goal:** Overlays, dialogs, absolute positioning.
+44. **Vite plugin** ❌
+    - Proper `vite-plugin-svelterm` package
+    - Auto-sets customRenderer, css: external
+    - Dev mode with HMR
+    - Currently manual vite.config.ts
 
-**What to build:**
-- `src/layout/engine.ts` — position: absolute/fixed relative to containing block
-- `src/render/paint.ts` — z-index-aware paint order
-- `src/css/compute.ts` — top/right/bottom/left offset properties
+45. **Dev mode with live reload** ❌
+    - `npx svelterm dev` — terminal preview with HMR
+    - Style-only changes: hot swap CSS, preserve state
+    - Template changes: re-mount, preserve state
 
-**Validation:**
-- A dialog component positions itself centered over content with position: fixed
-- Z-index determines paint order (dialog renders over content)
-- Test: assert z-ordered paint produces correct cell buffer
+46. **VT100 component for web** ❌
+    - Terminal emulator component for website
+    - Run demos client-side in browser
+    - Coding font, proper escape sequence interpretation
 
----
-
-## Iteration 13: Terminal capabilities and color degradation
-
-**Goal:** Detect terminal features, degrade gracefully.
-
-**What to build:**
-- `src/terminal/capabilities.ts` — detect color depth (truecolor, 256, 16), terminal size
-- `src/render/ansi.ts` — emit appropriate color codes per detected depth
-- `src/css/media.ts` — `@media (color-depth: ...)` evaluation from detected capabilities
-- Graceful degradation: truecolor hex → nearest 256-color → nearest ANSI 16
-
-**Validation:**
-- In a truecolor terminal: hex colors render accurately
-- In a 256-color terminal: hex colors map to nearest palette entry
-- In a basic terminal: falls back to ANSI 16 colors
-- Test: mock capabilities, assert correct ANSI codes emitted
+47. **Dual rendering demo** ❌
+    - Single component rendering in both terminal and browser
+    - Side-by-side comparison
+    - @media (display-mode: terminal/screen) switching
 
 ---
 
-## Iteration 14: Component library (separate package)
+## Phase 9: Documentation & Community
 
-**Goal:** Reusable terminal components built as standard Svelte components with CSS.
+48. **Repository documentation** ❌
+    - API reference
+    - Getting started guide
+    - CSS property reference (what's supported, terminal-specific values)
+    - Publishing to doc site (svelterm.dev?)
 
-**What to build (separate `svelterm-components` package):**
-- `TextInput.svelte` — monospace input with cursor, selection, syntax highlighting
-- `SelectableList.svelte` — keyboard-navigable list
-- `Dialog.svelte` — centered overlay with backdrop
-- `Spinner.svelte` — animated loading indicator
-- `Table.svelte` — styled rows and columns
-- `Tabs.svelte` — switchable tab bar
-- `Markdown.svelte` — styled markdown rendering (tree-sitter for code blocks)
-- `DiffView.svelte` — unified diff with syntax highlighting and add/remove coloring
+49. **Blog post** ❌
+    - Architecture deep-dive
+    - "Why CSS for terminals"
+    - Comparison with Ink, Bubble Tea, Ratatui
 
-Each component is a standard `.svelte` file with `<style>` blocks. They work in both terminal and browser (with appropriate media queries).
-
----
-
-## Iteration 15: SvelteKit adapter (future)
-
-**Goal:** SvelteKit apps target the terminal.
-
-**What to build:**
-- `adapter-svelterm` — SvelteKit adapter
-- File-system routing → terminal screens/pages
-- Layouts → nested terminal UI hierarchy
-- Load functions → data loading (run directly, no HTTP)
-- Navigation → keyboard-driven (Ctrl+1, Ctrl+2, or configurable)
-- Strip SSR/hydration (not applicable)
-
-This is a larger project that depends on Svelterm being stable and the custom renderer API being merged into Svelte.
+50. **Engage on Svelte PR** ❌
+    - PR #18058 (push_renderer_if_inactive)
+    - Follow up on custom renderer API stabilisation
 
 ---
 
-## Testing Strategy
+## Phase 10: Advanced / Research
 
-Each iteration includes tests at two levels:
+51. **Multi-screen switching (Kit-style)** ❌
+    - Multiple full-screen views with switching
+    - Like tmux panes but within the app
 
-**Unit tests:**
-- CSS parser: input CSS string → parsed rule tree
-- Selector matching: node tree + selector → matched nodes
-- Layout engine: node tree + styles → layout boxes with positions
-- Buffer diff: two buffers → minimal ANSI output
+52. **Headless component API** ❌
+    - Unstyled component primitives (logic only)
+    - Consumers provide their own styling
+    - Could be shared across Gemini CLI, Claude Code, etc.
 
-**Integration tests:**
-- Mount a Svelte component, assert the cell buffer contains expected content
-- Simulate key/mouse events, assert component state updates
-- Simulate resize, assert re-layout produces correct output
+53. **Embedded VT100 component** ❌
+    - Terminal-within-terminal
+    - For running subprocesses with their own rendering
 
-Tests use Bun's built-in test runner (`bun test`). No additional test framework dependency.
+54. **Vim mode support** ❌
+    - Normal/insert mode with separate key handling
+    - $EDITOR integration for external editor launch
+
+55. **Screen reader / accessibility mode** ❌
+    - Alternative layout/output for assistive technology
+    - Semantic structure over visual
+
+56. **Animations** 🔧
+    - @keyframes parsing + AnimationRunner exist
+    - Shared animation clock (setInterval/setTimeout coordination)
+    - requestAnimationFrame equivalent for terminal
+    - Shimmer / sweep effects
+
+57. **BiDi / RTL text** ❌
+    - Right-to-left text reordering
+    - Mixed BiDi content
+
+---
+
+## Demo Backlog
+
+Demos to build that exercise and showcase features:
+
+- ✅ Counter — CSS variables, focus, events
+- ✅ Dashboard — real-time updates, flex, borders
+- ✅ Todo — focus management, list rendering, class toggling
+- ✅ Showcase — all colors, text styles, borders, alignment
+- ✅ Keyboard Hero — game loop, keyboard input, scoring
+- ✅ Snake — rapid updates, arrow keys, collision
+- ❌ Dark/Light theming demo — runtime theme switching, OSC 11 detection
+- ❌ Color palette demo — 16, 256, 24-bit side by side
+- ❌ svmux demo — multi-pane terminal multiplexer
+- ❌ Sveditor demo — content-editable with syntax highlighting
+- ❌ File browser — scrolling, mouse, tree navigation
+- ❌ Markdown viewer — styled markdown rendering
+- ❌ Regular Svelte demos — components that also work in browser
+- ❌ Dual-target demo — same component in terminal and web side by side
