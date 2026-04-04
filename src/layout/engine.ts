@@ -41,13 +41,15 @@ function layoutText(
     styles?: Map<number, ResolvedStyle>,
 ) {
     const text = node.text ?? ''
-    if (text === '') {
+    const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
+    const preserveWhitespace = parentStyle?.whiteSpace === 'pre'
+
+    if (text === '' || (!preserveWhitespace && text.trim() === '')) {
         boxes.set(node.id, { x, y, width: 0, height: 0 })
         return { width: 0, height: 0 }
     }
 
     // Check parent's whiteSpace
-    const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
     const noWrap = parentStyle?.whiteSpace === 'nowrap'
     const wrapWidth = noWrap ? Infinity : (availWidth > 0 ? availWidth : Infinity)
 
