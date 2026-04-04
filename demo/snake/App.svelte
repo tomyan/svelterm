@@ -1,11 +1,11 @@
 <script>
-    // Terminal cells are ~1:2 aspect ratio (taller than wide)
-    // Use a wider grid to compensate
-    const W = 60
+    // Each game cell renders as 2 terminal columns to compensate
+    // for the ~1:2 terminal cell aspect ratio
+    const W = 30
     const H = 20
 
-    let snake = $state([{ x: 30, y: 10 }, { x: 29, y: 10 }, { x: 28, y: 10 }])
-    let food = $state({ x: 40, y: 7 })
+    let snake = $state([{ x: 15, y: 10 }, { x: 14, y: 10 }, { x: 13, y: 10 }])
+    let food = $state({ x: 20, y: 5 })
     let dir = $state({ x: 1, y: 0 })
     let score = $state(0)
     let gameOver = $state(false)
@@ -54,7 +54,7 @@
 
     function handleKey(key) {
         if (gameOver && key === 'r') {
-            snake = [{ x: 30, y: 10 }, { x: 29, y: 10 }, { x: 28, y: 10 }]
+            snake = [{ x: 15, y: 10 }, { x: 14, y: 10 }, { x: 13, y: 10 }]
             dir = { x: 1, y: 0 }
             score = 0
             gameOver = false
@@ -83,10 +83,10 @@
                 const isHead = snake[0].x === x && snake[0].y === y
                 const isBody = !isHead && snake.some(s => s.x === x && s.y === y)
                 const isFood = food.x === x && food.y === y
-                if (isHead) row += '●'
-                else if (isBody) row += '■'
-                else if (isFood) row += '◆'
-                else row += ' '
+                if (isHead) row += '●●'
+                else if (isBody) row += '██'
+                else if (isFood) row += '◆◆'
+                else row += '  '
             }
             rows.push(row)
         }
@@ -131,6 +131,7 @@
         border: rounded;
         border-color: var(--muted);
         width: 62cell;
+        height: 22cell;
     }
 
     .board-row {
