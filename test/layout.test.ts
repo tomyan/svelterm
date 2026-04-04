@@ -105,7 +105,7 @@ describe('computeLayout', () => {
             })
             const boxes = computeLayout(root, styles, 80, 24)
             const rootBox = boxes.get(root.id)!
-            assert.equal(rootBox.width, 2 + 2 + 2) // paddingLeft + "Hi" + paddingRight
+            assert.equal(rootBox.width, 80) // block element fills available width
             assert.equal(rootBox.height, 1 + 1 + 1) // paddingTop + content + paddingBottom
         })
     })

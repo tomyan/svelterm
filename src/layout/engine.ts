@@ -132,7 +132,15 @@ function layoutElement(
         content = layoutBlockFlow(node.children, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
     }
 
-    const autoWidth = content.width + inset.left + inset.right
+    // Block elements fill parent width; inline/inline-block shrink-wrap to content.
+    // Flex/grid children are sized by the flex/grid algorithm, so they shrink-wrap.
+    const parentDisplay = node.parent ? styles.get(node.parent.id)?.display : undefined
+    const isFlexOrGridChild = parentDisplay === 'flex' || parentDisplay === 'grid'
+    const isBlock = (display === 'block' || display === 'flex' || display === 'grid' || display === 'table')
+        && !isFlexOrGridChild
+    const autoWidth = isBlock
+        ? (availWidth - margin.left - margin.right)
+        : content.width + inset.left + inset.right
     const autoHeight = content.height + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)

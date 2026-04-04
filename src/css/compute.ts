@@ -230,18 +230,16 @@ function hasMatchingContainerAncestor(
     node: TermNode, feature: string, value: number,
     layout: Map<number, import('../layout/engine.js').LayoutBox>,
 ): boolean {
-    let ancestor = node.parent
-    while (ancestor) {
-        const box = layout.get(ancestor.id)
-        if (box) {
-            switch (feature) {
-                case 'min-width': if (box.width >= value) return true; break
-                case 'max-width': if (box.width <= value) return true; break
-                case 'min-height': if (box.height >= value) return true; break
-                case 'max-height': if (box.height <= value) return true; break
-            }
-        }
-        ancestor = ancestor.parent
+    // Check nearest ancestor with a layout box (closest container)
+    const ancestor = node.parent
+    if (!ancestor) return false
+    const box = layout.get(ancestor.id)
+    if (!box) return false
+    switch (feature) {
+        case 'min-width': return box.width >= value
+        case 'max-width': return box.width <= value
+        case 'min-height': return box.height >= value
+        case 'max-height': return box.height <= value
     }
     return false
 }

@@ -73,10 +73,11 @@ describe('incremental layout', () => {
     })
 
     it('bubbles layout when auto-sized parent changes', () => {
-        // Given
+        // Given: an inline-block parent that shrink-wraps to content
         const root = new TermNode('element', 'root')
-        const sheet = parseCSS('')
+        const sheet = parseCSS('.wrap { display: inline-block; }')
         const parent = new TermNode('element', 'div')
+        parent.attributes.set('class', 'wrap')
         const text = new TermNode('text', 'Short')
         parent.insertBefore(text, null)
         root.insertBefore(parent, null)
@@ -93,7 +94,7 @@ describe('incremental layout', () => {
             root, styles, fullLayout, new Set([text]), 40, 10,
         )
 
-        // Then: parent width should change
+        // Then: inline-block parent width should grow with content
         const newParentWidth = incLayout.get(parent.id)!.width
         assert.ok(newParentWidth > oldParentWidth, `parent should grow: ${oldParentWidth} → ${newParentWidth}`)
     })
