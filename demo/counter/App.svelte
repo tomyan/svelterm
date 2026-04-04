@@ -13,7 +13,6 @@
     .app {
         display: flex;
         flex-direction: column;
-        gap: 1cell;
         padding: 1cell 2cell;
     }
 
@@ -29,13 +28,16 @@
     }
 
     .panel {
-        width: 25cell;
+        width: 30cell;
         border: rounded;
         border-color: var(--primary);
-        padding: 1cell;
+        padding: 0 1cell;
         display: flex;
         flex-direction: column;
-        gap: 1cell;
+    }
+
+    .panel-title {
+        font-weight: bold;
     }
 
     .count {
@@ -43,14 +45,17 @@
         font-weight: bold;
     }
 
+    .buttons {
+        display: flex;
+        flex-direction: row;
+        gap: 1cell;
+    }
+
     button {
-        border: single;
-        border-color: var(--muted);
-        padding: 0 2cell;
+        color: var(--muted);
     }
 
     button:focus {
-        border-color: var(--accent);
         color: var(--accent);
         font-weight: bold;
     }
@@ -73,26 +78,27 @@
     <span class="title">Svelterm — Counter Demo</span>
     <div class="panels">
         <div class="panel">
-            <span>Counter</span>
-            <span class="count">{count}</span>
-            <button
-                onclick={() => count++}
-                onfocus={() => focusedName = 'Increment'}
-                onblur={() => focusedName = 'none'}
-            >Increment</button>
-            <button
-                onclick={() => count--}
-                onfocus={() => focusedName = 'Decrement'}
-                onblur={() => focusedName = 'none'}
-            >Decrement</button>
-            <button
-                onclick={() => count = 0}
-                onfocus={() => focusedName = 'Reset'}
-                onblur={() => focusedName = 'none'}
-            >Reset</button>
+            <span class="panel-title">Counter: <span class="count">{count}</span></span>
+            <div class="buttons">
+                <button
+                    onclick={() => count++}
+                    onfocus={() => focusedName = 'Increment'}
+                    onblur={() => focusedName = 'none'}
+                >[+]</button>
+                <button
+                    onclick={() => count--}
+                    onfocus={() => focusedName = 'Decrement'}
+                    onblur={() => focusedName = 'none'}
+                >[-]</button>
+                <button
+                    onclick={() => count = 0}
+                    onfocus={() => focusedName = 'Reset'}
+                    onblur={() => focusedName = 'none'}
+                >[0]</button>
+            </div>
         </div>
         <div class="panel">
-            <span>Features</span>
+            <span class="panel-title">Features</span>
             <ul>
                 <li>CSS Variables</li>
                 <li>Flexbox Layout</li>
