@@ -280,9 +280,18 @@ export function resolveNodeStyle(
     stylesheet: CSSStyleSheet,
     parentStyle?: ResolvedStyle,
 ): ResolvedStyle {
-    const variables = collectVariables(node, stylesheet)
+    // Collect variables from the tree root down to this node,
+    // so inherited CSS variables (e.g. from :root) are available.
+    const treeRoot = findRoot(node)
+    const variables = collectVariables(treeRoot, stylesheet)
     const vars = variables.get(node.id) ?? new Map()
     return computeStyle(node, stylesheet, vars, parentStyle)
+}
+
+function findRoot(node: TermNode): TermNode {
+    let current = node
+    while (current.parent) current = current.parent
+    return current
 }
 
 interface ScoredDeclaration {
