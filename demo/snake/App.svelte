@@ -1,13 +1,15 @@
 <script>
-    const W = 30
-    const H = 15
+    // Terminal cells are ~1:2 aspect ratio (taller than wide)
+    // Use a wider grid to compensate
+    const W = 60
+    const H = 20
 
-    let snake = $state([{ x: 15, y: 7 }, { x: 14, y: 7 }, { x: 13, y: 7 }])
-    let food = $state({ x: 20, y: 5 })
+    let snake = $state([{ x: 30, y: 10 }, { x: 29, y: 10 }, { x: 28, y: 10 }])
+    let food = $state({ x: 40, y: 7 })
     let dir = $state({ x: 1, y: 0 })
     let score = $state(0)
     let gameOver = $state(false)
-    let speed = $state(150)
+    let speed = $state(120)
 
     function spawnFood() {
         let fx, fy
@@ -43,7 +45,7 @@
         if (ate) {
             snake = [newHead, ...snake]
             score += 10
-            if (speed > 80) speed -= 5
+            if (speed > 60) speed -= 3
             spawnFood()
         } else {
             snake = [newHead, ...snake.slice(0, -1)]
@@ -52,11 +54,11 @@
 
     function handleKey(key) {
         if (gameOver && key === 'r') {
-            snake = [{ x: 15, y: 7 }, { x: 14, y: 7 }, { x: 13, y: 7 }]
+            snake = [{ x: 30, y: 10 }, { x: 29, y: 10 }, { x: 28, y: 10 }]
             dir = { x: 1, y: 0 }
             score = 0
             gameOver = false
-            speed = 150
+            speed = 120
             spawnFood()
             return
         }
@@ -103,7 +105,6 @@
     .game {
         display: flex;
         flex-direction: column;
-        gap: 1cell;
         padding: 1cell 2cell;
     }
 
@@ -129,6 +130,7 @@
     .board {
         border: rounded;
         border-color: var(--muted);
+        width: 62cell;
     }
 
     .board-row {
