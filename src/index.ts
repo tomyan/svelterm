@@ -270,8 +270,10 @@ function setupInputHandlers(
             return
         }
 
-        if (focusManager.focused) {
-            dispatchEvent(focusManager.focused, 'keydown', key)
+        // Dispatch to focused element, or to root's first element child (like document.body)
+        const keyTarget = focusManager.focused ?? findFirstElement(getRoot())
+        if (keyTarget) {
+            dispatchEvent(keyTarget, 'keydown', key)
             scheduleRender()
         }
     })
@@ -338,6 +340,13 @@ function unregisterFocusableNodes(node: TermNode, focusManager: FocusManager): v
     for (const child of node.children) {
         unregisterFocusableNodes(child, focusManager)
     }
+}
+
+function findFirstElement(node: TermNode): TermNode | null {
+    for (const child of node.children) {
+        if (child.nodeType === 'element') return child
+    }
+    return node
 }
 
 export { TermNode } from './renderer/node.js'
