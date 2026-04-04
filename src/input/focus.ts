@@ -5,6 +5,7 @@ export class FocusManager {
     private focusIndex: number = -1
     onSetAttribute?: (node: TermNode, key: string, value: string) => void
     onRemoveAttribute?: (node: TermNode, key: string) => void
+    onFocusChange?: (focused: TermNode | null, previous: TermNode | null) => void
 
     get focused(): TermNode | null {
         if (this.focusIndex < 0 || this.focusIndex >= this.elements.length) return null
@@ -66,6 +67,7 @@ export class FocusManager {
                 next.attributes.set('data-focused', 'true')
             }
         }
+        this.onFocusChange?.(next, prev)
     }
 
     private clearFocusAttribute(node: TermNode): void {

@@ -1,5 +1,6 @@
 <script>
     let count = $state(0)
+    let focusedName = $state('none')
 </script>
 
 <style>
@@ -7,7 +8,6 @@
         --primary: cyan;
         --accent: yellow;
         --muted: gray;
-        --bg-panel: blue;
     }
 
     .app {
@@ -33,6 +33,9 @@
         border: rounded;
         border-color: var(--primary);
         padding: 1cell;
+        display: flex;
+        flex-direction: column;
+        gap: 1cell;
     }
 
     .count {
@@ -47,8 +50,17 @@
     }
 
     button:focus {
-        border-color: var(--primary);
-        color: var(--primary);
+        border-color: var(--accent);
+        color: var(--accent);
+        font-weight: bold;
+    }
+
+    .focus-indicator {
+        color: var(--accent);
+    }
+
+    .focus-label {
+        color: var(--muted);
     }
 
     .hint {
@@ -58,21 +70,37 @@
 </style>
 
 <div class="app">
-    <span class="title">Svelterm — CSS Variables + Theming</span>
+    <span class="title">Svelterm — Counter Demo</span>
     <div class="panels">
         <div class="panel">
             <span>Counter</span>
             <span class="count">{count}</span>
-            <button onclick={() => count++}>Increment</button>
+            <button
+                onclick={() => count++}
+                onfocus={() => focusedName = 'Increment'}
+                onblur={() => focusedName = 'none'}
+            >Increment</button>
+            <button
+                onclick={() => count--}
+                onfocus={() => focusedName = 'Decrement'}
+                onblur={() => focusedName = 'none'}
+            >Decrement</button>
+            <button
+                onclick={() => count = 0}
+                onfocus={() => focusedName = 'Reset'}
+                onblur={() => focusedName = 'none'}
+            >Reset</button>
         </div>
         <div class="panel">
             <span>Features</span>
             <ul>
                 <li>CSS Variables</li>
                 <li>Flexbox Layout</li>
-                <li>Borders</li>
+                <li>Focus + :focus</li>
+                <li>Event Handling</li>
             </ul>
         </div>
     </div>
+    <span><span class="focus-label">Focused: </span><span class="focus-indicator">{focusedName}</span></span>
     <span class="hint">Tab to focus, Enter to click, Ctrl+C to exit</span>
 </div>

@@ -154,6 +154,10 @@ export function mount<Props extends Record<string, any>>(
     const focusManager = new FocusManager()
     focusManager.onSetAttribute = (node, key, value) => ctx.onSetAttribute(node, key, value)
     focusManager.onRemoveAttribute = (node, key) => ctx.onRemoveAttribute(node, key)
+    focusManager.onFocusChange = (focused, previous) => {
+        if (previous) dispatchEvent(previous, 'blur')
+        if (focused) dispatchEvent(focused, 'focus')
+    }
 
     // Schedule render on mutations
     const origInsert = ctx.onInsert.bind(ctx)

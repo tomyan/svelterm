@@ -3,6 +3,7 @@ import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { wrapText, truncateText } from '../layout/text.js'
+import { renderBorder } from './border.js'
 
 /**
  * Repaint only specific nodes' cells in the buffer.
@@ -25,6 +26,47 @@ export function paintNodes(
 
         if (node.nodeType === 'text') {
             paintTextNode(node, buffer, box, styles, layout)
+        } else if (node.nodeType === 'element') {
+            paintElementNode(node, buffer, box, styles, layout)
+        }
+    }
+}
+
+function paintElementNode(
+    node: TermNode,
+    buffer: CellBuffer,
+    box: LayoutBox,
+    styles: Map<number, ResolvedStyle>,
+    layout: Map<number, LayoutBox>,
+): void {
+    const style = styles.get(node.id)
+    if (!style || style.display === 'none') return
+
+    // Background fill
+    const visuals = resolveInheritedVisuals(node, styles)
+    // Element's own style overrides inherited
+    const bg = style.bg !== 'default' ? style.bg : visuals.bg
+    if (bg !== 'default') {
+        for (let row = box.y; row < box.y + box.height; row++) {
+            for (let col = box.x; col < box.x + box.width; col++) {
+                buffer.setCell(col, row, { bg })
+            }
+        }
+    }
+
+    // Border
+    if (style.borderStyle !== 'none') {
+        renderBorder(buffer, box, style)
+    }
+
+    // Repaint text children
+    for (const child of node.children) {
+        const childBox = layout.get(child.id)
+        if (!childBox) continue
+        if (child.nodeType === 'text') {
+            paintTextNode(child, buffer, childBox, styles, layout)
+        } else if (child.nodeType === 'element') {
+            paintElementNode(child, buffer, childBox, styles, layout)
         }
     }
 }
