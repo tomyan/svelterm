@@ -132,10 +132,13 @@
     }
 
     .board-row {
+        display: block;
         color: var(--snake);
     }
 
     .game-over-overlay {
+        display: flex;
+        flex-direction: column;
         border: double;
         border-color: red;
         padding: 1cell 2cell;

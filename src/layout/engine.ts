@@ -44,7 +44,10 @@ function layoutText(
     const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
     const preserveWhitespace = parentStyle?.whiteSpace === 'pre'
 
-    if (text === '' || (!preserveWhitespace && text.trim() === '')) {
+    // Skip empty text and template whitespace (newlines/indentation between elements).
+    // Preserve intentional space-only content (e.g. grid rows of spaces).
+    const isTemplateWhitespace = !preserveWhitespace && text.trim() === '' && text.includes('\n')
+    if (text === '' || isTemplateWhitespace) {
         boxes.set(node.id, { x, y, width: 0, height: 0 })
         return { width: 0, height: 0 }
     }
