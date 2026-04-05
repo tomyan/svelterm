@@ -4,6 +4,19 @@ import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
 import { resolveSize, constrain } from './size.js'
 
+/** Flatten display:contents elements, promoting their children. */
+function flattenContents(children: TermNode[], styles: Map<number, ResolvedStyle>): TermNode[] {
+    const result: TermNode[] = []
+    for (const child of children) {
+        if (child.nodeType === 'element' && styles.get(child.id)?.display === 'contents') {
+            result.push(...flattenContents(child.children, styles))
+        } else {
+            result.push(child)
+        }
+    }
+    return result
+}
+
 export interface LayoutBox {
     x: number
     y: number
@@ -77,6 +90,11 @@ function layoutElement(
 ) {
     const style = styles.get(node.id)
     if (style?.display === 'none') return { width: 0, height: 0 }
+
+    // display: contents — element is invisible to layout, children promoted
+    if (style?.display === 'contents') {
+        return layoutBlockFlow(node.children, styles, boxes, x, y, availWidth, availHeight)
+    }
 
     // Absolute positioning: use top/left offsets relative to parent, don't consume space in flow
     if (style?.position === 'absolute' || style?.position === 'fixed') {
@@ -213,7 +231,9 @@ function layoutBlockFlow(
     let maxWidth = 0
     let prevBlockMarginBottom = 0
 
-    for (const child of children) {
+    const flatChildren = flattenContents(children, styles)
+
+    for (const child of flatChildren) {
         if (child.nodeType === 'comment') continue
         const s = styles.get(child.id)
         if (s?.display === 'none') continue
@@ -419,7 +439,10 @@ function positionChildren(
         }
     }
 
-    const visible = children.filter(c => {
+    // Flatten display:contents children into the list
+    const flatChildren = flattenContents(children, styles)
+
+    const visible = flatChildren.filter(c => {
         if (c.nodeType === 'comment') return false
         const s = styles.get(c.id)
         if (s?.display === 'none') return false

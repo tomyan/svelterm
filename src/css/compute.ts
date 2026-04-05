@@ -24,7 +24,7 @@ export interface ResolvedStyle {
     strikethrough: boolean
     dim: boolean
 
-    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'table' | 'table-row' | 'table-cell' | 'none'
+    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'table' | 'table-row' | 'table-cell' | 'none' | 'contents'
     flexDirection: 'row' | 'column' | 'row-reverse' | 'column-reverse'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
