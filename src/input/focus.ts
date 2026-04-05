@@ -50,6 +50,11 @@ export class FocusManager {
         this.setFocusIndex(next)
     }
 
+    focusByNode(node: TermNode): void {
+        const idx = this.elements.indexOf(node)
+        if (idx !== -1) this.setFocusIndex(idx)
+    }
+
     clearFocus(): void {
         if (this.focused) this.clearFocusAttribute(this.focused)
         this.focusIndex = -1

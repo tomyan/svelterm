@@ -39,7 +39,7 @@ export function mount<Props extends Record<string, any>>(
     options?: MountOptions & ({} extends Props ? { props?: Props } : { props: Props }),
 ): () => void {
     const fullscreen = options?.fullscreen ?? true
-    const mouseEnabled = options?.mouse ?? false
+    const mouseEnabled = options?.mouse ?? true
     const stylesheet = options?.css ? parseCSS(options.css) : null
 
     // Render context tracks mutations and determines minimum work
@@ -294,6 +294,10 @@ function handleMouse(
     if (mouse.button === 'left') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {
+            // Focus clicked element if it's focusable
+            if (FOCUSABLE_TAGS.has(target.tag ?? '')) {
+                focusManager.focusByNode(target)
+            }
             dispatchEvent(target, 'click', mouse)
             scheduleRender()
         }
