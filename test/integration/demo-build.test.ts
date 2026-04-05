@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 
-const DEMOS = ['counter', 'dashboard', 'todo', 'showcase', 'keyboard-hero', 'snake']
+const DEMOS = ['counter', 'dashboard', 'todo', 'showcase', 'keyboard-hero', 'snake', 'themes']
 
 describe('demo builds', () => {
     for (const demo of DEMOS) {

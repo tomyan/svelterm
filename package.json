@@ -15,7 +15,8 @@
     "demo:todo": "DEMO=todo npx vite build && node dist-demo/todo/main.js",
     "demo:showcase": "DEMO=showcase npx vite build && node dist-demo/showcase/main.js",
     "demo:keyboard-hero": "DEMO=keyboard-hero npx vite build && node dist-demo/keyboard-hero/main.js",
-    "demo:snake": "DEMO=snake npx vite build && node dist-demo/snake/main.js"
+    "demo:snake": "DEMO=snake npx vite build && node dist-demo/snake/main.js",
+    "demo:themes": "DEMO=themes npx vite build && node dist-demo/themes/main.js"
   },
   "peerDependencies": {
     "svelte": "file:../svelte-fork/packages/svelte"
