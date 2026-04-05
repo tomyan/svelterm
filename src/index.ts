@@ -211,7 +211,7 @@ export function mount<Props extends Record<string, any>>(
     scheduleRender()
 
     const cleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-    setupInputHandlers(scheduleRender, cleanup, focusManager, () => root, () => lastLayout, ctx)
+    setupInputHandlers(scheduleRender, cleanup, focusManager, () => root, () => lastLayout, () => lastStyles, ctx)
     setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
     return cleanup
@@ -235,12 +235,13 @@ function setupInputHandlers(
     focusManager: FocusManager,
     getRoot: () => TermNode,
     getLayout: () => Map<number, LayoutBox> | undefined,
+    getStyles: () => Map<number, ResolvedStyle> | undefined,
     ctx: RenderContext,
 ): void {
     process.stdin.on('data', (data: Buffer) => {
         const mouse = parseMouseEvent(data)
         if (mouse) {
-            handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender, () => lastStyles, ctx)
+            handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender, getStyles, ctx)
             return
         }
 
