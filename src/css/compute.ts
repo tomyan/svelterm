@@ -46,6 +46,7 @@ export interface ResolvedStyle {
     marginLeft: number | string
     flexGrow: number
     flexShrink: number
+    flexBasis: number | 'auto'
     flexWrap: 'nowrap' | 'wrap'
     order: number
     gridTemplateColumns: string | null
@@ -96,7 +97,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
-        flexGrow: 0, flexShrink: 1, flexWrap: 'nowrap', order: 0,
+        flexGrow: 0, flexShrink: 1, flexBasis: 'auto', flexWrap: 'nowrap', order: 0,
         gridTemplateColumns: null, gridTemplateRows: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default',
@@ -457,11 +458,16 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'margin-right': style.marginRight = value === 'auto' ? -1 : parseSizeOrCell(value); break
         case 'margin-bottom': style.marginBottom = value === 'auto' ? -1 : parseSizeOrCell(value); break
         case 'margin-left': style.marginLeft = value === 'auto' ? -1 : parseSizeOrCell(value); break
-        case 'flex':
+        case 'flex': {
             // flex shorthand: flex: <grow> [<shrink> [<basis>]]
             const flexParts = value.split(/\s+/)
             style.flexGrow = parseFloat(flexParts[0]) || 0
             if (flexParts.length > 1) style.flexShrink = parseFloat(flexParts[1]) || 1
+            if (flexParts.length > 2) style.flexBasis = flexParts[2] === 'auto' ? 'auto' : parseSizeOrCell(flexParts[2])
+            break
+        }
+        case 'flex-basis':
+            style.flexBasis = value === 'auto' ? 'auto' : parseSizeOrCell(value)
             break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break

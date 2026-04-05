@@ -444,8 +444,18 @@ function positionChildren(
     const orderedItems = isReverse ? sorted.reverse() : sorted
     const ordered = orderedItems.map(item => item.child)
 
-    // Use pre-measured sizes
-    const sizes = orderedItems.map(item => item.size)
+    // Use pre-measured sizes, overridden by flex-basis when set
+    const sizes = orderedItems.map(item => {
+        const s = styles.get(item.child.id)
+        const basis = s?.flexBasis
+        if (basis !== undefined && basis !== 'auto') {
+            const basisValue = typeof basis === 'number' ? basis : 0
+            return baseDir === 'row'
+                ? { width: basisValue, height: item.size.height }
+                : { width: item.size.width, height: basisValue }
+        }
+        return item.size
+    })
     const growValues = ordered.map(child => styles.get(child.id)?.flexGrow ?? 0)
     const shrinkValues = ordered.map(child => styles.get(child.id)?.flexShrink ?? 1)
     const totalGrow = growValues.reduce((a, b) => a + b, 0)
