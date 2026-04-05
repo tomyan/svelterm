@@ -82,8 +82,19 @@ export function mount<Props extends Record<string, any>>(
 
     const fullRender = () => {
         const size = getTerminalSize()
+        // Set root dimensions so children can use percentage width/height
+        root.attributes.set('data-width', String(size.width))
+        root.attributes.set('data-height', String(size.height))
         const buffer = new CellBuffer(size.width, size.height)
         lastStyles = stylesheet ? resolveStyles(root, stylesheet) : undefined
+        // Ensure root style has terminal dimensions for percentage resolution
+        if (lastStyles) {
+            const rootStyle = lastStyles.get(root.id)
+            if (rootStyle) {
+                rootStyle.width = size.width
+                rootStyle.height = size.height
+            }
+        }
         lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
         if (lastLayout) syncLayoutCache(root, lastLayout)
         paint(root, buffer, lastStyles, lastLayout)
@@ -395,3 +406,4 @@ export { TermNode } from './renderer/node.js'
 export { CellBuffer } from './render/buffer.js'
 export { parseCSS } from './css/parser.js'
 export { resolveStyles } from './css/compute.js'
+export { detectColorScheme, pollColorScheme } from './terminal/detect.js'
