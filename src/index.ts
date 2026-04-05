@@ -12,7 +12,7 @@ import { syncLayoutCache } from './layout/cache.js'
 import { RenderContext } from './render/context.js'
 import { paintNodes } from './render/incremental-paint.js'
 import { type RenderQueueSnapshot } from './render/queue.js'
-import { parseKeyEvent } from './input/keyboard.js'
+import { parseKeyEvent, parsePaste } from './input/keyboard.js'
 import { parseMouseEvent, type MouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
@@ -212,6 +212,7 @@ export function mount<Props extends Record<string, any>>(
 
     if (fullscreen) enterFullscreen()
     if (mouseEnabled) writeOutput(ansi.enableMouse())
+    writeOutput(ansi.enableBracketedPaste())
     enableRawMode()
 
     // Initial render: mount component and do full recompute
@@ -236,6 +237,7 @@ function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseE
         cleaned = true
         unmountComponent()
         if (mouseEnabled) writeOutput(ansi.disableMouse())
+        writeOutput(ansi.disableBracketedPaste())
         disableRawMode()
         if (fullscreen) exitFullscreen()
     }
@@ -254,6 +256,28 @@ function setupInputHandlers(
         const mouse = parseMouseEvent(data)
         if (mouse) {
             handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender, getStyles, ctx)
+            return
+        }
+
+        // Handle bracketed paste
+        const pastedText = parsePaste(data)
+        if (pastedText !== null) {
+            const focused = focusManager.focused
+            if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
+                if (!focused.textBuffer) {
+                    focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+                }
+                focused.textBuffer.insert(pastedText)
+                const newValue = focused.textBuffer.text
+                focused.attributes.set('value', newValue)
+                const textChild = focused.children.find(c => c.nodeType === 'text')
+                if (textChild) ctx.onSetText(textChild, newValue)
+                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                scheduleRender()
+            } else {
+                const target = focused ?? findFirstElement(getRoot())
+                if (target) dispatchEvent(target, 'paste', { text: pastedText })
+            }
             return
         }
 

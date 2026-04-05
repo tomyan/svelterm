@@ -113,6 +113,14 @@ export function setCursorShape(shape: 'block' | 'underline' | 'bar'): string {
     return `${CSI}${code} q`
 }
 
+export function enableBracketedPaste(): string {
+    return `${CSI}?2004h`
+}
+
+export function disableBracketedPaste(): string {
+    return `${CSI}?2004l`
+}
+
 export function beginSyncUpdate(): string {
     return `${CSI}?2026h`
 }

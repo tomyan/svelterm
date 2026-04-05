@@ -5,6 +5,23 @@ export interface KeyEvent {
     meta: boolean
 }
 
+const PASTE_START = '\x1b[200~'
+const PASTE_END = '\x1b[201~'
+
+/** Check if data contains a bracketed paste sequence. Returns the pasted text or null. */
+export function parsePaste(data: Buffer): string | null {
+    const str = data.toString()
+    if (str.startsWith(PASTE_START)) {
+        const endIdx = str.indexOf(PASTE_END)
+        if (endIdx !== -1) {
+            return str.substring(PASTE_START.length, endIdx)
+        }
+        // Paste without end marker — take everything after start
+        return str.substring(PASTE_START.length)
+    }
+    return null
+}
+
 export function parseKeyEvent(data: Buffer): KeyEvent | null {
     if (data.length === 0) return null
 
