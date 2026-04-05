@@ -108,6 +108,11 @@ export function disableMouse(): string {
     return `${CSI}?1006l${CSI}?1000l`
 }
 
+export function setCursorShape(shape: 'block' | 'underline' | 'bar'): string {
+    const code = shape === 'block' ? 2 : shape === 'underline' ? 4 : 6
+    return `${CSI}${code} q`
+}
+
 export function beginSyncUpdate(): string {
     return `${CSI}?2026h`
 }

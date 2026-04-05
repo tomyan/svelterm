@@ -70,7 +70,7 @@ function paintNode(
     if (node.nodeType === 'text') {
         if (!isHidden) {
             const parentBox = node.parent ? layout?.get(node.parent.id) : undefined
-            paintText(node, buffer, box, visuals, clip, parentStyle, parentBox, styles)
+            paintText(node, buffer, box, visuals, clip, parentStyle, parentBox, styles, layout)
         }
         return
     }
@@ -120,6 +120,7 @@ function paintText(
     visuals: InheritedVisuals, clip: ClipRect | null,
     parentStyle: ResolvedStyle | undefined, parentBox: LayoutBox | undefined,
     styles?: Map<number, ResolvedStyle>,
+    layout?: Map<number, LayoutBox>,
 ): void {
     const text = node.text ?? ''
     if (!text) return
@@ -128,14 +129,35 @@ function paintText(
     const y = box?.y ?? 0
     const width = box?.width ?? buffer.width
 
-    // Apply text-align (inherits from ancestors)
-    const align = findInherited(node, styles, s => s.textAlign !== 'left' ? s.textAlign : undefined) ?? 'left'
-    if (align !== 'left' && parentBox) {
+    // Apply text-align — find the ancestor that sets it and use its box for alignment
+    // Apply text-align — find the ancestor that sets it and use its content area for alignment
+    const alignResult = findInheritedWithNode(node, styles, layout, s => s.textAlign !== 'left' ? s.textAlign : undefined)
+    const align = alignResult?.value ?? 'left'
+    const alignBox = alignResult?.box ?? parentBox
+    if (align !== 'left' && alignBox) {
+        // Account for border inset on the alignment container
+        const alignStyle = alignResult ? styles?.get(alignResult.box.x === alignBox.x ? 0 : 0) : undefined
+        let insetL = 0, insetR = 0
+        // Walk up to find which ancestor owns the alignBox and check its border
+        let alignNode: TermNode | null = node.parent
+        while (alignNode) {
+            const aBox = layout?.get(alignNode.id)
+            if (aBox === alignBox) {
+                const aStyle = styles?.get(alignNode.id)
+                if (aStyle?.borderStyle && aStyle.borderStyle !== 'none') {
+                    insetL = 1; insetR = 1
+                }
+                break
+            }
+            alignNode = alignNode.parent
+        }
+        const innerX = alignBox.x + insetL
+        const innerW = alignBox.width - insetL - insetR
         const textWidth = text.length
         if (align === 'center') {
-            x = parentBox.x + Math.floor((parentBox.width - textWidth) / 2)
+            x = innerX + Math.floor((innerW - textWidth) / 2)
         } else if (align === 'right') {
-            x = parentBox.x + parentBox.width - textWidth
+            x = innerX + innerW - textWidth
         }
     }
 
@@ -244,6 +266,27 @@ function paintHorizontalRule(
         if (clip && !inClip(col, box.y, clip)) continue
         buffer.setCell(col, box.y, { char: '─', fg: visuals.fg, dim: true })
     }
+}
+
+function findInheritedWithNode<T>(
+    node: TermNode,
+    styles: Map<number, ResolvedStyle> | undefined,
+    layout: Map<number, LayoutBox> | undefined,
+    getter: (s: ResolvedStyle) => T,
+): { value: T; box: LayoutBox } | undefined {
+    let current: TermNode | null = node.parent
+    while (current) {
+        const s = styles?.get(current.id)
+        if (s) {
+            const val = getter(s)
+            if (val !== undefined) {
+                const box = layout?.get(current.id)
+                if (box) return { value: val, box }
+            }
+        }
+        current = current.parent
+    }
+    return undefined
 }
 
 function findInherited<T>(
