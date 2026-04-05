@@ -1,5 +1,6 @@
 import type { ResolvedStyle } from '../css/compute.js'
 import type { LayoutBox } from '../layout/engine.js'
+import { TextBuffer } from '../components/text-buffer.js'
 
 let nextId = 1
 
@@ -25,6 +26,7 @@ export class TermNode {
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
     scrollLeft: number = 0
+    textBuffer: TextBuffer | null = null
     cache: RenderCache = { resolvedStyle: null, layoutBox: null, classAttr: '' }
 
     /** DOM compatibility — Svelte's effects set nodeValue directly when renderer is not pushed */

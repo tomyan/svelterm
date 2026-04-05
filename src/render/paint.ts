@@ -87,6 +87,9 @@ function paintNode(
         if (node.tag === 'li') {
             paintListMarker(node, buffer, box, visuals, clip)
         }
+        if (node.tag === 'input' && box) {
+            paintInput(node, buffer, box, visuals, clip)
+        }
     }
 
     // Determine clip and scroll for children
@@ -202,6 +205,35 @@ function paintListMarker(
         const cx = box.x + i
         if (clip && !inClip(cx, box.y, clip)) continue
         buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
+    }
+}
+
+function paintInput(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const value = node.attributes.get('value') ?? ''
+    const isFocused = node.attributes.has('data-focused')
+    const cursor = node.textBuffer?.cursor ?? value.length
+    const borderInset = (node.cache.resolvedStyle?.borderStyle !== 'none' &&
+        node.cache.resolvedStyle?.borderStyle !== undefined) ? 1 : 0
+    const innerX = box.x + borderInset
+    const innerY = box.y + borderInset
+    const innerW = box.width - borderInset * 2
+
+    for (let i = 0; i < innerW && i < value.length; i++) {
+        const cx = innerX + i
+        if (clip && !inClip(cx, innerY, clip)) continue
+        buffer.setCell(cx, innerY, { char: value[i], fg: visuals.fg })
+    }
+
+    // Show cursor when focused
+    if (isFocused && cursor <= innerW) {
+        const cx = innerX + cursor
+        const cursorChar = cursor < value.length ? value[cursor] : ' '
+        if (!clip || inClip(cx, innerY, clip)) {
+            buffer.setCell(cx, innerY, { char: cursorChar, fg: visuals.bg !== 'default' ? visuals.bg : 'black', bg: visuals.fg !== 'default' ? visuals.fg : 'white' })
+        }
     }
 }
 

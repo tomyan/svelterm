@@ -17,6 +17,7 @@ import { parseMouseEvent, type MouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
+import { TextBuffer } from './components/text-buffer.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import {
@@ -288,8 +289,29 @@ function setupInputHandlers(
             return
         }
 
+        // Handle text input for focused input/textarea elements
+        const focused = focusManager.focused
+        if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
+            if (!focused.textBuffer) {
+                focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            }
+            const handled = focused.textBuffer.handleKey(key)
+            if (handled) {
+                const newValue = focused.textBuffer.text
+                focused.attributes.set('value', newValue)
+                // Update text content for rendering
+                const textChild = focused.children.find(c => c.nodeType === 'text')
+                if (textChild) {
+                    ctx.onSetText(textChild, newValue)
+                }
+                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                scheduleRender()
+                return
+            }
+        }
+
         // Dispatch to focused element, or to root's first element child (like document.body)
-        const keyTarget = focusManager.focused ?? findFirstElement(getRoot())
+        const keyTarget = focused ?? findFirstElement(getRoot())
         if (keyTarget) {
             dispatchEvent(keyTarget, 'keydown', key)
             scheduleRender()
