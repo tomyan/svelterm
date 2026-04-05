@@ -120,6 +120,7 @@ function paintText(
 ): void {
     const text = node.text ?? ''
     if (!text) return
+    if (box && box.width === 0 && box.height === 0) return
     let x = box?.x ?? 0
     const y = box?.y ?? 0
     const width = box?.width ?? buffer.width
