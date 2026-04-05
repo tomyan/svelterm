@@ -38,5 +38,5 @@ export function disableRawMode(): void {
 }
 
 export function writeOutput(data: string): void {
-    process.stdout.write(data)
+    process.stdout.write(ansi.beginSyncUpdate() + data + ansi.endSyncUpdate())
 }

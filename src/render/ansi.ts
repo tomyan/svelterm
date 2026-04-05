@@ -108,6 +108,14 @@ export function disableMouse(): string {
     return `${CSI}?1006l${CSI}?1000l`
 }
 
+export function beginSyncUpdate(): string {
+    return `${CSI}?2026h`
+}
+
+export function endSyncUpdate(): string {
+    return `${CSI}?2026l`
+}
+
 const ANSI_BG: Record<string, number> = {
     black: 40, red: 41, green: 42, yellow: 43,
     blue: 44, magenta: 45, cyan: 46, white: 47,
