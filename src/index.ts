@@ -252,6 +252,12 @@ function setupInputHandlers(
             process.exit(0)
         }
 
+        if (key.ctrl && key.key === 'z') {
+            cleanup()
+            process.kill(process.pid, 'SIGTSTP')
+            return
+        }
+
         if (key.key === 'Tab' && key.shift) {
             focusManager.focusPrevious()
             scheduleRender()
