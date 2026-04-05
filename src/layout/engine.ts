@@ -44,10 +44,13 @@ function layoutText(
     const parentStyle = node.parent ? styles?.get(node.parent.id) : undefined
     const preserveWhitespace = parentStyle?.whiteSpace === 'pre'
 
-    // Skip empty text and template whitespace (newlines/indentation between elements).
-    // Preserve intentional space-only content (e.g. grid rows of spaces).
-    const isTemplateWhitespace = !preserveWhitespace && text.trim() === '' && text.includes('\n')
-    if (text === '' || isTemplateWhitespace) {
+    // Skip empty text and inter-element whitespace.
+    // Whitespace-only text between element siblings is formatting, not content.
+    // Preserve whitespace-only text that is the sole child (e.g. grid rows of spaces).
+    const isInterElementWhitespace = !preserveWhitespace
+        && text.trim() === ''
+        && node.parent?.children.some(c => c.nodeType === 'element')
+    if (text === '' || isInterElementWhitespace) {
         boxes.set(node.id, { x, y, width: 0, height: 0 })
         return { width: 0, height: 0 }
     }
