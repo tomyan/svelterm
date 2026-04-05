@@ -240,7 +240,7 @@ function setupInputHandlers(
     process.stdin.on('data', (data: Buffer) => {
         const mouse = parseMouseEvent(data)
         if (mouse) {
-            handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender)
+            handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender, () => lastStyles, ctx)
             return
         }
 
@@ -294,7 +294,10 @@ function handleMouse(
     layout: Map<number, LayoutBox> | undefined,
     focusManager: FocusManager,
     scheduleRender: () => void,
+    getStyles: () => Map<number, ResolvedStyle> | undefined,
+    ctx: RenderContext,
 ): void {
+    const lastStyles = getStyles()
     if (!layout || mouse.type !== 'press') return
 
     if (mouse.button === 'left') {
@@ -310,6 +313,22 @@ function handleMouse(
     } else if (mouse.button === 'scrollUp' || mouse.button === 'scrollDown') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {
+            // Find nearest scrollable ancestor
+            const scrollTarget = findScrollableAncestor(target, lastStyles)
+            if (scrollTarget) {
+                const box = layout.get(scrollTarget.id)
+                const style = lastStyles?.get(scrollTarget.id)
+                if (box && style) {
+                    const contentHeight = scrollTarget.children.reduce((sum, c) => {
+                        const cBox = layout.get(c.id)
+                        return cBox ? Math.max(sum, cBox.y - box.y + cBox.height) : sum
+                    }, 0)
+                    const delta = mouse.button === 'scrollUp' ? -3 : 3
+                    const maxScroll = Math.max(0, contentHeight - box.height)
+                    scrollTarget.scrollTop = Math.max(0, Math.min(scrollTarget.scrollTop + delta, maxScroll))
+                    ctx.onScroll(scrollTarget)
+                }
+            }
             dispatchEvent(target, 'scroll', mouse)
             scheduleRender()
         }
@@ -350,6 +369,18 @@ function unregisterFocusableNodes(node: TermNode, focusManager: FocusManager): v
     for (const child of node.children) {
         unregisterFocusableNodes(child, focusManager)
     }
+}
+
+function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedStyle>): TermNode | null {
+    let current: TermNode | null = node
+    while (current) {
+        const style = styles?.get(current.id)
+        if (style && (style.overflow === 'scroll' || style.overflow === 'auto' || style.overflow === 'hidden')) {
+            return current
+        }
+        current = current.parent
+    }
+    return null
 }
 
 function findFirstElement(node: TermNode): TermNode | null {
