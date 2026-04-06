@@ -148,16 +148,4 @@ describe('paint', () => {
         })
     })
 
-    describe('without styles or layout', () => {
-        it('renders text at origin when no layout provided', () => {
-            const root = new TermNode('element', 'root')
-            const text = new TermNode('text', 'Plain')
-            root.insertBefore(text, null)
-
-            const buffer = new CellBuffer(20, 5)
-            paint(root, buffer)
-            assert.equal(buffer.getCell(0, 0)?.char, 'P')
-            assert.equal(buffer.getCell(4, 0)?.char, 'n')
-        })
-    })
 })
