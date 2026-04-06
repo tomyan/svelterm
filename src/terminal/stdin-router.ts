@@ -22,7 +22,7 @@ interface PendingQuery {
 }
 
 const OSC_RESPONSE_RE = /\x1b\](\d+);([^\x07\x1b]*?)(?:\x07|\x1b\\)/
-const SGR_MOUSE_RE = /^\x1b\[<\d+;\d+;\d+[Mm]$/
+const SGR_MOUSE_RE = /\x1b\[<\d+;\d+;\d+[Mm]/g
 const PASTE_START = '\x1b[200~'
 const PASTE_END = '\x1b[201~'
 
@@ -131,9 +131,21 @@ export class StdinRouter {
         // OSC response (not matched by a pending query — discard)
         if (OSC_RESPONSE_RE.test(str)) return
 
-        // Mouse event
-        if (SGR_MOUSE_RE.test(str)) {
-            this.handlers?.onMouse(data)
+        // Mouse events — may be batched in a single chunk
+        SGR_MOUSE_RE.lastIndex = 0
+        const mouseMatches = [...str.matchAll(SGR_MOUSE_RE)]
+        if (mouseMatches.length > 0) {
+            for (const match of mouseMatches) {
+                this.handlers?.onMouse(Buffer.from(match[0]))
+            }
+            // Check if there's non-mouse data remaining
+            let remaining = str
+            for (const match of mouseMatches) {
+                remaining = remaining.replace(match[0], '')
+            }
+            if (remaining.length > 0 && remaining.trim().length > 0) {
+                this.handlers?.onKey(Buffer.from(remaining))
+            }
             return
         }
 

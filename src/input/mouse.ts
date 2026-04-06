@@ -5,7 +5,7 @@ export interface MouseEvent {
     row: number  // 0-indexed
 }
 
-const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/
+const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/
 
 export function parseMouseEvent(data: Buffer): MouseEvent | null {
     const str = data.toString()
