@@ -20,6 +20,8 @@
         flex-direction: column;
         gap: 1cell;
         padding: 1cell 2cell;
+        overflow: auto;
+        height: 100%;
     }
 
     .title {
