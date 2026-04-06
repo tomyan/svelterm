@@ -61,7 +61,7 @@ export interface ResolvedStyle {
     borderBottom: boolean
     borderLeft: boolean
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
-    textOverflow: 'clip' | 'ellipsis'
+    textOverflow: 'clip' | 'ellipsis' | 'ellipsis-middle'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
     textAlign: 'left' | 'center' | 'right'
     position: 'static' | 'relative' | 'absolute' | 'fixed'
@@ -499,7 +499,8 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             else style.overflow = 'visible'
             break
         case 'text-overflow':
-            style.textOverflow = value === 'ellipsis' ? 'ellipsis' : 'clip'
+            style.textOverflow = value === 'ellipsis' ? 'ellipsis'
+                : value === 'ellipsis-middle' ? 'ellipsis-middle' : 'clip'
             break
         case 'white-space':
             if (value === 'nowrap' || value === 'pre') style.whiteSpace = value

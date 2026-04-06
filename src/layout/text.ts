@@ -34,6 +34,15 @@ export function truncateText(text: string, width: number): string {
     return text.substring(0, width - 1) + '…'
 }
 
+export function truncateMiddle(text: string, width: number): string {
+    if (width <= 0) return ''
+    if (text.length <= width) return text
+    if (width <= 3) return text.substring(0, width - 1) + '…'
+    const half = Math.floor((width - 1) / 2)
+    const endLen = width - 1 - half
+    return text.substring(0, half) + '…' + text.substring(text.length - endLen)
+}
+
 export function measureText(text: string, availWidth: number): { width: number; height: number } {
     const lines = wrapText(text, availWidth)
     const maxLineWidth = lines.reduce((max, line) => Math.max(max, line.length), 0)
