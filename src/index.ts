@@ -12,13 +12,13 @@ import { syncLayoutCache } from './layout/cache.js'
 import { RenderContext } from './render/context.js'
 import { paintNodes } from './render/incremental-paint.js'
 import { type RenderQueueSnapshot } from './render/queue.js'
-import { parseKeyEvent, parsePaste } from './input/keyboard.js'
+import { parseKeyEvent } from './input/keyboard.js'
 import { parseMouseEvent, type MouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { TextBuffer } from './components/text-buffer.js'
-import { detectColorScheme, pollColorScheme } from './terminal/detect.js'
+import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import {
@@ -222,8 +222,76 @@ export function mount<Props extends Record<string, any>>(
     writeOutput(ansi.enableBracketedPaste())
     enableRawMode()
 
-    // Detect color scheme before first render
-    const startApp = () => {
+    // Single stdin router — all input flows through here
+    const router = new StdinRouter()
+
+    const handleKeyData = (data: Buffer) => {
+        const key = parseKeyEvent(data)
+        if (!key) return
+
+        if (key.ctrl && key.key === 'c') { doCleanup(); process.exit(0) }
+        if (key.ctrl && key.key === 'z') { doCleanup(); process.kill(process.pid, 'SIGTSTP'); return }
+
+        if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
+        if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
+        if (key.key === 'Enter' && focusManager.focused) { dispatchEvent(focusManager.focused, 'click'); scheduleRender(); return }
+
+        // Text input for focused input/textarea
+        const focused = focusManager.focused
+        if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
+            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            if (focused.textBuffer.handleKey(key)) {
+                const newValue = focused.textBuffer.text
+                focused.attributes.set('value', newValue)
+                const textChild = focused.children.find(c => c.nodeType === 'text')
+                if (textChild) ctx.onSetText(textChild, newValue)
+                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                scheduleRender()
+                return
+            }
+        }
+
+        const keyTarget = focused ?? findFirstElement(root)
+        if (keyTarget) { dispatchEvent(keyTarget, 'keydown', key); scheduleRender() }
+    }
+
+    const handleMouseData = (data: Buffer) => {
+        const mouse = parseMouseEvent(data)
+        if (!mouse) return
+        handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx)
+    }
+
+    const handlePaste = (text: string) => {
+        const focused = focusManager.focused
+        if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
+            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            focused.textBuffer.insert(text)
+            const newValue = focused.textBuffer.text
+            focused.attributes.set('value', newValue)
+            const textChild = focused.children.find(c => c.nodeType === 'text')
+            if (textChild) ctx.onSetText(textChild, newValue)
+            dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+            scheduleRender()
+        } else {
+            const target = focused ?? findFirstElement(root)
+            if (target) dispatchEvent(target, 'paste', { text })
+        }
+    }
+
+    router.start({ onKey: handleKeyData, onMouse: handleMouseData, onPaste: handlePaste })
+
+    // Serialised color scheme detection via router query
+    const detectScheme = async (): Promise<'dark' | 'light'> => {
+        const result = await router.query('\x1b]11;?\x07', matchOSC11, 200)
+        return result ? parseOSC11Scheme(result) : 'dark'
+    }
+
+    // Detect scheme, then mount and render
+    let doCleanup = () => {}
+
+    detectScheme().then((scheme) => {
+        detectedScheme = scheme
+
         ctx.queue.setFullRecompute()
         const { unmount: svUnmount } = renderer.render(
             AppComponent as any,
@@ -231,32 +299,33 @@ export function mount<Props extends Record<string, any>>(
         )
         scheduleRender()
 
-        const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-        setupInputHandlers(scheduleRender, appCleanup, focusManager, () => root, () => lastLayout, () => lastStyles, ctx)
         setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
-        // Poll for color scheme changes every second
-        const stopColorPoll = pollColorScheme(1000, (scheme) => {
+        // Poll color scheme every second via serialised queries
+        let pollRunning = true
+        const pollScheme = async () => {
+            if (!pollRunning) return
+            const scheme = await detectScheme()
             if (scheme !== detectedScheme) {
                 detectedScheme = scheme
+                lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet,
+                    { colorScheme: detectedScheme, displayMode: 'terminal', width: getTerminalSize().width, height: getTerminalSize().height }) : null
                 ctx.onResize()
                 prevBuffer = null
                 scheduleRender()
             }
-        })
+            if (pollRunning) setTimeout(pollScheme, 1000)
+        }
+        setTimeout(pollScheme, 1000)
 
-        cleanupFn = () => { stopColorPoll(); appCleanup() }
-    }
-
-    let cleanupFn = () => {}
-
-    // Initial color scheme detection, then start app
-    detectColorScheme().then((scheme) => {
-        detectedScheme = scheme
-        startApp()
+        const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
+        doCleanup = () => { pollRunning = false; router.stop(); appCleanup() }
     })
 
-    return () => cleanupFn()
+    process.on('SIGINT', () => { doCleanup(); process.exit(0) })
+    process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
+
+    return () => doCleanup()
 }
 
 function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseEnabled: boolean): () => void {
@@ -272,108 +341,6 @@ function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseE
     }
 }
 
-function setupInputHandlers(
-    scheduleRender: () => void,
-    cleanup: () => void,
-    focusManager: FocusManager,
-    getRoot: () => TermNode,
-    getLayout: () => Map<number, LayoutBox> | undefined,
-    getStyles: () => Map<number, ResolvedStyle> | undefined,
-    ctx: RenderContext,
-): void {
-    process.stdin.on('data', (data: Buffer) => {
-        const mouse = parseMouseEvent(data)
-        if (mouse) {
-            handleMouse(mouse, getRoot(), getLayout(), focusManager, scheduleRender, getStyles, ctx)
-            return
-        }
-
-        // Handle bracketed paste
-        const pastedText = parsePaste(data)
-        if (pastedText !== null) {
-            const focused = focusManager.focused
-            if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
-                if (!focused.textBuffer) {
-                    focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
-                }
-                focused.textBuffer.insert(pastedText)
-                const newValue = focused.textBuffer.text
-                focused.attributes.set('value', newValue)
-                const textChild = focused.children.find(c => c.nodeType === 'text')
-                if (textChild) ctx.onSetText(textChild, newValue)
-                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
-                scheduleRender()
-            } else {
-                const target = focused ?? findFirstElement(getRoot())
-                if (target) dispatchEvent(target, 'paste', { text: pastedText })
-            }
-            return
-        }
-
-        const key = parseKeyEvent(data)
-        if (!key) return
-
-        if (key.ctrl && key.key === 'c') {
-            cleanup()
-            process.exit(0)
-        }
-
-        if (key.ctrl && key.key === 'z') {
-            cleanup()
-            process.kill(process.pid, 'SIGTSTP')
-            return
-        }
-
-        if (key.key === 'Tab' && key.shift) {
-            focusManager.focusPrevious()
-            scheduleRender()
-            return
-        }
-
-        if (key.key === 'Tab') {
-            focusManager.focusNext()
-            scheduleRender()
-            return
-        }
-
-        if (key.key === 'Enter' && focusManager.focused) {
-            dispatchEvent(focusManager.focused, 'click')
-            scheduleRender()
-            return
-        }
-
-        // Handle text input for focused input/textarea elements
-        const focused = focusManager.focused
-        if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
-            if (!focused.textBuffer) {
-                focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
-            }
-            const handled = focused.textBuffer.handleKey(key)
-            if (handled) {
-                const newValue = focused.textBuffer.text
-                focused.attributes.set('value', newValue)
-                // Update text content for rendering
-                const textChild = focused.children.find(c => c.nodeType === 'text')
-                if (textChild) {
-                    ctx.onSetText(textChild, newValue)
-                }
-                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
-                scheduleRender()
-                return
-            }
-        }
-
-        // Dispatch to focused element, or to root's first element child (like document.body)
-        const keyTarget = focused ?? findFirstElement(getRoot())
-        if (keyTarget) {
-            dispatchEvent(keyTarget, 'keydown', key)
-            scheduleRender()
-        }
-    })
-
-    process.on('SIGINT', () => { cleanup(); process.exit(0) })
-    process.on('SIGTERM', () => { cleanup(); process.exit(0) })
-}
 
 function handleMouse(
     mouse: MouseEvent,
@@ -381,10 +348,9 @@ function handleMouse(
     layout: Map<number, LayoutBox> | undefined,
     focusManager: FocusManager,
     scheduleRender: () => void,
-    getStyles: () => Map<number, ResolvedStyle> | undefined,
+    lastStyles: Map<number, ResolvedStyle> | undefined,
     ctx: RenderContext,
 ): void {
-    const lastStyles = getStyles()
     if (!layout) return
 
     // Handle hover — set data-hovered on element under cursor
@@ -507,4 +473,4 @@ export { TermNode } from './renderer/node.js'
 export { CellBuffer } from './render/buffer.js'
 export { parseCSS } from './css/parser.js'
 export { resolveStyles } from './css/compute.js'
-export { detectColorScheme, pollColorScheme } from './terminal/detect.js'
+export { StdinRouter } from './terminal/stdin-router.js'

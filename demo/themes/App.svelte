@@ -1,6 +1,4 @@
 <script>
-    import { pollColorScheme } from '../../src/index.js'
-
     const darkThemes = [
         { name: 'Ocean', key: 'dark-ocean' },
         { name: 'Forest', key: 'dark-forest' },
@@ -15,23 +13,17 @@
     let mode = $state('auto')
     let darkTheme = $state(0)
     let lightTheme = $state(0)
-    let detectedScheme = $state('dark')
 
-    // Poll terminal background color every second
-    const stopPolling = pollColorScheme(1000, (scheme) => {
-        detectedScheme = scheme
-    })
-
-    let effectiveScheme = $derived(mode === 'auto' ? detectedScheme : mode)
+    // In auto mode, the framework detects light/dark via @media queries.
+    // For the theme class, auto defaults to dark (the CSS handles adaptation).
+    let effectiveScheme = $derived(mode === 'auto' ? 'dark' : mode)
 
     let themeClass = $derived(
         effectiveScheme === 'dark' ? darkThemes[darkTheme].key
         : lightThemes[lightTheme].key
     )
 
-    let modeLabel = $derived(
-        mode === 'auto' ? `auto (${detectedScheme})` : mode
-    )
+    let modeLabel = $derived(mode)
 
     let themeName = $derived(
         effectiveScheme === 'dark' ? darkThemes[darkTheme].name
