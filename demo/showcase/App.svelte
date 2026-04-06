@@ -1,12 +1,18 @@
 <script>
-    const ansiColors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
-    const gradientSteps = 16
+    let inputValue = $state('')
 </script>
 
 <style>
     :root {
         --primary: cyan;
         --muted: gray;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --primary: #0088aa;
+            --muted: #666666;
+        }
     }
 
     .showcase {
@@ -28,7 +34,6 @@
     .section {
         display: flex;
         flex-direction: column;
-        gap: 0;
     }
 
     .section-title {
@@ -81,6 +86,13 @@
     .color-fg-magenta { color: magenta; }
     .color-fg-cyan { color: cyan; }
 
+    @media (prefers-color-scheme: light) {
+        .color-fg-yellow { color: #997700; }
+        .color-fg-green { color: #006600; }
+        .color-fg-cyan { color: #007788; }
+        .color-fg-red { color: #cc0000; }
+    }
+
     .hex-demo { display: flex; flex-direction: row; gap: 1cell; }
     .hex-1 { color: #ff6b6b; }
     .hex-2 { color: #51cf66; }
@@ -89,6 +101,12 @@
     .hex-5 { color: #cc5de8; }
     .hex-6 { color: #ff922b; }
 
+    @media (prefers-color-scheme: light) {
+        .hex-1 { color: #cc3333; }
+        .hex-2 { color: #228833; }
+        .hex-4 { color: #aa8800; }
+    }
+
     .named-demo { display: flex; flex-direction: row; gap: 1cell; }
     .coral { color: coral; }
     .teal { color: teal; }
@@ -96,6 +114,11 @@
     .tomato { color: tomato; }
     .orchid { color: orchid; }
     .salmon { color: salmon; }
+
+    @media (prefers-color-scheme: light) {
+        .gold { color: #886600; }
+        .salmon { color: #cc5544; }
+    }
 
     .link { text-decoration: underline; color: #5599ff; }
 
@@ -125,6 +148,61 @@
     .left-align { text-align: left; width: 15cell; border: single; border-color: var(--muted); }
     .center-align { text-align: center; width: 15cell; border: single; border-color: var(--muted); }
     .right-align { text-align: right; width: 15cell; border: single; border-color: var(--muted); }
+
+    .hover-demo {
+        display: flex;
+        flex-direction: row;
+        gap: 1cell;
+    }
+
+    .hover-item {
+        border: single;
+        border-color: var(--muted);
+        padding: 0 2cell;
+        color: var(--muted);
+    }
+
+    .hover-item:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        font-weight: bold;
+    }
+
+    .truncate-demo {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .truncate-box {
+        width: 30cell;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        border: single;
+        border-color: var(--muted);
+        padding: 0 1cell;
+    }
+
+    .input-demo {
+        display: flex;
+        flex-direction: row;
+        gap: 1cell;
+    }
+
+    input {
+        border: single;
+        border-color: var(--muted);
+        padding: 0 1cell;
+        width: 30cell;
+    }
+
+    input:focus {
+        border-color: var(--primary);
+    }
+
+    .input-echo {
+        color: var(--muted);
+    }
 
     .footer {
         color: var(--muted);
@@ -230,5 +308,30 @@
         </div>
     </div>
 
-    <span class="footer">Ctrl+C to exit</span>
+    <div class="section">
+        <span class="section-title">Hover (move mouse over items)</span>
+        <div class="hover-demo">
+            <span class="hover-item">Item A</span>
+            <span class="hover-item">Item B</span>
+            <span class="hover-item">Item C</span>
+            <span class="hover-item">Item D</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Overflow (ellipsis)</span>
+        <div class="truncate-demo">
+            <div class="truncate-box"><span>/Users/tom/projects/svelterm/src/render/incremental-paint.ts</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Input (Tab to focus, type to edit)</span>
+        <div class="input-demo">
+            <input value="" oninput={(e) => inputValue = e.data?.value ?? ''} />
+            <span class="input-echo">Echo: {inputValue}</span>
+        </div>
+    </div>
+
+    <span class="footer">Tab / Shift+Tab to navigate, mouse hover, Ctrl+C to exit</span>
 </div>
