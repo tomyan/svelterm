@@ -29,7 +29,7 @@ export class RenderContext {
             this.queue.enqueueStyleResolve(node)
             // Also invalidate descendants — descendant selectors may change
             this.invalidateDescendantStyles(node)
-        } else if (key === 'id' || key === 'data-focused') {
+        } else if (key === 'id' || key === 'data-focused' || key === 'data-hovered') {
             node.invalidateStyle()
             this.queue.enqueueStyleResolve(node)
         } else {
@@ -41,7 +41,7 @@ export class RenderContext {
 
     onRemoveAttribute(node: TermNode, key: string): void {
         node.attributes.delete(key)
-        if (key === 'class' || key === 'id' || key === 'data-focused') {
+        if (key === 'class' || key === 'id' || key === 'data-focused' || key === 'data-hovered') {
             node.cache.classAttr = ''
             node.invalidateStyle()
             this.queue.enqueueStyleResolve(node)

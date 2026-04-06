@@ -101,11 +101,11 @@ export function hyperlinkClose(): string {
 }
 
 export function enableMouse(): string {
-    return `${CSI}?1000h${CSI}?1006h` // enable button tracking + SGR mode
+    return `${CSI}?1003h${CSI}?1006h` // enable any-event tracking + SGR mode
 }
 
 export function disableMouse(): string {
-    return `${CSI}?1006l${CSI}?1000l`
+    return `${CSI}?1006l${CSI}?1003l`
 }
 
 export function setCursorShape(shape: 'block' | 'underline' | 'bar'): string {

@@ -265,6 +265,7 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
     switch (pseudo) {
         case 'root': return node.parent === null
         case 'focus': return node.attributes.get('data-focused') === 'true'
+        case 'hover': return node.attributes.get('data-hovered') === 'true'
         case 'first-child': return isFirstChild(node)
         case 'last-child': return isLastChild(node)
         case 'not':

@@ -356,7 +356,19 @@ function handleMouse(
     ctx: RenderContext,
 ): void {
     const lastStyles = getStyles()
-    if (!layout || mouse.type !== 'press') return
+    if (!layout) return
+
+    // Handle hover — set data-hovered on element under cursor
+    if (mouse.type === 'motion') {
+        const target = hitTest(root, layout, mouse.col, mouse.row)
+        const hoveredId = target?.id ?? -1
+        // Walk tree and update data-hovered
+        updateHover(root, hoveredId, ctx)
+        scheduleRender()
+        return
+    }
+
+    if (mouse.type !== 'press') return
 
     if (mouse.button === 'left') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
@@ -426,6 +438,20 @@ function unregisterFocusableNodes(node: TermNode, focusManager: FocusManager): v
     }
     for (const child of node.children) {
         unregisterFocusableNodes(child, focusManager)
+    }
+}
+
+function updateHover(node: TermNode, hoveredId: number, ctx: RenderContext): void {
+    if (node.nodeType !== 'element') return
+    const isHovered = node.id === hoveredId
+    const wasHovered = node.attributes.has('data-hovered')
+    if (isHovered && !wasHovered) {
+        ctx.onSetAttribute(node, 'data-hovered', 'true')
+    } else if (!isHovered && wasHovered) {
+        ctx.onRemoveAttribute(node, 'data-hovered')
+    }
+    for (const child of node.children) {
+        updateHover(child, hoveredId, ctx)
     }
 }
 
