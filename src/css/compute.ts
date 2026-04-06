@@ -163,7 +163,7 @@ export function resolveStyles(
     return styles2
 }
 
-function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
+export function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
     const rules = stylesheet.rules.filter(rule => {
         if (rule.media && !evaluateMediaQuery(rule.media, context)) return false
         if (rule.supports && !evaluateSupports(rule.supports)) return false

@@ -4,7 +4,7 @@ import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
 import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
-import { resolveStyles, type ResolvedStyle } from './css/compute.js'
+import { resolveStyles, filterByMedia, type ResolvedStyle } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout, type LayoutBox } from './layout/engine.js'
 import { computeLayoutIncremental } from './layout/incremental.js'
@@ -58,6 +58,7 @@ export function mount<Props extends Record<string, any>>(
     // Persisted render state
     let prevBuffer: CellBuffer | null = null
     let lastStyles: Map<number, ResolvedStyle> | undefined
+    let lastFilteredStylesheet: import('./css/parser.js').CSSStyleSheet | null = null
     let lastLayout: Map<number, LayoutBox> | undefined
     let renderScheduled = false
     let initialRegistrationDone = false
@@ -92,7 +93,8 @@ export function mount<Props extends Record<string, any>>(
         root.attributes.set('data-height', String(size.height))
         const buffer = new CellBuffer(size.width, size.height)
         const media = { colorScheme: detectedScheme, displayMode: 'terminal' as const, width: size.width, height: size.height }
-        lastStyles = stylesheet ? resolveStyles(root, stylesheet, media) : undefined
+        lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet, media) : null
+        lastStyles = lastFilteredStylesheet ? resolveStyles(root, lastFilteredStylesheet) : undefined
         // Ensure root style has terminal dimensions for percentage resolution
         if (lastStyles) {
             const rootStyle = lastStyles.get(root.id)
@@ -124,9 +126,9 @@ export function mount<Props extends Record<string, any>>(
         const layoutBubble = new Set(snap.layoutBubble)
 
         // Step 1: Incremental style resolution
-        if (snap.styleResolve.size > 0 && lastStyles && stylesheet) {
+        if (snap.styleResolve.size > 0 && lastStyles && lastFilteredStylesheet) {
             lastStyles = resolveStylesIncremental(
-                root, stylesheet, lastStyles, snap.styleResolve,
+                root, lastFilteredStylesheet, lastStyles, snap.styleResolve,
                 undefined,
                 (node) => { layoutSubtree.add(node) },
             )
