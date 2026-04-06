@@ -18,6 +18,7 @@ import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { TextBuffer } from './components/text-buffer.js'
+import { pollColorScheme } from './terminal/detect.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import {
@@ -47,6 +48,9 @@ export function mount<Props extends Record<string, any>>(
     const ctx = new RenderContext()
     const renderer = createTermRenderer(ctx)
     const root = new TermNode('element', 'root')
+
+    // Color scheme detection — updated by polling
+    let detectedScheme: 'dark' | 'light' = 'dark'
 
     // Wire schedule callback (defined below, hoisted via closure)
     ctx.onScheduleRender = () => scheduleRender()
@@ -87,7 +91,8 @@ export function mount<Props extends Record<string, any>>(
         root.attributes.set('data-width', String(size.width))
         root.attributes.set('data-height', String(size.height))
         const buffer = new CellBuffer(size.width, size.height)
-        lastStyles = stylesheet ? resolveStyles(root, stylesheet) : undefined
+        const media = { colorScheme: detectedScheme, displayMode: 'terminal' as const, width: size.width, height: size.height }
+        lastStyles = stylesheet ? resolveStyles(root, stylesheet, media) : undefined
         // Ensure root style has terminal dimensions for percentage resolution
         if (lastStyles) {
             const rootStyle = lastStyles.get(root.id)
@@ -227,7 +232,20 @@ export function mount<Props extends Record<string, any>>(
     setupInputHandlers(scheduleRender, cleanup, focusManager, () => root, () => lastLayout, () => lastStyles, ctx)
     setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
-    return cleanup
+    // Poll for color scheme changes (light/dark terminal background)
+    const stopColorPoll = pollColorScheme(5000, (scheme) => {
+        if (scheme !== detectedScheme) {
+            detectedScheme = scheme
+            ctx.onResize() // force full recompute with new media context
+            prevBuffer = null
+            scheduleRender()
+        }
+    })
+
+    const originalCleanup = cleanup
+    const wrappedCleanup = () => { stopColorPoll(); originalCleanup() }
+
+    return wrappedCleanup
 }
 
 function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseEnabled: boolean): () => void {

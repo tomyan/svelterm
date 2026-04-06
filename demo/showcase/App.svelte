@@ -86,13 +86,6 @@
     .color-fg-magenta { color: magenta; }
     .color-fg-cyan { color: cyan; }
 
-    @media (prefers-color-scheme: light) {
-        .color-fg-yellow { color: #997700; }
-        .color-fg-green { color: #006600; }
-        .color-fg-cyan { color: #007788; }
-        .color-fg-red { color: #cc0000; }
-    }
-
     .hex-demo { display: flex; flex-direction: row; gap: 1cell; }
     .hex-1 { color: #ff6b6b; }
     .hex-2 { color: #51cf66; }
@@ -101,12 +94,6 @@
     .hex-5 { color: #cc5de8; }
     .hex-6 { color: #ff922b; }
 
-    @media (prefers-color-scheme: light) {
-        .hex-1 { color: #cc3333; }
-        .hex-2 { color: #228833; }
-        .hex-4 { color: #aa8800; }
-    }
-
     .named-demo { display: flex; flex-direction: row; gap: 1cell; }
     .coral { color: coral; }
     .teal { color: teal; }
@@ -114,11 +101,6 @@
     .tomato { color: tomato; }
     .orchid { color: orchid; }
     .salmon { color: salmon; }
-
-    @media (prefers-color-scheme: light) {
-        .gold { color: #886600; }
-        .salmon { color: #cc5544; }
-    }
 
     .link { text-decoration: underline; color: #5599ff; }
 
