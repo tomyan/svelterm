@@ -18,7 +18,7 @@ import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { TextBuffer } from './components/text-buffer.js'
-import { pollColorScheme } from './terminal/detect.js'
+import { detectColorScheme, pollColorScheme } from './terminal/detect.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import {
@@ -222,32 +222,41 @@ export function mount<Props extends Record<string, any>>(
     writeOutput(ansi.enableBracketedPaste())
     enableRawMode()
 
-    // Initial render: mount component and do full recompute
-    ctx.queue.setFullRecompute()
-    const { unmount: svUnmount } = renderer.render(
-        AppComponent as any,
-        { target: root, props: (options as any)?.props ?? {} },
-    )
-    scheduleRender()
+    // Detect color scheme before first render
+    const startApp = () => {
+        ctx.queue.setFullRecompute()
+        const { unmount: svUnmount } = renderer.render(
+            AppComponent as any,
+            { target: root, props: (options as any)?.props ?? {} },
+        )
+        scheduleRender()
 
-    const cleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-    setupInputHandlers(scheduleRender, cleanup, focusManager, () => root, () => lastLayout, () => lastStyles, ctx)
-    setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
+        const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
+        setupInputHandlers(scheduleRender, appCleanup, focusManager, () => root, () => lastLayout, () => lastStyles, ctx)
+        setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
-    // Poll for color scheme changes (light/dark terminal background)
-    const stopColorPoll = pollColorScheme(5000, (scheme) => {
-        if (scheme !== detectedScheme) {
-            detectedScheme = scheme
-            ctx.onResize() // force full recompute with new media context
-            prevBuffer = null
-            scheduleRender()
-        }
+        // Poll for color scheme changes every second
+        const stopColorPoll = pollColorScheme(1000, (scheme) => {
+            if (scheme !== detectedScheme) {
+                detectedScheme = scheme
+                ctx.onResize()
+                prevBuffer = null
+                scheduleRender()
+            }
+        })
+
+        cleanupFn = () => { stopColorPoll(); appCleanup() }
+    }
+
+    let cleanupFn = () => {}
+
+    // Initial color scheme detection, then start app
+    detectColorScheme().then((scheme) => {
+        detectedScheme = scheme
+        startApp()
     })
 
-    const originalCleanup = cleanup
-    const wrappedCleanup = () => { stopColorPoll(); originalCleanup() }
-
-    return wrappedCleanup
+    return () => cleanupFn()
 }
 
 function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseEnabled: boolean): () => void {

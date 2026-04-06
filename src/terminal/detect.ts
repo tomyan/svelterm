@@ -7,7 +7,7 @@ export function detectColorScheme(): Promise<'dark' | 'light'> {
         const timeout = setTimeout(() => {
             cleanup()
             resolve('dark') // default to dark if no response
-        }, 500)
+        }, 200)
 
         const chunks: Buffer[] = []
 
