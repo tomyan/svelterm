@@ -1,6 +1,7 @@
 import { TermNode } from '../renderer/node.js'
 import { CSSStyleSheet } from './parser.js'
-import { resolveNodeStyle, type ResolvedStyle } from './compute.js'
+import { resolveNode, type ResolvedStyle } from './compute.js'
+import { collectVariables } from './variables.js'
 
 const LAYOUT_PROPERTIES: (keyof ResolvedStyle)[] = [
     'display', 'flexDirection', 'justifyContent', 'alignItems', 'alignSelf',
@@ -14,8 +15,9 @@ const LAYOUT_PROPERTIES: (keyof ResolvedStyle)[] = [
 ]
 
 /**
- * Truly incremental style resolution — only re-resolve dirty nodes
- * and their descendants (for inheritance). Clean nodes reuse cached styles.
+ * Incremental style resolution — re-resolves dirty nodes and their
+ * descendants using the same resolveNode function as full resolution.
+ * Variables are collected once from the full tree for consistency.
  */
 export function resolveStylesIncremental(
     root: TermNode,
@@ -27,45 +29,29 @@ export function resolveStylesIncremental(
 ): Map<number, ResolvedStyle> {
     if (dirtyNodes.size === 0) return existingStyles
 
+    // Collect variables from the full tree — same as full resolution
+    const variables = collectVariables(root, stylesheet)
+
+    // Start with existing styles
     const result = new Map(existingStyles)
 
     for (const node of dirtyNodes) {
         if (node.nodeType !== 'element') continue
 
-        const parentStyle = node.parent ? result.get(node.parent.id) : undefined
-        const newStyle = resolveNodeStyle(node, stylesheet, parentStyle)
+        const oldStyle = existingStyles.get(node.id)
+
+        // Re-resolve this node and all its descendants using the
+        // same resolveNode function as full resolution
+        resolveNode(node, stylesheet, result, variables)
         onResolve?.(node.id)
 
-        const oldStyle = existingStyles.get(node.id)
-        result.set(node.id, newStyle)
-        node.cache.resolvedStyle = newStyle
-
-        if (oldStyle && onLayoutAffected && isLayoutAffecting(oldStyle, newStyle)) {
+        const newStyle = result.get(node.id)
+        if (oldStyle && newStyle && onLayoutAffected && isLayoutAffecting(oldStyle, newStyle)) {
             onLayoutAffected(node)
         }
-
-        // Re-resolve descendants — they may inherit from this node
-        resolveDescendants(node, stylesheet, result, onResolve)
     }
 
     return result
-}
-
-function resolveDescendants(
-    parent: TermNode,
-    stylesheet: CSSStyleSheet,
-    styles: Map<number, ResolvedStyle>,
-    onResolve?: (nodeId: number) => void,
-): void {
-    for (const child of parent.children) {
-        if (child.nodeType !== 'element') continue
-        const parentStyle = styles.get(parent.id)
-        const newStyle = resolveNodeStyle(child, stylesheet, parentStyle)
-        onResolve?.(child.id)
-        styles.set(child.id, newStyle)
-        child.cache.resolvedStyle = newStyle
-        resolveDescendants(child, stylesheet, styles, onResolve)
-    }
 }
 
 function isLayoutAffecting(oldStyle: ResolvedStyle, newStyle: ResolvedStyle): boolean {

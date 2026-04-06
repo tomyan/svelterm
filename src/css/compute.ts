@@ -120,11 +120,10 @@ export function resolveStyles(
     availWidth?: number,
     availHeight?: number,
 ): Map<number, ResolvedStyle> {
-    const ctx = media ?? DEFAULT_MEDIA
     const hasContainerRules = stylesheet.rules.some(r => r.container)
 
-    // Filter out non-matching @media and @supports, but keep @container for now
-    const filtered = filterByMedia(stylesheet, ctx)
+    // Filter by media if context provided; always filter @supports
+    const filtered = media ? filterByMedia(stylesheet, media) : filterSupports(stylesheet)
 
     if (!hasContainerRules) {
         // Simple path: no container queries
@@ -142,7 +141,7 @@ export function resolveStyles(
     resolveNode(root, withoutContainer, styles1, variables1)
 
     // Compute layout to get container dimensions
-    const layout = computeLayout(root, styles1, availWidth ?? ctx.width, availHeight ?? ctx.height)
+    const layout = computeLayout(root, styles1, availWidth ?? media?.width ?? 80, availHeight ?? media?.height ?? 24)
 
     // Pass 2: evaluate container rules against computed layout
     const containerRules = filtered.rules.filter(r => r.container)
@@ -161,6 +160,14 @@ export function resolveStyles(
     const styles2 = new Map<number, ResolvedStyle>()
     resolveNode(root, withMatchingContainers, styles2, variables2)
     return styles2
+}
+
+function filterSupports(stylesheet: CSSStyleSheet): CSSStyleSheet {
+    const rules = stylesheet.rules.filter(rule => {
+        if (rule.supports && !evaluateSupports(rule.supports)) return false
+        return true
+    })
+    return { rules, keyframes: stylesheet.keyframes }
 }
 
 export function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext): CSSStyleSheet {
@@ -252,7 +259,7 @@ function evaluateSupports(condition: string): boolean {
     return SUPPORTED_PROPERTIES.has(property)
 }
 
-function resolveNode(
+export function resolveNode(
     node: TermNode, stylesheet: CSSStyleSheet,
     styles: Map<number, ResolvedStyle>,
     variables: Map<number, Map<string, string>>,
@@ -268,29 +275,6 @@ function resolveNode(
     for (const child of node.children) {
         resolveNode(child, stylesheet, styles, variables)
     }
-}
-
-/**
- * Resolve style for a single node, given the stylesheet and parent style.
- * Used by incremental style resolution.
- */
-export function resolveNodeStyle(
-    node: TermNode,
-    stylesheet: CSSStyleSheet,
-    parentStyle?: ResolvedStyle,
-): ResolvedStyle {
-    // Collect variables from the tree root down to this node,
-    // so inherited CSS variables (e.g. from :root) are available.
-    const treeRoot = findRoot(node)
-    const variables = collectVariables(treeRoot, stylesheet)
-    const vars = variables.get(node.id) ?? new Map()
-    return computeStyle(node, stylesheet, vars, parentStyle)
-}
-
-function findRoot(node: TermNode): TermNode {
-    let current = node
-    while (current.parent) current = current.parent
-    return current
 }
 
 interface ScoredDeclaration {
