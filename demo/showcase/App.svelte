@@ -169,8 +169,7 @@
 
     .input-demo {
         display: flex;
-        flex-direction: row;
-        gap: 1cell;
+        flex-direction: column;
     }
 
     input {
@@ -313,7 +312,7 @@
         <span class="section-title">Text Input (Tab to focus, type to edit)</span>
         <div class="input-demo">
             <input value="" oninput={(e) => inputValue = e.data?.value ?? ''} />
-            <span class="input-echo">Echo: {inputValue}</span>
+            <span class="input-echo">Value: "{inputValue}"</span>
         </div>
     </div>
 
