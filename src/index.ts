@@ -239,7 +239,17 @@ export function mount<Props extends Record<string, any>>(
 
         if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
-        if (key.key === 'Enter' && focusManager.focused) { dispatchEvent(focusManager.focused, 'click'); scheduleRender(); return }
+        if (key.key === 'Enter' && focusManager.focused) {
+            const target = focusManager.focused
+            dispatchEvent(target, 'click')
+            // Open links in default browser
+            if (target.tag === 'a') {
+                const href = target.attributes.get('href')
+                if (href) openUrl(href)
+            }
+            scheduleRender()
+            return
+        }
 
         // Text input for focused input/textarea
         const focused = focusManager.focused
@@ -496,6 +506,14 @@ function scrollIntoView(
         scroller.scrollTop = nodeBox.y + nodeBox.height - scrollerBox.y - scrollerBox.height + borderInset
         ctx.onScroll(scroller)
     }
+}
+
+function openUrl(url: string): void {
+    const { exec } = require('child_process') as typeof import('child_process')
+    const cmd = process.platform === 'darwin' ? 'open'
+        : process.platform === 'win32' ? 'start'
+        : 'xdg-open'
+    exec(`${cmd} ${JSON.stringify(url)}`)
 }
 
 function hasScrolledNode(node: TermNode): boolean {
