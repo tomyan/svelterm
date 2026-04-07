@@ -169,26 +169,77 @@ function paintInput(
     const value = node.attributes.get('value') ?? ''
     const isFocused = node.attributes.has('data-focused')
     const cursor = node.textBuffer?.cursor ?? value.length
-    const borderInset = (node.cache.resolvedStyle?.borderStyle !== 'none' &&
-        node.cache.resolvedStyle?.borderStyle !== undefined) ? 1 : 0
-    const innerX = box.x + borderInset
-    const innerY = box.y + borderInset
-    const innerW = box.width - borderInset * 2
 
-    for (let i = 0; i < innerW && i < value.length; i++) {
-        const cx = innerX + i
-        if (clip && !inClip(cx, innerY, clip)) continue
-        buffer.setCell(cx, innerY, { char: value[i], fg: visuals.fg })
+    const style = node.cache.resolvedStyle
+    const borderInset = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
+    const padL = resolvePadVal(style?.paddingLeft) + borderInset
+    const padR = resolvePadVal(style?.paddingRight) + borderInset
+
+    const contentX = box.x + padL
+    const contentY = box.y + borderInset
+    const contentW = box.width - padL - padR
+
+    if (contentW <= 0) return
+
+    // Horizontal scroll: keep cursor visible within the content area
+    // Reserve 1 cell at each end for overflow indicators
+    const indicatorW = value.length > contentW ? 1 : 0
+    const viewW = contentW - indicatorW * 2
+    if (viewW <= 0) return
+
+    // Calculate scroll offset so cursor is always visible
+    let scrollOffset = node.scrollLeft ?? 0
+    if (cursor < scrollOffset) scrollOffset = cursor
+    if (cursor > scrollOffset + viewW - 1) scrollOffset = cursor - viewW + 1
+    scrollOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, value.length - viewW)))
+    node.scrollLeft = scrollOffset
+
+    const hasOverflowLeft = scrollOffset > 0
+    const hasOverflowRight = scrollOffset + viewW < value.length
+
+    const textStartX = contentX + (hasOverflowLeft ? 1 : 0)
+    const visibleText = value.substring(scrollOffset, scrollOffset + viewW)
+
+    // Paint visible text
+    for (let i = 0; i < visibleText.length; i++) {
+        const cx = textStartX + i
+        if (clip && !inClip(cx, contentY, clip)) continue
+        buffer.setCell(cx, contentY, { char: visibleText[i], fg: visuals.fg })
     }
 
-    // Show cursor when focused
-    if (isFocused && cursor <= innerW) {
-        const cx = innerX + cursor
-        const cursorChar = cursor < value.length ? value[cursor] : ' '
-        if (!clip || inClip(cx, innerY, clip)) {
-            buffer.setCell(cx, innerY, { char: cursorChar, fg: visuals.bg !== 'default' ? visuals.bg : 'black', bg: visuals.fg !== 'default' ? visuals.fg : 'white' })
+    // Paint overflow indicators (faint ellipsis)
+    if (hasOverflowLeft) {
+        const cx = contentX
+        if (!clip || inClip(cx, contentY, clip)) {
+            buffer.setCell(cx, contentY, { char: '…', fg: visuals.fg, dim: true })
         }
     }
+    if (hasOverflowRight) {
+        const cx = contentX + contentW - 1
+        if (!clip || inClip(cx, contentY, clip)) {
+            buffer.setCell(cx, contentY, { char: '…', fg: visuals.fg, dim: true })
+        }
+    }
+
+    // Cursor (inverted colors)
+    if (isFocused) {
+        const cursorScreenPos = textStartX + (cursor - scrollOffset)
+        if (cursorScreenPos >= contentX && cursorScreenPos < contentX + contentW) {
+            const cursorChar = cursor < value.length ? value[cursor] : ' '
+            if (!clip || inClip(cursorScreenPos, contentY, clip)) {
+                buffer.setCell(cursorScreenPos, contentY, {
+                    char: cursorChar,
+                    fg: visuals.bg !== 'default' ? visuals.bg : 'black',
+                    bg: visuals.fg !== 'default' ? visuals.fg : 'white',
+                })
+            }
+        }
+    }
+}
+
+function resolvePadVal(v: number | string | undefined): number {
+    if (typeof v === 'number') return v
+    return 0
 }
 
 function paintHorizontalRule(
