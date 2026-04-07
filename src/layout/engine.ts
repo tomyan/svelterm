@@ -165,7 +165,11 @@ function layoutElement(
     const autoWidth = isBlock
         ? (availWidth - margin.left - margin.right)
         : content.width + inset.left + inset.right
-    const autoHeight = content.height + inset.top + inset.bottom
+    // Input/textarea have intrinsic minimum height of 1 row for the value text
+    const intrinsicHeight = (node.tag === 'input' || node.tag === 'textarea')
+        ? Math.max(content.height, 1)
+        : content.height
+    const autoHeight = intrinsicHeight + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 
