@@ -1,6 +1,10 @@
 <script>
     let count = $state(0)
     let focusedName = $state('none')
+
+    $effect(() => {
+        console.log(`Counter changed: ${count}`)
+    })
 </script>
 
 <style>

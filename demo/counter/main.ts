@@ -13,4 +13,4 @@ try {
     // No CSS file available
 }
 
-mount(App, { css })
+mount(App, { css, debug: true })
