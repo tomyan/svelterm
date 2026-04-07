@@ -73,7 +73,7 @@ export class RenderContext {
     }
 
     onScroll(node: TermNode): void {
-        this.queue.enqueuePaintOnly(node)
+        this.queue.setFullRecompute()
     }
 
     onResize(): void {

@@ -217,10 +217,11 @@ export function mount<Props extends Record<string, any>>(
         scheduleRender()
     }
 
-    if (fullscreen) enterFullscreen()
-    if (mouseEnabled) writeOutput(ansi.enableMouse())
-    writeOutput(ansi.enableBracketedPaste())
     enableRawMode()
+    if (fullscreen) enterFullscreen()
+    // Write mode sequences directly — sync update wrapping can interfere
+    process.stdout.write(ansi.enableBracketedPaste())
+    if (mouseEnabled) process.stdout.write(ansi.enableMouse())
 
     // Single stdin router — all input flows through here
     const router = new StdinRouter()
@@ -336,8 +337,8 @@ function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseE
         unmountComponent()
         if (mouseEnabled) writeOutput(ansi.disableMouse())
         writeOutput(ansi.disableBracketedPaste())
-        disableRawMode()
         if (fullscreen) exitFullscreen()
+        disableRawMode()
     }
 }
 
@@ -363,7 +364,7 @@ function handleMouse(
         return
     }
 
-    if (mouse.type !== 'press') return
+    if (mouse.type !== 'press' && mouse.type !== 'scroll') return
 
     if (mouse.button === 'left') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
@@ -378,12 +379,10 @@ function handleMouse(
     } else if (mouse.button === 'scrollUp' || mouse.button === 'scrollDown') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {
-            // Find nearest scrollable ancestor
             const scrollTarget = findScrollableAncestor(target, lastStyles)
             if (scrollTarget) {
                 const box = layout.get(scrollTarget.id)
-                const style = lastStyles?.get(scrollTarget.id)
-                if (box && style) {
+                if (box) {
                     const contentHeight = scrollTarget.children.reduce((sum, c) => {
                         const cBox = layout.get(c.id)
                         return cBox ? Math.max(sum, cBox.y - box.y + cBox.height) : sum

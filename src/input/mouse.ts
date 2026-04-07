@@ -1,6 +1,6 @@
 export interface MouseEvent {
     button: 'left' | 'right' | 'middle' | 'scrollUp' | 'scrollDown' | 'none'
-    type: 'press' | 'release' | 'motion'
+    type: 'press' | 'release' | 'motion' | 'scroll'
     col: number  // 0-indexed
     row: number  // 0-indexed
 }
@@ -13,27 +13,35 @@ export function parseMouseEvent(data: Buffer): MouseEvent | null {
     if (!match) return null
 
     const code = parseInt(match[1])
-    const col = parseInt(match[2]) - 1  // SGR is 1-indexed
+    const col = parseInt(match[2]) - 1
     const row = parseInt(match[3]) - 1
-    const isMotion = (code & 32) !== 0
-    const type = isMotion ? 'motion' : (match[4] === 'M' ? 'press' : 'release')
 
-    return { button: decodeButton(code), type, col, row }
+    // Strip modifier bits (shift=4, meta=8, ctrl=16)
+    const base = code & ~(4 | 8 | 16)
+
+    // Release
+    if (match[4] === 'm') {
+        return { button: pressButton(base & 3), type: 'release', col, row }
+    }
+
+    // Scroll: codes 64-67
+    if (base >= 64 && base <= 67) {
+        return { button: base === 64 ? 'scrollUp' : 'scrollDown', type: 'scroll', col, row }
+    }
+
+    // Motion: bit 5 (32)
+    if (base & 32) {
+        const held = base & ~32 & 3
+        const button = held === 3 ? 'none' : pressButton(held)
+        return { button, type: 'motion', col, row }
+    }
+
+    // Press
+    return { button: pressButton(base & 3), type: 'press', col, row }
 }
 
-function decodeButton(code: number): MouseEvent['button'] {
-    const base = code & 3
-    if (code & 64) return base === 0 ? 'scrollUp' : 'scrollDown'
-    if (code & 32) {
-        // Motion event — base indicates which button is held (3 = no button)
-        if (base === 3) return 'none'
-        if (base === 0) return 'left'
-        if (base === 1) return 'middle'
-        if (base === 2) return 'right'
-        return 'none'
-    }
-    if (base === 0) return 'left'
-    if (base === 1) return 'middle'
-    if (base === 2) return 'right'
+function pressButton(code: number): 'left' | 'right' | 'middle' {
+    if (code === 1) return 'middle'
+    if (code === 2) return 'right'
     return 'left'
 }
