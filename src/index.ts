@@ -241,9 +241,9 @@ export function mount<Props extends Record<string, any>>(
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
         if (key.key === 'Enter' && focusManager.focused) {
             const target = focusManager.focused
-            dispatchEvent(target, 'click')
-            // Open links in default browser
-            if (target.tag === 'a') {
+            const event = dispatchEvent(target, 'click')
+            // Default action: open links in browser (unless preventDefault was called)
+            if (!event.defaultPrevented && target.tag === 'a') {
                 const href = target.attributes.get('href')
                 if (href) openUrl(href)
             }
@@ -389,7 +389,11 @@ function handleMouse(
             if (FOCUSABLE_TAGS.has(target.tag ?? '')) {
                 focusManager.focusByNode(target)
             }
-            dispatchEvent(target, 'click', mouse)
+            const event = dispatchEvent(target, 'click', mouse)
+            if (!event.defaultPrevented && target.tag === 'a') {
+                const href = target.attributes.get('href')
+                if (href) openUrl(href)
+            }
             scheduleRender()
         }
     } else if (mouse.button === 'scrollUp' || mouse.button === 'scrollDown') {
