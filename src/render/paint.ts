@@ -181,24 +181,33 @@ function paintInput(
 
     if (contentW <= 0) return
 
-    // Horizontal scroll: keep cursor visible within the content area
-    // Reserve 1 cell at each end for overflow indicators
-    const indicatorW = value.length > contentW ? 1 : 0
-    const viewW = contentW - indicatorW * 2
-    if (viewW <= 0) return
-
-    // Calculate scroll offset so cursor is always visible
+    // Calculate scroll offset so cursor is always visible.
+    // The cursor at the end of text sits in the right padding,
+    // so we can show one more character of text.
     let scrollOffset = node.scrollLeft ?? 0
+
+    // Adjust scroll to keep cursor in view
     if (cursor < scrollOffset) scrollOffset = cursor
-    if (cursor > scrollOffset + viewW - 1) scrollOffset = cursor - viewW + 1
-    scrollOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, value.length - viewW)))
+    if (cursor >= scrollOffset + contentW) scrollOffset = cursor - contentW + 1
+    // When cursor is mid-text (not at end), leave room for cursor cell
+    if (cursor < value.length && cursor >= scrollOffset + contentW - 1) {
+        scrollOffset = cursor - contentW + 2
+    }
+    scrollOffset = Math.max(0, scrollOffset)
     node.scrollLeft = scrollOffset
 
     const hasOverflowLeft = scrollOffset > 0
-    const hasOverflowRight = scrollOffset + viewW < value.length
+    const hasOverflowRight = scrollOffset + contentW < value.length
 
-    const textStartX = contentX + (hasOverflowLeft ? 1 : 0)
-    const visibleText = value.substring(scrollOffset, scrollOffset + viewW)
+    // Determine text region, reserving cells for overflow indicators
+    const leftIndicator = hasOverflowLeft ? 1 : 0
+    const rightIndicator = hasOverflowRight ? 1 : 0
+    const textAreaW = contentW - leftIndicator - rightIndicator
+    const textStartX = contentX + leftIndicator
+    const visibleText = value.substring(scrollOffset + leftIndicator, scrollOffset + leftIndicator + textAreaW)
+
+    // Adjust scroll offset for left indicator — we skip the first char when showing left indicator
+    const displayOffset = scrollOffset + leftIndicator
 
     // Paint visible text
     for (let i = 0; i < visibleText.length; i++) {
@@ -207,7 +216,7 @@ function paintInput(
         buffer.setCell(cx, contentY, { char: visibleText[i], fg: visuals.fg })
     }
 
-    // Paint overflow indicators (faint ellipsis)
+    // Overflow indicators (faint ellipsis)
     if (hasOverflowLeft) {
         const cx = contentX
         if (!clip || inClip(cx, contentY, clip)) {
@@ -223,7 +232,7 @@ function paintInput(
 
     // Cursor (inverted colors)
     if (isFocused) {
-        const cursorScreenPos = textStartX + (cursor - scrollOffset)
+        const cursorScreenPos = contentX + (cursor - scrollOffset)
         if (cursorScreenPos >= contentX && cursorScreenPos < contentX + contentW) {
             const cursorChar = cursor < value.length ? value[cursor] : ' '
             if (!clip || inClip(cursorScreenPos, contentY, clip)) {
