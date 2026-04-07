@@ -247,6 +247,8 @@ export function mount<Props extends Record<string, any>>(
                 focused.attributes.set('value', newValue)
                 const textChild = focused.children.find(c => c.nodeType === 'text')
                 if (textChild) ctx.onSetText(textChild, newValue)
+                // Enqueue the input element itself for repaint (cursor may have moved)
+                ctx.queue.enqueuePaintOnly(focused)
                 dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
                 scheduleRender()
                 return
