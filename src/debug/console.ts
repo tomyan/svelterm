@@ -41,8 +41,6 @@ export class ConsoleDomain implements DebugDomain {
         for (const level of levels) {
             const original = this.originals[level]
             ;(console as any)[level] = (...args: any[]) => {
-                // Still write to stderr so output isn't lost
-                original(...args)
                 this.capture(level, args)
             }
         }
