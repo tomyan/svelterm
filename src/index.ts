@@ -19,6 +19,8 @@ import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
+import { DebugServer } from './debug/server.js'
+import { ConsoleDomain } from './debug/console.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import {
@@ -34,6 +36,8 @@ export interface MountOptions {
     fullscreen?: boolean
     css?: string
     mouse?: boolean
+    debug?: boolean
+    debugPort?: number
 }
 
 export function mount<Props extends Record<string, any>>(
@@ -42,6 +46,8 @@ export function mount<Props extends Record<string, any>>(
 ): () => void {
     const fullscreen = options?.fullscreen ?? true
     const mouseEnabled = options?.mouse ?? true
+    const debugEnabled = options?.debug ?? false
+    const debugPort = options?.debugPort ?? 9444
     const stylesheet = options?.css ? parseCSS(options.css) : null
 
     // Render context tracks mutations and determines minimum work
@@ -297,6 +303,17 @@ export function mount<Props extends Record<string, any>>(
 
     router.start({ onKey: handleKeyData, onMouse: handleMouseData, onPaste: handlePaste })
 
+    // Debug server (opt-in)
+    let debugServer: DebugServer | null = null
+    let consoleDomain: ConsoleDomain | null = null
+    if (debugEnabled) {
+        debugServer = new DebugServer(debugPort)
+        consoleDomain = new ConsoleDomain(debugServer)
+        debugServer.registerDomain('Console', consoleDomain)
+        consoleDomain.start()
+        debugServer.start()
+    }
+
     // Serialised color scheme detection via router query
     const detectScheme = async (): Promise<'dark' | 'light'> => {
         const result = await router.query('\x1b]11;?\x07', matchOSC11, 200)
@@ -336,7 +353,13 @@ export function mount<Props extends Record<string, any>>(
         setTimeout(pollScheme, 1000)
 
         const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-        doCleanup = () => { pollRunning = false; router.stop(); appCleanup() }
+        doCleanup = () => {
+            pollRunning = false
+            router.stop()
+            consoleDomain?.stop()
+            debugServer?.stop()
+            appCleanup()
+        }
     })
 
     process.on('SIGINT', () => { doCleanup(); process.exit(0) })
