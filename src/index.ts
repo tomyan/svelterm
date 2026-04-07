@@ -176,7 +176,10 @@ export function mount<Props extends Record<string, any>>(
     focusManager.onRemoveAttribute = (node, key) => ctx.onRemoveAttribute(node, key)
     focusManager.onFocusChange = (focused, previous) => {
         if (previous) dispatchEvent(previous, 'blur')
-        if (focused) dispatchEvent(focused, 'focus')
+        if (focused) {
+            dispatchEvent(focused, 'focus')
+            scrollIntoView(focused, lastLayout, lastStyles, ctx)
+        }
     }
 
     // Schedule render on mutations
@@ -462,6 +465,37 @@ function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedSty
         current = current.parent
     }
     return null
+}
+
+function scrollIntoView(
+    node: TermNode,
+    layout: Map<number, LayoutBox> | undefined,
+    styles: Map<number, ResolvedStyle> | undefined,
+    ctx: RenderContext,
+): void {
+    if (!layout) return
+    const nodeBox = layout.get(node.id)
+    if (!nodeBox) return
+
+    const scroller = findScrollableAncestor(node, styles)
+    if (!scroller) return
+
+    const scrollerBox = layout.get(scroller.id)
+    if (!scrollerBox) return
+
+    const borderInset = (styles?.get(scroller.id)?.borderStyle !== 'none' &&
+        styles?.get(scroller.id)?.borderStyle !== undefined) ? 1 : 0
+    const viewTop = scrollerBox.y + borderInset + scroller.scrollTop
+    const viewBottom = viewTop + scrollerBox.height - borderInset * 2
+
+    // Node position relative to scroller content
+    if (nodeBox.y < viewTop) {
+        scroller.scrollTop = nodeBox.y - scrollerBox.y - borderInset
+        ctx.onScroll(scroller)
+    } else if (nodeBox.y + nodeBox.height > viewBottom) {
+        scroller.scrollTop = nodeBox.y + nodeBox.height - scrollerBox.y - scrollerBox.height + borderInset
+        ctx.onScroll(scroller)
+    }
 }
 
 function hasScrolledNode(node: TermNode): boolean {
