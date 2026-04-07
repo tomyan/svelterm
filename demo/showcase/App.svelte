@@ -105,6 +105,7 @@
     .salmon { color: salmon; }
 
     .link { text-decoration: underline; color: #5599ff; }
+    .link:focus { color: var(--primary); font-weight: bold; }
 
     .layout-demo {
         display: flex;
