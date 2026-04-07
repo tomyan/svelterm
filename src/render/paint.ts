@@ -181,42 +181,42 @@ function paintInput(
 
     if (contentW <= 0) return
 
-    // Calculate scroll offset so cursor is always visible.
-    // The cursor at the end of text sits in the right padding,
-    // so we can show one more character of text.
+    // Scroll offset: only adjust when cursor leaves visible range.
+    // Cursor at end of text (position == value.length) can sit 1 cell
+    // past the last character, using the right padding space.
     let scrollOffset = node.scrollLeft ?? 0
 
-    // Adjust scroll to keep cursor in view
-    if (cursor < scrollOffset) scrollOffset = cursor
-    if (cursor >= scrollOffset + contentW) scrollOffset = cursor - contentW + 1
-    // When cursor is mid-text (not at end), leave room for cursor cell
-    if (cursor < value.length && cursor >= scrollOffset + contentW - 1) {
-        scrollOffset = cursor - contentW + 2
+    // Cursor scrolled off the left → snap left edge to cursor
+    if (cursor < scrollOffset) {
+        scrollOffset = cursor
+    }
+    // Cursor scrolled off the right → scroll just enough to show it
+    if (cursor > scrollOffset + contentW) {
+        scrollOffset = cursor - contentW
+    }
+    // If cursor is mid-text and at the rightmost visible cell,
+    // we need to be able to see what's after it
+    if (cursor < value.length && cursor === scrollOffset + contentW) {
+        scrollOffset = cursor - contentW + 1
     }
     scrollOffset = Math.max(0, scrollOffset)
     node.scrollLeft = scrollOffset
 
+    // Determine what's visible and where overflow indicators go
     const hasOverflowLeft = scrollOffset > 0
-    const hasOverflowRight = scrollOffset + contentW < value.length
+    const visibleEnd = Math.min(scrollOffset + contentW, value.length)
+    const hasOverflowRight = visibleEnd < value.length
 
-    // Determine text region, reserving cells for overflow indicators
-    const leftIndicator = hasOverflowLeft ? 1 : 0
-    const rightIndicator = hasOverflowRight ? 1 : 0
-    const textAreaW = contentW - leftIndicator - rightIndicator
-    const textStartX = contentX + leftIndicator
-    const visibleText = value.substring(scrollOffset + leftIndicator, scrollOffset + leftIndicator + textAreaW)
-
-    // Adjust scroll offset for left indicator — we skip the first char when showing left indicator
-    const displayOffset = scrollOffset + leftIndicator
-
-    // Paint visible text
-    for (let i = 0; i < visibleText.length; i++) {
-        const cx = textStartX + i
+    // Paint text — overflow indicators replace the first/last visible character
+    for (let i = 0; i < contentW; i++) {
+        const charIdx = scrollOffset + i
+        if (charIdx >= value.length) break
+        const cx = contentX + i
         if (clip && !inClip(cx, contentY, clip)) continue
-        buffer.setCell(cx, contentY, { char: visibleText[i], fg: visuals.fg })
+        buffer.setCell(cx, contentY, { char: value[charIdx], fg: visuals.fg })
     }
 
-    // Overflow indicators (faint ellipsis)
+    // Overflow indicators (faint ellipsis on top of first/last char)
     if (hasOverflowLeft) {
         const cx = contentX
         if (!clip || inClip(cx, contentY, clip)) {
@@ -232,11 +232,11 @@ function paintInput(
 
     // Cursor (inverted colors)
     if (isFocused) {
-        const cursorScreenPos = contentX + (cursor - scrollOffset)
-        if (cursorScreenPos >= contentX && cursorScreenPos < contentX + contentW) {
+        const cursorScreenX = contentX + (cursor - scrollOffset)
+        if (cursorScreenX >= contentX && cursorScreenX <= contentX + contentW) {
             const cursorChar = cursor < value.length ? value[cursor] : ' '
-            if (!clip || inClip(cursorScreenPos, contentY, clip)) {
-                buffer.setCell(cursorScreenPos, contentY, {
+            if (!clip || inClip(cursorScreenX, contentY, clip)) {
+                buffer.setCell(cursorScreenX, contentY, {
                     char: cursorChar,
                     fg: visuals.bg !== 'default' ? visuals.bg : 'black',
                     bg: visuals.fg !== 'default' ? visuals.fg : 'white',
