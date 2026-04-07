@@ -155,7 +155,8 @@ export function mount<Props extends Record<string, any>>(
             for (const node of snap.styleResolve) dirtyPaintNodes.add(node)
         }
 
-        if (noLayoutChanges && dirtyPaintNodes.size > 0 && prevBuffer && lastStyles && lastLayout) {
+        const hasScroll = hasScrolledNode(root)
+        if (noLayoutChanges && !hasScroll && dirtyPaintNodes.size > 0 && prevBuffer && lastStyles && lastLayout) {
             const buffer = prevBuffer.clone()
             paintNodes(dirtyPaintNodes, buffer, lastStyles, lastLayout, root)
             const output = diffBuffers(prevBuffer, buffer)
@@ -459,6 +460,14 @@ function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedSty
         current = current.parent
     }
     return null
+}
+
+function hasScrolledNode(node: TermNode): boolean {
+    if (node.scrollTop !== 0 || node.scrollLeft !== 0) return true
+    for (const child of node.children) {
+        if (hasScrolledNode(child)) return true
+    }
+    return false
 }
 
 function findFirstElement(node: TermNode): TermNode | null {
