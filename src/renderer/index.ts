@@ -1,11 +1,8 @@
 import { createRenderer as svelteCreateRenderer, type Renderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './node.js'
-import { RenderContext } from '../render/context.js'
 
-export function createTermRenderer(
-    ctx?: RenderContext,
-): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
+export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
     return svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>({
         createFragment(): TermNode {
             return new TermNode('fragment')
@@ -16,14 +13,7 @@ export function createTermRenderer(
         },
 
         createTextNode(data: string): TermNode {
-            const node = new TermNode('text', data)
-            if (ctx) {
-                node.onMutate = () => {
-                    ctx.queue.enqueuePaintOnly(node)
-                    ctx.onScheduleRender?.()
-                }
-            }
-            return node
+            return new TermNode('text', data)
         },
 
         createComment(data: string): TermNode {
@@ -45,6 +35,7 @@ export function createTermRenderer(
         },
 
         setAttribute(element: TermNode, key: string, value: any): void {
+            const ctx = element.ctx
             if (ctx) {
                 ctx.onSetAttribute(element, key, String(value))
             } else {
@@ -53,6 +44,7 @@ export function createTermRenderer(
         },
 
         removeAttribute(element: TermNode, name: string): void {
+            const ctx = element.ctx
             if (ctx) {
                 ctx.onRemoveAttribute(element, name)
             } else {
@@ -66,6 +58,7 @@ export function createTermRenderer(
 
         setText(node: TermNode, text: string): void {
             if (node.nodeType === 'text' || node.nodeType === 'comment') {
+                const ctx = node.ctx
                 if (ctx) {
                     ctx.onSetText(node, text)
                 } else {
@@ -75,8 +68,9 @@ export function createTermRenderer(
                 node.children = []
                 const textNode = new TermNode('text', text)
                 textNode.parent = node
+                textNode.ctx = node.ctx
                 node.children.push(textNode)
-                if (ctx) ctx.onInsert(node, textNode)
+                node.ctx?.onInsert(node, textNode)
             }
         },
 
@@ -94,11 +88,12 @@ export function createTermRenderer(
 
         insert(parent: TermNode, node: TermNode, anchor: TermNode | null): void {
             parent.insertBefore(node, anchor)
-            if (ctx) ctx.onInsert(parent, node)
+            parent.ctx?.onInsert(parent, node)
         },
 
         remove(node: TermNode): void {
             const parent = node.parent
+            const ctx = parent?.ctx ?? null
             node.remove()
             if (ctx && parent) ctx.onRemove(node, parent)
         },
