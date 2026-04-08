@@ -1,5 +1,6 @@
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
-import { createTermRenderer, TermNode } from './renderer/index.js'
+import { TermNode } from './renderer/index.js'
+import renderer from './renderer/default.js'
 import { CellBuffer } from './render/buffer.js'
 import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
@@ -29,7 +30,6 @@ export function renderHeadless<Props extends Record<string, any>>(
     const width = options.width ?? 80
     const height = options.height ?? 24
 
-    const renderer = createTermRenderer()
     const root = new TermNode('element', 'root')
 
     const stylesheet = options.css ? parseCSS(options.css) : null
