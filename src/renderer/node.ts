@@ -19,7 +19,6 @@ export class TermNode {
     tag: string | undefined
     text: string | undefined
 
-    onMutate?: () => void
     ctx: RenderContext | null = null
 
     parent: TermNode | null = null
@@ -45,7 +44,6 @@ export class TermNode {
             } else {
                 this.text = newText
             }
-            this.onMutate?.()
         }
     }
 
@@ -61,7 +59,6 @@ export class TermNode {
             } else {
                 this.text = value
             }
-            this.onMutate?.()
         }
     }
 
@@ -161,7 +158,6 @@ export class TermNode {
 
     cleanup(): void {
         this.listeners.clear()
-        this.onMutate = undefined
         this.ctx = null
         for (const child of this.children) {
             child.cleanup()

@@ -15,13 +15,6 @@ describe('cleanup on node removal', () => {
         assert.equal(child.listeners.size, 0)
     })
 
-    it('removing a node clears its onMutate', () => {
-        const node = new TermNode('text', 'hello')
-        node.onMutate = () => {}
-        node.cleanup()
-        assert.equal(node.onMutate, undefined)
-    })
-
     it('FocusManager.unregister removes node', () => {
         const fm = new FocusManager()
         const btn = new TermNode('element', 'button')
@@ -33,11 +26,11 @@ describe('cleanup on node removal', () => {
 
     it('cleanup recursively cleans children', () => {
         const parent = new TermNode('element', 'div')
-        const child = new TermNode('text', 'hello')
-        child.onMutate = () => {}
+        const child = new TermNode('element', 'span')
+        child.listeners.set('click', new Set([() => {}]))
         parent.insertBefore(child, null)
 
         parent.cleanup()
-        assert.equal(child.onMutate, undefined)
+        assert.equal(child.listeners.size, 0)
     })
 })

@@ -13,31 +13,3 @@ describe('focusable node registration', () => {
         assert.equal(fm.count, 1)
     })
 })
-
-describe('mutation callback registration', () => {
-
-    it('onMutate is idempotent — setting twice does not break', () => {
-        const node = new TermNode('text', 'hello')
-        let callCount = 0
-        const callback = () => { callCount++ }
-        node.onMutate = callback
-        node.onMutate = callback // re-set same
-        node.nodeValue = 'world'
-        assert.equal(callCount, 1)
-    })
-
-    it('only newly inserted nodes need registration', () => {
-        const root = new TermNode('element', 'div')
-        const existing = new TermNode('text', 'old')
-        existing.onMutate = () => {} // already registered
-        root.insertBefore(existing, null)
-
-        // New node inserted
-        const newNode = new TermNode('text', 'new')
-        root.insertBefore(newNode, null)
-
-        // Only newNode needs onMutate set
-        assert.ok(!newNode.onMutate, 'new node has no onMutate yet')
-        assert.ok(existing.onMutate, 'existing node still has onMutate')
-    })
-})
