@@ -188,34 +188,13 @@ export function mount<Props extends Record<string, any>>(
         }
     }
 
-    // Schedule render on mutations
+    // Register focusable nodes on insert, unregister on remove
     const origInsert = ctx.onInsert.bind(ctx)
     ctx.onInsert = (parent: TermNode, child: TermNode) => {
         origInsert(parent, child)
-        // Register focusable callbacks on newly inserted nodes
         if (initialRegistrationDone) {
             registerFocusableNodes(child, focusManager)
         }
-        scheduleRender()
-    }
-
-    // Schedule render for other mutations
-    const origSetText = ctx.onSetText.bind(ctx)
-    ctx.onSetText = (node: TermNode, text: string) => {
-        origSetText(node, text)
-        scheduleRender()
-    }
-
-    const origSetAttr = ctx.onSetAttribute.bind(ctx)
-    ctx.onSetAttribute = (node: TermNode, key: string, value: string) => {
-        origSetAttr(node, key, value)
-        scheduleRender()
-    }
-
-    const origRemoveAttr = ctx.onRemoveAttribute.bind(ctx)
-    ctx.onRemoveAttribute = (node: TermNode, key: string) => {
-        origRemoveAttr(node, key)
-        scheduleRender()
     }
 
     const origRemove = ctx.onRemove.bind(ctx)
@@ -223,7 +202,6 @@ export function mount<Props extends Record<string, any>>(
         origRemove(child, parent)
         unregisterFocusableNodes(child, focusManager)
         child.cleanup()
-        scheduleRender()
     }
 
     enableRawMode()

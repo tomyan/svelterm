@@ -19,6 +19,7 @@ export class RenderContext {
         } else {
             this.queue.enqueueLayoutBubble(node)
         }
+        this.onScheduleRender?.()
     }
 
     onSetAttribute(node: TermNode, key: string, value: string): void {
@@ -37,6 +38,7 @@ export class RenderContext {
         }
 
         node.attributes.set(key, value)
+        this.onScheduleRender?.()
     }
 
     onRemoveAttribute(node: TermNode, key: string): void {
@@ -47,6 +49,7 @@ export class RenderContext {
             this.queue.enqueueStyleResolve(node)
             this.invalidateDescendantStyles(node)
         }
+        this.onScheduleRender?.()
     }
 
     onInsert(parent: TermNode, child: TermNode): void {
@@ -60,6 +63,7 @@ export class RenderContext {
         } else {
             this.queue.enqueueLayoutBubble(parent)
         }
+        this.onScheduleRender?.()
     }
 
     onRemove(child: TermNode, parent: TermNode): void {
@@ -70,14 +74,17 @@ export class RenderContext {
         }
         // Paint the area where the removed node was
         this.queue.enqueuePaintOnly(parent)
+        this.onScheduleRender?.()
     }
 
     onScroll(node: TermNode): void {
         this.queue.setFullRecompute()
+        this.onScheduleRender?.()
     }
 
     onResize(): void {
         this.queue.setFullRecompute()
+        this.onScheduleRender?.()
     }
 
     private invalidateDescendantStyles(node: TermNode): void {
