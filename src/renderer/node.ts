@@ -1,5 +1,6 @@
 import type { ResolvedStyle } from '../css/compute.js'
 import type { LayoutBox } from '../layout/engine.js'
+import type { RenderContext } from '../render/context.js'
 import { TextBuffer } from '../components/text-buffer.js'
 
 let nextId = 1
@@ -19,6 +20,7 @@ export class TermNode {
     text: string | undefined
 
     onMutate?: () => void
+    ctx: RenderContext | null = null
 
     parent: TermNode | null = null
     children: TermNode[] = []
@@ -111,6 +113,8 @@ export class TermNode {
                 this.children.splice(idx, 0, node)
             }
         }
+
+        if (this.ctx) propagateCtx(node, this.ctx)
     }
 
     removeChild(node: TermNode): void {
@@ -120,6 +124,7 @@ export class TermNode {
             this.children.splice(idx, 1)
         }
         node.parent = null
+        clearCtx(node)
     }
 
     remove(): void {
@@ -151,8 +156,23 @@ export class TermNode {
     cleanup(): void {
         this.listeners.clear()
         this.onMutate = undefined
+        this.ctx = null
         for (const child of this.children) {
             child.cleanup()
         }
+    }
+}
+
+function propagateCtx(node: TermNode, ctx: RenderContext): void {
+    node.ctx = ctx
+    for (const child of node.children) {
+        propagateCtx(child, ctx)
+    }
+}
+
+function clearCtx(node: TermNode): void {
+    node.ctx = null
+    for (const child of node.children) {
+        clearCtx(child)
     }
 }
