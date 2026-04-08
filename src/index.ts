@@ -1,5 +1,6 @@
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
-import { createTermRenderer, TermNode } from './renderer/index.js'
+import { TermNode } from './renderer/index.js'
+import renderer from './renderer/default.js'
 import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
 import { paint } from './render/paint.js'
@@ -52,8 +53,8 @@ export function mount<Props extends Record<string, any>>(
 
     // Render context tracks mutations and determines minimum work
     const ctx = new RenderContext()
-    const renderer = createTermRenderer(ctx)
     const root = new TermNode('element', 'root')
+    root.ctx = ctx
 
     // Color scheme detection — updated by polling
     let detectedScheme: 'dark' | 'light' = 'dark'
