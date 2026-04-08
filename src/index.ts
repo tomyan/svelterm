@@ -117,10 +117,9 @@ export function mount<Props extends Record<string, any>>(
         if (output.length > 0) writeOutput(output)
         prevBuffer = buffer
 
-        // Register focusable elements and mutation callbacks after initial render
+        // Register focusable elements after initial render
         if (!initialRegistrationDone) {
             registerFocusableNodes(root, focusManager)
-            registerMutationCallbacks(root, ctx, scheduleRender)
             initialRegistrationDone = true
         }
     }
@@ -193,10 +192,9 @@ export function mount<Props extends Record<string, any>>(
     const origInsert = ctx.onInsert.bind(ctx)
     ctx.onInsert = (parent: TermNode, child: TermNode) => {
         origInsert(parent, child)
-        // Register focusable/mutation callbacks on newly inserted nodes
+        // Register focusable callbacks on newly inserted nodes
         if (initialRegistrationDone) {
             registerFocusableNodes(child, focusManager)
-            registerMutationCallbacks(child, ctx, scheduleRender)
         }
         scheduleRender()
     }
@@ -447,17 +445,6 @@ function setupResizeHandler(onResize: () => void): void {
     process.stdout.on('resize', onResize)
 }
 
-function registerMutationCallbacks(node: TermNode, ctx: RenderContext, scheduleRender: () => void): void {
-    if (node.nodeType === 'text') {
-        node.onMutate = () => {
-            ctx.queue.enqueuePaintOnly(node)
-            scheduleRender()
-        }
-    }
-    for (const child of node.children) {
-        registerMutationCallbacks(child, ctx, scheduleRender)
-    }
-}
 
 const FOCUSABLE_TAGS = new Set(['button', 'input', 'textarea', 'a', 'select'])
 

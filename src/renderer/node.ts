@@ -39,11 +39,13 @@ export class TermNode {
 
     set nodeValue(value: string | null) {
         if (this.nodeType === 'text' || this.nodeType === 'comment') {
-            const old = this.text
-            this.text = value ?? ''
-            if (old !== this.text) {
-                this.onMutate?.()
+            const newText = value ?? ''
+            if (this.ctx) {
+                this.ctx.onSetText(this, newText)
+            } else {
+                this.text = newText
             }
+            this.onMutate?.()
         }
     }
 
@@ -54,7 +56,11 @@ export class TermNode {
 
     set textContent(value: string) {
         if (this.nodeType === 'text') {
-            this.text = value
+            if (this.ctx) {
+                this.ctx.onSetText(this, value)
+            } else {
+                this.text = value
+            }
             this.onMutate?.()
         }
     }
