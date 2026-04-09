@@ -1,5 +1,5 @@
 {
-  "name": "svelterm",
+  "name": "@svelterm/core",
   "version": "0.1.0",
   "description": "Svelte 5 components rendered to the terminal with real CSS",
   "type": "module",

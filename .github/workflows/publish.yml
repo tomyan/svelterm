@@ -1,0 +1,43 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Build svelte custom renderer fork
+        run: |
+          git clone --depth 1 -b svelte-custom-renderer \
+            https://github.com/paoloricciuti/svelte.git ../svelte-fork
+          cd ../svelte-fork
+          pnpm install
+          pnpm -C packages/svelte build
+
+      - name: Install dependencies and link svelte fork
+        run: |
+          npm install --ignore-scripts
+          npm install ../svelte-fork/packages/svelte --no-save
+
+      - name: Build
+        run: npx tsc
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -42,7 +42,7 @@ Write standard Svelte components with `<style>` blocks. They render in the termi
 ```
 
 ```typescript
-import { run } from 'svelterm/app'
+import { run } from '@svelterm/core/app'
 import { readFileSync } from 'fs'
 import App from './App.svelte'
 
@@ -72,7 +72,7 @@ The same Svelte component can render in both terminal and browser. Terminal-spec
 </style>
 ```
 
-To build for each target, use separate Vite configs — one with `customRenderer: 'svelterm'` for terminal, one without for browser. The component source is the same.
+To build for each target, use separate Vite configs — one with `customRenderer: '@svelterm/core'` for terminal, one without for browser. The component source is the same.
 
 ## What's different in terminal CSS
 
@@ -132,7 +132,7 @@ export default defineConfig({
         svelte({
             compilerOptions: {
                 experimental: {
-                    customRenderer: 'svelterm',
+                    customRenderer: '@svelterm/core',
                 },
                 css: 'external',
             },
@@ -155,7 +155,7 @@ export default defineConfig({
 Start an interactive terminal application.
 
 ```typescript
-import { run } from 'svelterm/app'
+import { run } from '@svelterm/core/app'
 
 const stop = run(App, {
     css,                    // Extracted CSS string

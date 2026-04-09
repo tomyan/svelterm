@@ -11,7 +11,7 @@ export default defineConfig({
         svelte({
             compilerOptions: {
                 experimental: {
-                    customRenderer: 'svelterm',
+                    customRenderer: '@svelterm/core',
                 },
                 css: 'external',
             },
@@ -19,7 +19,7 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            'svelterm': path.resolve(__dirname, 'src/renderer/default.ts'),
+            '@svelterm/core': path.resolve(__dirname, 'src/renderer/default.ts'),
         },
     },
     build: {
