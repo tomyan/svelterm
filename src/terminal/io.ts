@@ -89,3 +89,60 @@ export class ProcessIO implements TerminalIO {
         this.listening = false
     }
 }
+
+/**
+ * In-process IO — connects svelterm to a consumer in the same JS context.
+ * Used for browser-based terminal rendering (svelterm → VT100 emulator).
+ */
+export class InProcessIO implements TerminalIO {
+    private dataCallbacks: Array<(data: Buffer) => void> = []
+    private resizeCallbacks: Array<() => void> = []
+    private _width: number
+    private _height: number
+
+    /** Called when svelterm writes output — connect this to a VT100 emulator */
+    onOutput?: (data: string) => void
+
+    constructor(width: number, height: number) {
+        this._width = width
+        this._height = height
+    }
+
+    write(data: string): void {
+        this.onOutput?.(data)
+    }
+
+    getSize(): { width: number; height: number } {
+        return { width: this._width, height: this._height }
+    }
+
+    onData(callback: (data: Buffer) => void): void {
+        this.dataCallbacks.push(callback)
+    }
+
+    onResize(callback: () => void): void {
+        this.resizeCallbacks.push(callback)
+    }
+
+    enableRawMode(): void {}
+    disableRawMode(): void {}
+
+    dispose(): void {
+        this.dataCallbacks = []
+        this.resizeCallbacks = []
+        this.onOutput = undefined
+    }
+
+    /** Feed input data (keyboard/mouse) into svelterm */
+    feedInput(data: string): void {
+        const buf = Buffer.from(data)
+        for (const cb of this.dataCallbacks) cb(buf)
+    }
+
+    /** Notify svelterm of a resize */
+    setSize(width: number, height: number): void {
+        this._width = width
+        this._height = height
+        for (const cb of this.resizeCallbacks) cb()
+    }
+}

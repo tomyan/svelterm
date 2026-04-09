@@ -20,12 +20,16 @@ import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
-import { DebugServer } from './debug/server.js'
-import { ConsoleDomain } from './debug/console.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import { enterFullscreen, exitFullscreen } from './terminal/screen.js'
 import { type TerminalIO, ProcessIO } from './terminal/io.js'
+
+export interface ConsoleEntry {
+    level: 'log' | 'warn' | 'error' | 'info' | 'debug'
+    args: string[]
+    timestamp: number
+}
 
 export interface RunOptions {
     fullscreen?: boolean
@@ -34,6 +38,7 @@ export interface RunOptions {
     debug?: boolean
     debugPort?: number
     io?: TerminalIO
+    onConsole?: (entry: ConsoleEntry) => void
 }
 
 /** @deprecated Use RunOptions */
@@ -49,6 +54,36 @@ export function run<Props extends Record<string, any>>(
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
     const stylesheet = options?.css ? parseCSS(options.css) : null
+
+    // Console capture — intercept console methods and route to callback
+    const onConsole = options?.onConsole
+    let restoreConsole: (() => void) | null = null
+    if (onConsole) {
+        const originals = {
+            log: console.log.bind(console),
+            warn: console.warn.bind(console),
+            error: console.error.bind(console),
+            info: console.info.bind(console),
+            debug: console.debug.bind(console),
+        }
+        const levels = ['log', 'warn', 'error', 'info', 'debug'] as const
+        for (const level of levels) {
+            const original = originals[level]
+            ;(console as any)[level] = (...args: any[]) => {
+                original(...args)
+                onConsole({
+                    level,
+                    args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
+                    timestamp: Date.now(),
+                })
+            }
+        }
+        restoreConsole = () => {
+            for (const level of levels) {
+                (console as any)[level] = originals[level]
+            }
+        }
+    }
 
     // Render context tracks mutations and determines minimum work
     const ctx = new RenderContext()
@@ -283,15 +318,19 @@ export function run<Props extends Record<string, any>>(
 
     router.start({ onKey: handleKeyData, onMouse: handleMouseData, onPaste: handlePaste })
 
-    // Debug server (opt-in)
-    let debugServer: DebugServer | null = null
-    let consoleDomain: ConsoleDomain | null = null
+    // Debug server (opt-in, dynamically imported to avoid ws dependency in browser)
+    let debugServer: any = null
+    let consoleDomain: any = null
     if (debugEnabled) {
-        debugServer = new DebugServer(debugPort)
-        consoleDomain = new ConsoleDomain(debugServer)
-        debugServer.registerDomain('Console', consoleDomain)
-        consoleDomain.start()
-        debugServer.start()
+        import('./debug/server.js').then(({ DebugServer }) => {
+            import('./debug/console.js').then(({ ConsoleDomain }) => {
+                debugServer = new DebugServer(debugPort)
+                consoleDomain = new ConsoleDomain(debugServer)
+                debugServer.registerDomain('Console', consoleDomain)
+                consoleDomain.start()
+                debugServer.start()
+            })
+        })
     }
 
     // Serialised color scheme detection via router query
@@ -337,6 +376,7 @@ export function run<Props extends Record<string, any>>(
         router.stop()
         consoleDomain?.stop()
         debugServer?.stop()
+        restoreConsole?.()
         svUnmount()
         if (mouseEnabled) io.write(ansi.disableMouse())
         io.write(ansi.disableBracketedPaste())
@@ -519,4 +559,4 @@ export { CellBuffer } from './render/buffer.js'
 export { parseCSS } from './css/parser.js'
 export { resolveStyles } from './css/compute.js'
 export { StdinRouter } from './terminal/stdin-router.js'
-export { type TerminalIO, ProcessIO } from './terminal/io.js'
+export { type TerminalIO, ProcessIO, InProcessIO } from './terminal/io.js'
