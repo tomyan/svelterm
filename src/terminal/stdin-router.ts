@@ -1,10 +1,12 @@
 /**
- * Single point of control for process.stdin.
+ * Single point of control for terminal input.
  *
- * All stdin data flows through here. Incoming bytes are classified and
+ * All input data flows through here. Incoming bytes are classified and
  * routed to the appropriate handler. Query-response interactions (OSC 11,
  * DA1, etc.) are serialised — only one query is in-flight at a time.
  */
+
+import type { TerminalIO } from './io.js'
 
 export interface StdinHandlers {
     onKey: (data: Buffer) => void
@@ -27,6 +29,7 @@ const PASTE_START = '\x1b[200~'
 const PASTE_END = '\x1b[201~'
 
 export class StdinRouter {
+    private io: TerminalIO
     private handlers: StdinHandlers | null = null
     private pendingQuery: PendingQuery | null = null
     private queryQueue: Array<{
@@ -38,13 +41,16 @@ export class StdinRouter {
     }> = []
     private pasteBuffer: string | null = null
 
+    constructor(io: TerminalIO) {
+        this.io = io
+    }
+
     start(handlers: StdinHandlers): void {
         this.handlers = handlers
-        process.stdin.on('data', this.onData)
+        this.io.onData(this.onData)
     }
 
     stop(): void {
-        process.stdin.removeListener('data', this.onData)
         this.handlers = null
         if (this.pendingQuery) {
             clearTimeout(this.pendingQuery.timer)
@@ -90,7 +96,7 @@ export class StdinRouter {
             timer,
         }
 
-        process.stdout.write(write)
+        this.io.write(write)
     }
 
     private onData = (data: Buffer): void => {

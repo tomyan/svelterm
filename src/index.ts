@@ -24,27 +24,26 @@ import { DebugServer } from './debug/server.js'
 import { ConsoleDomain } from './debug/console.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
-import {
-    getTerminalSize,
-    enterFullscreen,
-    exitFullscreen,
-    enableRawMode,
-    disableRawMode,
-    writeOutput,
-} from './terminal/screen.js'
+import { enterFullscreen, exitFullscreen } from './terminal/screen.js'
+import { type TerminalIO, ProcessIO } from './terminal/io.js'
 
-export interface MountOptions {
+export interface RunOptions {
     fullscreen?: boolean
     css?: string
     mouse?: boolean
     debug?: boolean
     debugPort?: number
+    io?: TerminalIO
 }
+
+/** @deprecated Use RunOptions */
+export type MountOptions = RunOptions
 
 export function run<Props extends Record<string, any>>(
     AppComponent: ComponentType<SvelteComponent<Props>> | Component<Props>,
-    options?: MountOptions & ({} extends Props ? { props?: Props } : { props: Props }),
+    options?: RunOptions & ({} extends Props ? { props?: Props } : { props: Props }),
 ): () => void {
+    const io = options?.io ?? new ProcessIO()
     const fullscreen = options?.fullscreen ?? true
     const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
@@ -93,8 +92,12 @@ export function run<Props extends Record<string, any>>(
         }
     }
 
+    const writeOutput = (data: string) => {
+        io.write(ansi.beginSyncUpdate() + data + ansi.endSyncUpdate())
+    }
+
     const fullRender = () => {
-        const size = getTerminalSize()
+        const size = io.getSize()
         // Set root dimensions so children can use percentage width/height
         root.attributes.set('data-width', String(size.width))
         root.attributes.set('data-height', String(size.height))
@@ -125,7 +128,7 @@ export function run<Props extends Record<string, any>>(
     }
 
     const incrementalRender = (snap: RenderQueueSnapshot) => {
-        const size = getTerminalSize()
+        const size = io.getSize()
 
         // Mutable copies for promoted nodes during processing
         const layoutSubtree = new Set(snap.layoutSubtree)
@@ -204,21 +207,21 @@ export function run<Props extends Record<string, any>>(
         child.cleanup()
     }
 
-    enableRawMode()
-    if (fullscreen) enterFullscreen()
+    io.enableRawMode()
+    if (fullscreen) enterFullscreen(io)
     // Write mode sequences directly — sync update wrapping can interfere
-    process.stdout.write(ansi.enableBracketedPaste())
-    if (mouseEnabled) process.stdout.write(ansi.enableMouse())
+    io.write(ansi.enableBracketedPaste())
+    if (mouseEnabled) io.write(ansi.enableMouse())
 
     // Single stdin router — all input flows through here
-    const router = new StdinRouter()
+    const router = new StdinRouter(io)
 
     const handleKeyData = (data: Buffer) => {
         const key = parseKeyEvent(data)
         if (!key) return
 
-        if (key.ctrl && key.key === 'c') { doCleanup(); process.exit(0) }
-        if (key.ctrl && key.key === 'z') { doCleanup(); process.kill(process.pid, 'SIGTSTP'); return }
+        if (key.ctrl && key.key === 'c') { doCleanup(); if (typeof process !== 'undefined') process.exit(0); return }
+        if (key.ctrl && key.key === 'z') { doCleanup(); if (typeof process !== 'undefined') process.kill(process.pid, 'SIGTSTP'); return }
 
         if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
@@ -305,7 +308,7 @@ export function run<Props extends Record<string, any>>(
     )
     scheduleRender()
 
-    setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
+    io.onResize(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
     // Detect color scheme in background and re-render if different
     let pollRunning = true
@@ -315,8 +318,9 @@ export function run<Props extends Record<string, any>>(
             const scheme = await detectScheme()
             if (scheme !== detectedScheme) {
                 detectedScheme = scheme
+                const size = io.getSize()
                 lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet,
-                    { colorScheme: detectedScheme, displayMode: 'terminal', width: getTerminalSize().width, height: getTerminalSize().height }) : null
+                    { colorScheme: detectedScheme, displayMode: 'terminal', width: size.width, height: size.height }) : null
                 ctx.onResize()
                 prevBuffer = null
                 scheduleRender()
@@ -328,34 +332,26 @@ export function run<Props extends Record<string, any>>(
     }
     pollScheme()
 
-    const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
     const doCleanup = () => {
         pollRunning = false
         router.stop()
         consoleDomain?.stop()
         debugServer?.stop()
-        appCleanup()
+        svUnmount()
+        if (mouseEnabled) io.write(ansi.disableMouse())
+        io.write(ansi.disableBracketedPaste())
+        if (fullscreen) exitFullscreen(io)
+        io.disableRawMode()
+        io.dispose()
     }
 
-    process.on('SIGINT', () => { doCleanup(); process.exit(0) })
-    process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
+    if (typeof process !== 'undefined') {
+        process.on('SIGINT', () => { doCleanup(); process.exit(0) })
+        process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
+    }
 
     return doCleanup
 }
-
-function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseEnabled: boolean): () => void {
-    let cleaned = false
-    return () => {
-        if (cleaned) return
-        cleaned = true
-        unmountComponent()
-        if (mouseEnabled) writeOutput(ansi.disableMouse())
-        writeOutput(ansi.disableBracketedPaste())
-        if (fullscreen) exitFullscreen()
-        disableRawMode()
-    }
-}
-
 
 function handleMouse(
     mouse: MouseEvent,
@@ -415,10 +411,6 @@ function handleMouse(
             scheduleRender()
         }
     }
-}
-
-function setupResizeHandler(onResize: () => void): void {
-    process.stdout.on('resize', onResize)
 }
 
 
@@ -527,3 +519,4 @@ export { CellBuffer } from './render/buffer.js'
 export { parseCSS } from './css/parser.js'
 export { resolveStyles } from './css/compute.js'
 export { StdinRouter } from './terminal/stdin-router.js'
+export { type TerminalIO, ProcessIO } from './terminal/io.js'
