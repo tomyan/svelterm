@@ -3,6 +3,74 @@ import assert from 'node:assert/strict'
 import { TermNode } from '../src/renderer/node.js'
 import { RenderContext } from '../src/render/context.js'
 
+describe('TermNode ctx-aware mutations', () => {
+    describe('nodeValue setter routes through ctx', () => {
+        it('enqueues paint when nodeValue changes with same length', () => {
+            // Given
+            const ctx = new RenderContext()
+            const root = new TermNode('element', 'root')
+            root.ctx = ctx
+            const text = new TermNode('text', 'abc')
+            root.insertBefore(text, null)
+            ctx.queue.clear()
+
+            // When
+            text.nodeValue = 'xyz'
+
+            // Then
+            assert.equal(text.text, 'xyz')
+            assert.ok(ctx.queue.paintOnly.has(text))
+        })
+
+        it('enqueues layout bubble when nodeValue changes length', () => {
+            // Given
+            const ctx = new RenderContext()
+            const root = new TermNode('element', 'root')
+            root.ctx = ctx
+            const text = new TermNode('text', 'ab')
+            root.insertBefore(text, null)
+            ctx.queue.clear()
+
+            // When
+            text.nodeValue = 'abcd'
+
+            // Then
+            assert.equal(text.text, 'abcd')
+            assert.ok(ctx.queue.layoutBubble.has(text))
+        })
+
+        it('still works without ctx (direct mutation)', () => {
+            // Given
+            const text = new TermNode('text', 'old')
+
+            // When
+            text.nodeValue = 'new'
+
+            // Then
+            assert.equal(text.text, 'new')
+        })
+    })
+
+    describe('textContent setter routes through ctx', () => {
+        it('enqueues paint when textContent changes on text node', () => {
+            // Given
+            const ctx = new RenderContext()
+            const root = new TermNode('element', 'root')
+            root.ctx = ctx
+            const text = new TermNode('text', 'abc')
+            root.insertBefore(text, null)
+            ctx.queue.clear()
+
+            // When
+            text.textContent = 'xyz'
+
+            // Then
+            assert.equal(text.text, 'xyz')
+            assert.ok(ctx.queue.paintOnly.has(text))
+        })
+    })
+})
+
 describe('TermNode ctx propagation', () => {
     describe('insert propagates ctx to children', () => {
         it('propagates ctx when inserting a node into a tree with ctx', () => {

@@ -41,7 +41,7 @@ export interface MountOptions {
     debugPort?: number
 }
 
-export function mount<Props extends Record<string, any>>(
+export function run<Props extends Record<string, any>>(
     AppComponent: ComponentType<SvelteComponent<Props>> | Component<Props>,
     options?: MountOptions & ({} extends Props ? { props?: Props } : { props: Props }),
 ): () => void {
@@ -297,25 +297,21 @@ export function mount<Props extends Record<string, any>>(
         return result ? parseOSC11Scheme(result) : 'dark'
     }
 
-    // Detect scheme, then mount and render
-    let doCleanup = () => {}
+    // Render immediately with default scheme
+    ctx.queue.setFullRecompute()
+    const { unmount: svUnmount } = renderer.render(
+        AppComponent as any,
+        { target: root, props: (options as any)?.props ?? {} },
+    )
+    scheduleRender()
 
-    detectScheme().then((scheme) => {
-        detectedScheme = scheme
+    setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
-        ctx.queue.setFullRecompute()
-        const { unmount: svUnmount } = renderer.render(
-            AppComponent as any,
-            { target: root, props: (options as any)?.props ?? {} },
-        )
-        scheduleRender()
-
-        setupResizeHandler(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
-
-        // Poll color scheme every second via serialised queries
-        let pollRunning = true
-        const pollScheme = async () => {
-            if (!pollRunning) return
+    // Detect color scheme in background and re-render if different
+    let pollRunning = true
+    const pollScheme = async () => {
+        if (!pollRunning) return
+        try {
             const scheme = await detectScheme()
             if (scheme !== detectedScheme) {
                 detectedScheme = scheme
@@ -325,24 +321,26 @@ export function mount<Props extends Record<string, any>>(
                 prevBuffer = null
                 scheduleRender()
             }
-            if (pollRunning) setTimeout(pollScheme, 1000)
+        } catch {
+            // Terminal may not support color scheme queries — ignore
         }
-        setTimeout(pollScheme, 1000)
+        if (pollRunning) setTimeout(pollScheme, 1000)
+    }
+    pollScheme()
 
-        const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
-        doCleanup = () => {
-            pollRunning = false
-            router.stop()
-            consoleDomain?.stop()
-            debugServer?.stop()
-            appCleanup()
-        }
-    })
+    const appCleanup = createCleanup(svUnmount, fullscreen, mouseEnabled)
+    const doCleanup = () => {
+        pollRunning = false
+        router.stop()
+        consoleDomain?.stop()
+        debugServer?.stop()
+        appCleanup()
+    }
 
     process.on('SIGINT', () => { doCleanup(); process.exit(0) })
     process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
 
-    return () => doCleanup()
+    return doCleanup
 }
 
 function createCleanup(unmountComponent: () => void, fullscreen: boolean, mouseEnabled: boolean): () => void {

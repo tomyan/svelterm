@@ -1,4 +1,4 @@
-import { mount } from '../../src/index.js'
+import { run } from '../../src/index.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -12,4 +12,4 @@ try {
     // No CSS file available
 }
 
-mount(App, { css })
+run(App, { css })

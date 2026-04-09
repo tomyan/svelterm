@@ -447,11 +447,11 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             const flexParts = value.split(/\s+/)
             style.flexGrow = parseFloat(flexParts[0]) || 0
             if (flexParts.length > 1) style.flexShrink = parseFloat(flexParts[1]) || 1
-            if (flexParts.length > 2) style.flexBasis = flexParts[2] === 'auto' ? 'auto' : parseSizeOrCell(flexParts[2])
+            if (flexParts.length > 2) style.flexBasis = parseFlexBasis(flexParts[2])
             break
         }
         case 'flex-basis':
-            style.flexBasis = value === 'auto' ? 'auto' : parseSizeOrCell(value)
+            style.flexBasis = parseFlexBasis(value)
             break
         case 'flex-grow': style.flexGrow = parseFloat(value) || 0; break
         case 'flex-shrink': style.flexShrink = parseFloat(value) || 1; break
@@ -526,6 +526,12 @@ function setIndividualBorderSide(style: ResolvedStyle, side: 'borderTop' | 'bord
         style.borderLeft = false
     }
     style[side] = enabled
+}
+
+function parseFlexBasis(value: string): number | 'auto' {
+    if (value === 'auto') return 'auto'
+    const num = parseCellValue(value)
+    return num
 }
 
 function parseSizeOrCell(value: string): number | string {

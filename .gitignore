@@ -2,3 +2,4 @@ node_modules/
 dist/
 dist-demo/
 test/__snapshots__/
+*.swp
