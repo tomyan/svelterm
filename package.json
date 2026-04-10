@@ -15,6 +15,10 @@
     "./headless": {
       "types": "./dist/src/headless.d.ts",
       "default": "./dist/src/headless.js"
+    },
+    "./vite": {
+      "types": "./dist/src/vite/plugin.d.ts",
+      "default": "./dist/src/vite/plugin.js"
     }
   },
   "main": "./dist/src/renderer/default.js",
