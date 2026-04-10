@@ -7,8 +7,10 @@ export interface MouseEvent {
 
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/
 
-export function parseMouseEvent(data: Buffer): MouseEvent | null {
-    const str = data.toString()
+export function parseMouseEvent(data: Buffer | Uint8Array): MouseEvent | null {
+    const str = typeof Buffer !== 'undefined' && Buffer.isBuffer(data)
+        ? data.toString()
+        : new TextDecoder().decode(data)
     const match = SGR_MOUSE_RE.exec(str)
     if (!match) return null
 

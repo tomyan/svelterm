@@ -9,8 +9,8 @@
 import type { TerminalIO } from './io.js'
 
 export interface StdinHandlers {
-    onKey: (data: Buffer) => void
-    onMouse: (data: Buffer) => void
+    onKey: (data: Buffer | Uint8Array) => void
+    onMouse: (data: Buffer | Uint8Array) => void
     onPaste: (text: string) => void
 }
 
@@ -99,8 +99,10 @@ export class StdinRouter {
         this.io.write(write)
     }
 
-    private onData = (data: Buffer): void => {
-        const str = data.toString()
+    private onData = (data: Buffer | Uint8Array): void => {
+        const str = typeof Buffer !== 'undefined' && Buffer.isBuffer(data)
+            ? data.toString()
+            : new TextDecoder().decode(data)
 
         // Check for pending query response first
         if (this.pendingQuery) {
@@ -142,7 +144,7 @@ export class StdinRouter {
         const mouseMatches = [...str.matchAll(SGR_MOUSE_RE)]
         if (mouseMatches.length > 0) {
             for (const match of mouseMatches) {
-                this.handlers?.onMouse(Buffer.from(match[0]))
+                this.handlers?.onMouse(toBytes(match[0]))
             }
             // Check if there's non-mouse data remaining
             let remaining = str
@@ -150,7 +152,7 @@ export class StdinRouter {
                 remaining = remaining.replace(match[0], '')
             }
             if (remaining.length > 0 && remaining.trim().length > 0) {
-                this.handlers?.onKey(Buffer.from(remaining))
+                this.handlers?.onKey(toBytes(remaining))
             }
             return
         }
@@ -175,4 +177,9 @@ export function parseOSC11Scheme(rgb: string): 'dark' | 'light' {
     const b = parseInt(parts[2].substring(0, 2), 16)
     const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
     return luminance > 128 ? 'light' : 'dark'
+}
+
+function toBytes(str: string): Buffer | Uint8Array {
+    if (typeof Buffer !== 'undefined') return Buffer.from(str)
+    return new TextEncoder().encode(str)
 }

@@ -1,3 +1,8 @@
+function decodeBytes(data: Buffer | Uint8Array): string {
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) return data.toString()
+    return new TextDecoder().decode(data)
+}
+
 export interface KeyEvent {
     key: string
     ctrl: boolean
@@ -9,8 +14,8 @@ const PASTE_START = '\x1b[200~'
 const PASTE_END = '\x1b[201~'
 
 /** Check if data contains a bracketed paste sequence. Returns the pasted text or null. */
-export function parsePaste(data: Buffer): string | null {
-    const str = data.toString()
+export function parsePaste(data: Buffer | Uint8Array): string | null {
+    const str = decodeBytes(data)
     if (str.startsWith(PASTE_START)) {
         const endIdx = str.indexOf(PASTE_END)
         if (endIdx !== -1) {
@@ -22,7 +27,7 @@ export function parsePaste(data: Buffer): string | null {
     return null
 }
 
-export function parseKeyEvent(data: Buffer): KeyEvent | null {
+export function parseKeyEvent(data: Buffer | Uint8Array): KeyEvent | null {
     if (data.length === 0) return null
 
     const byte = data[0]
@@ -50,7 +55,7 @@ export function parseKeyEvent(data: Buffer): KeyEvent | null {
     return null
 }
 
-function parseEscapeSequence(data: Buffer): KeyEvent {
+function parseEscapeSequence(data: Buffer | Uint8Array): KeyEvent {
     // Bare escape
     if (data.length === 1) {
         return { key: 'Escape', ctrl: false, shift: false, meta: false }
@@ -64,7 +69,7 @@ function parseEscapeSequence(data: Buffer): KeyEvent {
     return { key: 'Escape', ctrl: false, shift: false, meta: false }
 }
 
-function parseCSI(data: Buffer): KeyEvent {
+function parseCSI(data: Buffer | Uint8Array): KeyEvent {
     const base = { ctrl: false, shift: false, meta: false }
 
     if (data.length < 3) return { key: 'Escape', ...base }

@@ -251,7 +251,7 @@ export function run<Props extends Record<string, any>>(
     // Single stdin router — all input flows through here
     const router = new StdinRouter(io)
 
-    const handleKeyData = (data: Buffer) => {
+    const handleKeyData = (data: Buffer | Uint8Array) => {
         const key = parseKeyEvent(data)
         if (!key) return
 
@@ -293,7 +293,7 @@ export function run<Props extends Record<string, any>>(
         if (keyTarget) { dispatchEvent(keyTarget, 'keydown', key); scheduleRender() }
     }
 
-    const handleMouseData = (data: Buffer) => {
+    const handleMouseData = (data: Buffer | Uint8Array) => {
         const mouse = parseMouseEvent(data)
         if (!mouse) return
         handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx)

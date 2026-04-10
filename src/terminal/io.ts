@@ -135,8 +135,10 @@ export class InProcessIO implements TerminalIO {
 
     /** Feed input data (keyboard/mouse) into svelterm */
     feedInput(data: string): void {
-        const buf = Buffer.from(data)
-        for (const cb of this.dataCallbacks) cb(buf)
+        const buf = typeof Buffer !== 'undefined'
+            ? Buffer.from(data)
+            : new TextEncoder().encode(data)
+        for (const cb of this.dataCallbacks) cb(buf as any)
     }
 
     /** Notify svelterm of a resize */
