@@ -26,6 +26,7 @@
  */
 
 import type { Plugin, ViteDevServer } from 'vite'
+import { createRunnableDevEnvironment } from 'vite'
 import { fileURLToPath } from 'url'
 import { WebSocketServer, WebSocket } from 'ws'
 
@@ -46,7 +47,9 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
                 environments: {
                     terminal: {
                         dev: {
-                            createEnvironment: 'createRunnableDevEnvironment' as any,
+                            createEnvironment(name: string, config: any) {
+                                return createRunnableDevEnvironment(name, config)
+                            },
                         },
                         resolve: {
                             conditions: ['svelte', 'node'],
