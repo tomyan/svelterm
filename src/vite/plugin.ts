@@ -37,12 +37,12 @@ export function svelterm(options: SveltermPluginOptions): Plugin[] {
     let restartTimer: ReturnType<typeof setTimeout> | null = null
     const entryPath = path.resolve(options.entry)
     let compilerModule: any = null
+    const cssMap = new Map<string, string>()
 
     const compilePlugin: Plugin = {
         name: 'svelterm:compile',
 
         async configResolved() {
-            // Load the svelte compiler once
             compilerModule = await import('svelte/compiler')
         },
 
@@ -65,6 +65,11 @@ export function svelterm(options: SveltermPluginOptions): Plugin[] {
                     customRenderer: '@svelterm/core',
                 } as any,
             })
+
+            // Collect extracted CSS
+            if (result.css?.code) {
+                cssMap.set(id, result.css.code)
+            }
 
             return {
                 code: result.js.code,
@@ -120,7 +125,7 @@ export function svelterm(options: SveltermPluginOptions): Plugin[] {
                 return
             }
 
-            const css = collectCss(server)
+            const css = [...cssMap.values()].join('\n')
 
             const sveltermPath = fileURLToPath(new URL('../index.js', import.meta.url))
             const sveltermMod = await server.ssrLoadModule(sveltermPath)
@@ -140,16 +145,3 @@ export function svelterm(options: SveltermPluginOptions): Plugin[] {
     return [compilePlugin, devPlugin]
 }
 
-function collectCss(server: ViteDevServer): string {
-    const parts: string[] = []
-    for (const mod of server.moduleGraph.idToModuleMap.values()) {
-        if (mod.id?.endsWith('.svelte') && mod.ssrTransformResult) {
-            const code = mod.ssrTransformResult.code
-            const match = code.match(/code:\s*'([\s\S]*?)'/)
-            if (match) {
-                parts.push(match[1].replace(/\\n/g, '\n'))
-            }
-        }
-    }
-    return parts.join('\n')
-}
