@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * svelterm dev — connects to a Vite dev server and renders the
- * terminal app with HMR.
+ * svelterm dev — tells a running Vite dev server to start the
+ * terminal app.
  *
  * Usage:
  *   npx svelterm dev http://localhost:5173
+ *   npx svelterm dev http://localhost:5173/src/App.svelte
  */
 
-import { ModuleRunner, createWebSocketModuleRunnerTransport } from 'vite/module-runner'
-import { WebSocket } from 'ws'
 import http from 'http'
 
 const args = process.argv.slice(2)
@@ -38,66 +37,33 @@ async function main() {
         process.exit(1)
     }
 
-    // Create WebSocket transport connecting to the terminal environment
-    const wsUrl = `ws://${parsedUrl.host}/__svelterm/terminal`
-    const transport = createWebSocketModuleRunnerTransport({
-        createConnection() {
-            const ws = new WebSocket(wsUrl) as any
-            return ws
-        },
-    })
-
-    const runner = new ModuleRunner({
-        transport,
-    })
-
-    // Determine entry point
-    const entryPath = parsedUrl.pathname !== '/'
+    // Determine entry point from URL path or default
+    const entry = parsedUrl.pathname !== '/'
         ? parsedUrl.pathname
         : '/src/App.svelte'
 
-    let cleanup: (() => void) | null = null
-
-    async function startApp() {
-        if (cleanup) {
-            try { cleanup() } catch {}
-            cleanup = null
-        }
-
-        try {
-            const mod = await runner.import(entryPath)
-            const Component = mod.default
-
-            if (!Component) {
-                console.error(`[svelterm] ${entryPath} must default-export a Svelte component`)
-                return
-            }
-
-            const sveltermMod = await runner.import('@svelterm/core/app')
-            const css = await fetchText(`${baseUrl}/__svelterm/css`) ?? ''
-
-            cleanup = sveltermMod.run(Component, {
-                css,
-                fullscreen: true,
-                mouse: true,
-            })
-        } catch (err) {
-            console.error('[svelterm] Error:', err)
-        }
+    // Tell the server to start the terminal app
+    const result = await fetchJson(`${baseUrl}/__svelterm/start?entry=${encodeURIComponent(entry)}`)
+    if (!result?.ok) {
+        console.error('Failed to start terminal app')
+        process.exit(1)
     }
 
-    await startApp()
+    console.log(`[svelterm] Started ${entry} — terminal app running on the Vite server`)
+    console.log(`[svelterm] Press Ctrl+C to stop`)
 
-    process.on('SIGINT', () => {
-        if (cleanup) cleanup()
-        runner.close()
+    // Keep the CLI alive and handle stop on exit
+    process.on('SIGINT', async () => {
+        await fetchJson(`${baseUrl}/__svelterm/stop`)
         process.exit(0)
     })
-    process.on('SIGTERM', () => {
-        if (cleanup) cleanup()
-        runner.close()
+    process.on('SIGTERM', async () => {
+        await fetchJson(`${baseUrl}/__svelterm/stop`)
         process.exit(0)
     })
+
+    // Keep process alive
+    setInterval(() => {}, 60000)
 }
 
 function fetchJson(url: string): Promise<any> {
@@ -109,16 +75,6 @@ function fetchJson(url: string): Promise<any> {
                 try { resolve(JSON.parse(data)) }
                 catch { resolve(null) }
             })
-        }).on('error', () => resolve(null))
-    })
-}
-
-function fetchText(url: string): Promise<string | null> {
-    return new Promise((resolve) => {
-        http.get(url, (res) => {
-            let data = ''
-            res.on('data', (chunk: string) => data += chunk)
-            res.on('end', () => resolve(data))
         }).on('error', () => resolve(null))
     })
 }

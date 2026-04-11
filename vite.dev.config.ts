@@ -16,9 +16,15 @@ export default defineConfig({
         ...svelterm(),
     ],
     resolve: {
-        alias: {
-            '@svelterm/core': path.resolve(__dirname, 'src/renderer/default.ts'),
-            '@svelterm/core/app': path.resolve(__dirname, 'src/index.ts'),
-        },
+        alias: [
+            { find: '@svelterm/core/app', replacement: path.resolve(__dirname, 'src/index.ts') },
+            { find: '@svelterm/core', replacement: path.resolve(__dirname, 'src/renderer/default.ts') },
+        ],
+    },
+    optimizeDeps: {
+        exclude: ['svelte'],
+    },
+    ssr: {
+        noExternal: ['svelte'],
     },
 })
