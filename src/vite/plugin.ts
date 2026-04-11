@@ -84,6 +84,17 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
         apply: 'serve',
 
         configureServer(server: ViteDevServer) {
+            // Watch for file changes and restart the terminal app
+            server.watcher.on('change', (file) => {
+                if (file.endsWith('.svelte') || file.endsWith('.ts') || file.endsWith('.js')) {
+                    console.log('[svelterm] File changed:', file)
+                    if (appCleanup && currentEntry) {
+                        console.log('[svelterm] Scheduling restart...')
+                        scheduleRestart()
+                    }
+                }
+            })
+
             server.middlewares.use('/__svelterm', (req, res, next) => {
                 const reqUrl = req.url ?? ''
                 if (reqUrl === '/' || reqUrl === '') {
@@ -116,17 +127,11 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
             })
         },
 
-        handleHotUpdate({ file }) {
-            if (file.endsWith('.svelte') || file.endsWith('.ts') || file.endsWith('.js')) {
-                if (appCleanup && currentEntry) {
-                    scheduleRestart()
-                }
-            }
-        },
     }
 
     let currentEntry: string | null = null
     let currentServer: ViteDevServer | null = null
+    let currentRunner: any = null
 
     function scheduleRestart() {
         if (restartTimer) clearTimeout(restartTimer)
@@ -150,7 +155,17 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
                 return
             }
 
+            // Invalidate all modules in the terminal environment for fresh compilation
+            for (const mod of terminalEnv.moduleGraph.idToModuleMap.values()) {
+                terminalEnv.moduleGraph.invalidateModule(mod)
+            }
+
+            // Close old runner and create fresh one
+            if (currentRunner) {
+                try { await currentRunner.close() } catch {}
+            }
             const runner = createServerModuleRunner(terminalEnv)
+            currentRunner = runner
 
             // Load the entry component
             const mod = await runner.import(entry)
