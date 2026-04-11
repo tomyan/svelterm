@@ -55,33 +55,32 @@ export function run<Props extends Record<string, any>>(
     const debugPort = options?.debugPort ?? 9444
     let stylesheet = options?.css ? parseCSS(options.css) : null
 
-    // Console capture — intercept console methods and route to callback
+    // Console capture — always intercept to prevent stdout corruption.
+    // Route to onConsole callback if provided, otherwise suppress.
     const onConsole = options?.onConsole
-    let restoreConsole: (() => void) | null = null
-    if (onConsole) {
-        const originals = {
-            log: console.log.bind(console),
-            warn: console.warn.bind(console),
-            error: console.error.bind(console),
-            info: console.info.bind(console),
-            debug: console.debug.bind(console),
-        }
-        const levels = ['log', 'warn', 'error', 'info', 'debug'] as const
-        for (const level of levels) {
-            const original = originals[level]
-            ;(console as any)[level] = (...args: any[]) => {
-                original(...args)
+    const originals = {
+        log: console.log.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        info: console.info.bind(console),
+        debug: console.debug.bind(console),
+    }
+    const levels = ['log', 'warn', 'error', 'info', 'debug'] as const
+    for (const level of levels) {
+        ;(console as any)[level] = (...args: any[]) => {
+            if (onConsole) {
                 onConsole({
                     level,
                     args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
                     timestamp: Date.now(),
                 })
             }
+            // Suppress stdout — writing to stdout would corrupt the terminal
         }
-        restoreConsole = () => {
-            for (const level of levels) {
-                (console as any)[level] = originals[level]
-            }
+    }
+    const restoreConsole = () => {
+        for (const level of levels) {
+            (console as any)[level] = originals[level]
         }
     }
 
