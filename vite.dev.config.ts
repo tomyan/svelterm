@@ -5,11 +5,13 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const demo = process.env.DEMO ?? 'counter'
 
 export default defineConfig({
+    root: path.resolve(__dirname, `demo/${demo}`),
     plugins: [
         svelte(svelterm.svelteOptions()),
-        svelterm.terminalServer(),
+        ...svelterm.terminalServer(),
     ],
     environments: svelterm.environments(),
     resolve: {
