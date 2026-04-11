@@ -110,11 +110,12 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
 /**
  * Bridge a WebSocket client to the terminal environment's hot channel.
  *
- * The ModuleRunner on the client sends JSON-RPC style messages:
- *   { type: 'custom', event: 'vite:invoke', data: { id, data: { id, method, params } } }
+ * Protocol (matching Vite's ModuleRunner RPC):
+ * Client sends: { type: "custom", event: "vite:invoke", data: { id, name, data } }
+ * Server responds via client.send(): { type: "custom", event: "vite:invoke", data: { id, name, data } }
  *
- * The server's environment.hot handles the invoke and responds.
- * HMR updates from the server are forwarded to the client.
+ * The hot channel's listener for "vite:invoke" calls the handler with (payload, client).
+ * We create a virtual client whose send() writes to the WebSocket.
  */
 function bridgeEnvironmentToWebSocket(server: ViteDevServer, ws: WebSocket): void {
     const terminalEnv = (server as any).environments?.terminal
@@ -125,19 +126,31 @@ function bridgeEnvironmentToWebSocket(server: ViteDevServer, ws: WebSocket): voi
 
     const hot = terminalEnv.hot
 
-    // Client -> Server: forward messages to the environment's hot channel
+    // Create a virtual "client" for the hot channel — its send() writes to the WebSocket
+    const virtualClient = {
+        send(payload: any) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(payload))
+            }
+        },
+    }
+
+    // Client -> Server: parse incoming messages and dispatch to hot channel
     ws.on('message', (data) => {
         try {
             const msg = JSON.parse(data.toString())
-            // The ModuleRunner transport sends messages that the hot channel
-            // inner emitter should receive
-            if (hot.api?.innerEmitter) {
-                hot.api.innerEmitter.emit(msg.event ?? msg.type, msg.data)
+
+            if (msg.type === 'ping') return // keep-alive
+
+            if (msg.type === 'custom' && msg.event) {
+                // Emit the event on the hot channel with our virtual client
+                // The hot channel's setInvokeHandler listener will pick up "vite:invoke"
+                hot.api?.innerEmitter?.emit(msg.event, msg.data, virtualClient)
             }
         } catch {}
     })
 
-    // Server -> Client: forward hot channel events to the WebSocket
+    // Server -> Client: forward broadcast messages (HMR updates)
     const sendToClient = (payload: any) => {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(payload))
@@ -147,6 +160,9 @@ function bridgeEnvironmentToWebSocket(server: ViteDevServer, ws: WebSocket): voi
     if (hot.api?.outsideEmitter) {
         hot.api.outsideEmitter.on('send', sendToClient)
     }
+
+    // Send initial connected message
+    virtualClient.send({ type: 'connected' })
 
     ws.on('close', () => {
         if (hot.api?.outsideEmitter) {
