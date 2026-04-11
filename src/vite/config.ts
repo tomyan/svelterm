@@ -7,7 +7,10 @@
  *   import { svelterm } from '@svelterm/core/vite'
  *
  *   export default defineConfig({
- *       plugins: [svelte(svelterm.svelteOptions())],
+ *       plugins: [
+ *           svelte(svelterm.svelteOptions()),
+ *           ...svelterm.terminalServer(),
+ *       ],
  *       environments: svelterm.environments(),
  *   })
  *
@@ -63,53 +66,15 @@ export function environments() {
 }
 
 /**
- * Returns a Vite plugin that bridges the terminal environment
- * over WebSocket for the svelterm CLI.
+ * Returns Vite plugins that bridge the terminal environment over
+ * WebSocket and serve CSS for the svelterm CLI.
  */
-const _cssStore = new Map<string, string>()
-
-/**
- * Returns a tiny plugin that captures CSS from svelte compilation
- * in the terminal environment before Vite's SSR transform discards it.
- */
-export function cssCollector(): any {
-    return {
-        name: 'svelterm:css',
-        load(id: string) {
-            // Log what we see
-            if (id.includes('.svelte')) {
-                console.error('[css-collector] load:', id.substring(id.lastIndexOf('/') + 1))
-            }
-            return null
-        },
-        transform(code: string, id: string) {
-            if (id.includes('.svelte')) {
-                console.error('[css-collector] transform:', id.substring(id.lastIndexOf('/') + 1), 'len:', code.length)
-            }
-            if (id.includes('type=style') && code.length > 0) {
-                _cssStore.set(id, code)
-            }
-            return null
-        },
-    }
-}
-
-export function terminalServer(config: SveltermConfig = {}): any {
+export function terminalServer(config: SveltermConfig = {}): any[] {
     const rendererModule = config.renderer ?? '@svelterm/core'
     let wss: any
     let WS: any
+
     return [{
-        name: 'svelterm:css-capture',
-        // Capture CSS from svelte's CSS virtual modules in the terminal env
-        // Must run before Vite's SSR transform empties CSS modules
-        applyToEnvironment(env: any) { return env.name === 'terminal' },
-        transform(code: string, id: string) {
-            if (id.includes('type=style') && id.includes('.svelte') && code.length > 0) {
-                _cssStore.set(id, code)
-            }
-            return null
-        },
-    }, {
         name: 'svelterm:server',
         apply: 'serve',
         async configResolved() {
@@ -118,7 +83,7 @@ export function terminalServer(config: SveltermConfig = {}): any {
             wss = new ws.WebSocketServer({ noServer: true })
         },
         configureServer(server: any) {
-            // CSS endpoint — compiles .svelte files to extract CSS
+            // CSS endpoint — re-compiles .svelte files to extract CSS
             server.middlewares.use('/__svelterm/css', async (_req: any, res: any) => {
                 const env = server.environments?.terminal
                 if (!env) { res.end(''); return }
@@ -145,37 +110,14 @@ export function terminalServer(config: SveltermConfig = {}): any {
                 res.setHeader('Content-Type', 'text/css')
                 res.end(parts.join('\n'))
             })
-            server.middlewares.use('/__svelterm/debug', (_req: any, res: any) => {
-                const env = server.environments?.terminal
-                const info: any[] = []
-                for (const mod of env?.moduleGraph?.idToModuleMap?.values() ?? []) {
-                    if (mod.id?.includes('style') || mod.id?.includes('.css')) {
-                        const tr = mod.transformResult
-                        info.push({
-                            id: mod.id,
-                            hasTransform: !!tr,
-                            codeLen: tr?.code?.length,
-                            codeSample: tr?.code?.substring(0, 300),
-                        })
-                    }
-                }
-                res.setHeader('Content-Type', 'application/json')
-                res.end(JSON.stringify(info, null, 2))
-            })
 
-            // Serve collected CSS
-            server.middlewares.use('/__svelterm/css', (_req: any, res: any) => {
-                res.setHeader('Content-Type', 'text/css')
-                res.end([..._cssStore.values()].join('\n'))
-            })
-
+            // WebSocket bridge for ModuleRunner
             server.httpServer?.on('upgrade', (req: any, socket: any, head: any) => {
                 if (req.url === '/__svelterm') {
                     wss.handleUpgrade(req, socket, head, (ws: any) => {
                         const env = server.environments?.terminal
                         if (!env) { ws.close(); return }
 
-                        // Virtual client for the hot channel
                         const client = {
                             send(payload: any) {
                                 if (ws.readyState === WS.OPEN) {
@@ -194,7 +136,6 @@ export function terminalServer(config: SveltermConfig = {}): any {
                             } catch {}
                         })
 
-                        // Forward HMR updates
                         const forward = (payload: any) => client.send(payload)
                         env.hot.api?.outsideEmitter?.on('send', forward)
                         client.send({ type: 'connected' })
