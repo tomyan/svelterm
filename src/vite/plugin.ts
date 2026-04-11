@@ -1,33 +1,25 @@
 /**
  * Vite plugin for svelterm.
  *
- * Registers a 'terminal' environment and uses dynamicCompileOptions
- * to configure per-environment Svelte compilation. Works alongside
- * sveltekit() or svelte().
+ * Registers a 'terminal' environment and bridges it over WebSocket
+ * so the svelterm CLI can connect as a remote ModuleRunner client.
  *
  * Usage:
- *   import { sveltekit } from '@sveltejs/kit/vite'
- *   import { svelterm } from '@svelterm/core/vite'
- *
- *   export default defineConfig({
- *       plugins: [sveltekit(), svelterm()]
- *   })
- *
- * Or standalone:
  *   import { svelte } from '@sveltejs/vite-plugin-svelte'
  *   import { svelterm } from '@svelterm/core/vite'
  *
  *   export default defineConfig({
- *       plugins: [svelte(), svelterm()]
+ *       plugins: [svelte({ ...svelterm.compileOptions() }), ...svelterm()]
  *   })
  *
- * Then connect from another terminal:
- *   npx svelterm dev http://localhost:5173
+ * Then in another terminal:
+ *   npx svelterm dev http://localhost:5173/src/App.svelte
  */
 
 import type { Plugin, ViteDevServer } from 'vite'
-import { createRunnableDevEnvironment, createServerModuleRunner } from 'vite'
+import { createRunnableDevEnvironment } from 'vite'
 import { fileURLToPath } from 'url'
+import { WebSocketServer, WebSocket } from 'ws'
 
 export interface SveltermPluginOptions {
     /** Custom renderer module specifier. Default: '@svelterm/core' */
@@ -37,7 +29,6 @@ export interface SveltermPluginOptions {
 export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
     const rendererModule = options.renderer ?? '@svelterm/core'
 
-    // Register the terminal environment
     const configPlugin: Plugin = {
         name: 'svelterm:config',
 
@@ -60,7 +51,6 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
         },
     }
 
-    // Resolve the renderer module in the terminal environment
     const resolvePlugin: Plugin = {
         name: 'svelterm:resolve',
 
@@ -76,25 +66,12 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
         },
     }
 
-    let appCleanup: (() => void) | null = null
-    let restartTimer: ReturnType<typeof setTimeout> | null = null
-
     const apiPlugin: Plugin = {
         name: 'svelterm:api',
         apply: 'serve',
 
         configureServer(server: ViteDevServer) {
-            // Watch for file changes and restart the terminal app
-            server.watcher.on('change', (file) => {
-                if (file.endsWith('.svelte') || file.endsWith('.ts') || file.endsWith('.js')) {
-                    console.log('[svelterm] File changed:', file)
-                    if (appCleanup && currentEntry) {
-                        console.log('[svelterm] Scheduling restart...')
-                        scheduleRestart()
-                    }
-                }
-            })
-
+            // Discovery + CSS endpoints
             server.middlewares.use('/__svelterm', (req, res, next) => {
                 const reqUrl = req.url ?? ''
                 if (reqUrl === '/' || reqUrl === '') {
@@ -106,105 +83,78 @@ export function svelterm(options: SveltermPluginOptions = {}): Plugin[] {
                 } else if (reqUrl === '/css') {
                     res.setHeader('Content-Type', 'text/css')
                     res.end(collectCss(server))
-                } else if (reqUrl.startsWith('/start?')) {
-                    const params = new URLSearchParams(reqUrl.slice(7))
-                    const entry = params.get('entry')
-                    if (!entry) {
-                        res.statusCode = 400
-                        res.end('entry parameter required')
-                        return
-                    }
-                    startTerminalApp(server, entry)
-                    res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({ ok: true }))
-                } else if (reqUrl === '/stop') {
-                    stopTerminalApp()
-                    res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({ ok: true }))
                 } else {
                     next()
                 }
             })
+
+            // WebSocket bridge: terminal environment <-> remote ModuleRunner
+            const httpServer = server.httpServer
+            if (httpServer) {
+                const wss = new WebSocketServer({ noServer: true })
+
+                httpServer.on('upgrade', (req, socket, head) => {
+                    if (req.url === '/__svelterm/terminal') {
+                        wss.handleUpgrade(req, socket, head, (ws) => {
+                            bridgeEnvironmentToWebSocket(server, ws)
+                        })
+                    }
+                })
+            }
         },
-
-    }
-
-    let currentEntry: string | null = null
-    let currentServer: ViteDevServer | null = null
-    let currentRunner: any = null
-
-    function scheduleRestart() {
-        if (restartTimer) clearTimeout(restartTimer)
-        restartTimer = setTimeout(() => {
-            restartTimer = null
-            if (currentServer && currentEntry) {
-                startTerminalApp(currentServer, currentEntry)
-            }
-        }, 100)
-    }
-
-    async function startTerminalApp(server: ViteDevServer, entry: string) {
-        stopTerminalApp()
-        currentServer = server
-        currentEntry = entry
-
-        try {
-            const terminalEnv = (server as any).environments?.terminal
-            if (!terminalEnv) {
-                console.error('[svelterm] terminal environment not found')
-                return
-            }
-
-            // Invalidate all modules in the terminal environment for fresh compilation
-            for (const mod of terminalEnv.moduleGraph.idToModuleMap.values()) {
-                terminalEnv.moduleGraph.invalidateModule(mod)
-            }
-
-            // Close old runner and create fresh one
-            if (currentRunner) {
-                try { await currentRunner.close() } catch {}
-            }
-            const runner = createServerModuleRunner(terminalEnv)
-            currentRunner = runner
-
-            // Load the entry component
-            const mod = await runner.import(entry)
-            const Component = mod.default
-            if (!Component) {
-                console.error(`[svelterm] ${entry} must default-export a Svelte component`)
-                return
-            }
-
-            // Load svelterm
-            const sveltermMod = await runner.import('@svelterm/core/app')
-
-            // Get CSS
-            const css = collectCss(server)
-
-            appCleanup = sveltermMod.run(Component, {
-                css,
-                fullscreen: true,
-                mouse: true,
-            })
-        } catch (err) {
-            console.error('[svelterm] Error starting app:', err)
-        }
-    }
-
-    function stopTerminalApp() {
-        if (appCleanup) {
-            try { appCleanup() } catch {}
-            appCleanup = null
-        }
     }
 
     return [configPlugin, resolvePlugin, apiPlugin]
 }
 
 /**
- * Collect CSS from .svelte modules compiled for the terminal environment.
- * Looks for __svelterm_css__ exports attached by the compiler transform.
+ * Bridge a WebSocket client to the terminal environment's hot channel.
+ *
+ * The ModuleRunner on the client sends JSON-RPC style messages:
+ *   { type: 'custom', event: 'vite:invoke', data: { id, data: { id, method, params } } }
+ *
+ * The server's environment.hot handles the invoke and responds.
+ * HMR updates from the server are forwarded to the client.
  */
+function bridgeEnvironmentToWebSocket(server: ViteDevServer, ws: WebSocket): void {
+    const terminalEnv = (server as any).environments?.terminal
+    if (!terminalEnv) {
+        ws.close()
+        return
+    }
+
+    const hot = terminalEnv.hot
+
+    // Client -> Server: forward messages to the environment's hot channel
+    ws.on('message', (data) => {
+        try {
+            const msg = JSON.parse(data.toString())
+            // The ModuleRunner transport sends messages that the hot channel
+            // inner emitter should receive
+            if (hot.api?.innerEmitter) {
+                hot.api.innerEmitter.emit(msg.event ?? msg.type, msg.data)
+            }
+        } catch {}
+    })
+
+    // Server -> Client: forward hot channel events to the WebSocket
+    const sendToClient = (payload: any) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(payload))
+        }
+    }
+
+    if (hot.api?.outsideEmitter) {
+        hot.api.outsideEmitter.on('send', sendToClient)
+    }
+
+    ws.on('close', () => {
+        if (hot.api?.outsideEmitter) {
+            hot.api.outsideEmitter.off('send', sendToClient)
+        }
+    })
+}
+
 function collectCss(server: any): string {
     const parts: string[] = []
     const terminalEnv = server.environments?.terminal
@@ -222,15 +172,6 @@ function collectCss(server: any): string {
     return parts.join('\n')
 }
 
-/**
- * Returns dynamicCompileOptions config for use with svelte() or sveltekit().
- * This function should be spread into the svelte plugin options.
- *
- * Usage:
- *   svelte({
- *       ...svelterm.compileOptions(),
- *   })
- */
 svelterm.compileOptions = function(rendererModule = '@svelterm/core') {
     return {
         dynamicCompileOptions({ environment }: any) {
@@ -246,4 +187,3 @@ svelterm.compileOptions = function(rendererModule = '@svelterm/core') {
         },
     }
 }
-
