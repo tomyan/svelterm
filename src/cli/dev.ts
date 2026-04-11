@@ -2,7 +2,7 @@
 
 /**
  * svelterm dev — connects to a Vite dev server and runs the
- * terminal app locally. The server compiles modules, this process
+ * terminal app. The server compiles modules, this process
  * renders to the terminal.
  *
  * Usage:
@@ -32,16 +32,9 @@ async function main() {
     const parsedUrl = new URL(url)
     const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`
 
-    // Verify svelterm plugin is configured
-    const config = await fetchJson(`${baseUrl}/__svelterm`)
-    if (!config || config.version !== 1) {
-        console.error('svelterm plugin not found on the Vite server.')
-        console.error('Add svelterm() to your vite.config.ts plugins.')
-        process.exit(1)
-    }
-
-    // Connect to the terminal environment's WebSocket
-    const wsUrl = `ws://${parsedUrl.host}/__svelterm/terminal`
+    // Connect to the Vite server's terminal environment
+    // The environment exposes a WebSocket for ModuleRunner at the HMR path
+    const wsUrl = `ws://${parsedUrl.host}/__svelterm`
     const transport = createWebSocketModuleRunnerTransport({
         createConnection() {
             return new WebSocket(wsUrl) as any
@@ -57,8 +50,8 @@ async function main() {
 
     let cleanup: (() => void) | null = null
 
-    // Load and run the app
     try {
+        // Import the component — this triggers compilation on the server
         const mod = await runner.import(entry)
         const Component = mod.default
         if (!Component) {
@@ -66,7 +59,10 @@ async function main() {
             process.exit(1)
         }
 
+        // Import svelterm's run function
         const sveltermMod = await runner.import('@svelterm/core/app')
+
+        // Fetch CSS from the server — compiled on demand from .svelte sources
         const css = await fetchText(`${baseUrl}/__svelterm/css`) ?? ''
 
         cleanup = sveltermMod.run(Component, {
@@ -79,7 +75,6 @@ async function main() {
         process.exit(1)
     }
 
-    // Clean exit
     process.on('SIGINT', () => {
         if (cleanup) cleanup()
         runner.close()
@@ -92,17 +87,34 @@ async function main() {
     })
 }
 
-function fetchJson(url: string): Promise<any> {
-    return new Promise((resolve) => {
-        http.get(url, (res) => {
-            let data = ''
-            res.on('data', (chunk: string) => data += chunk)
-            res.on('end', () => {
-                try { resolve(JSON.parse(data)) }
-                catch { resolve(null) }
-            })
-        }).on('error', () => resolve(null))
-    })
+function collectCssFromRunner(runner: ModuleRunner): string {
+    const parts: string[] = []
+    const mods = (runner as any).evaluatedModules
+    console.error('[svelterm] evaluatedModules type:', typeof mods, mods ? Object.keys(mods) : 'null')
+    if (mods) {
+        const map = mods.idToModuleMap ?? mods.urlToIdMap
+        console.error('[svelterm] map type:', typeof map, map?.size ?? 'no size')
+        if (map) {
+            for (const [id] of map) {
+                if (id.includes('svelte') || id.includes('.css')) {
+                    console.error('[svelterm] module:', id.substring(id.lastIndexOf('/') + 1))
+                }
+            }
+        }
+        for (const [id, mod] of map ?? []) {
+            if (id.includes('type=style') || id.includes('lang.css')) {
+                console.error('[svelterm] CSS module:', id.substring(id.lastIndexOf('/') + 1))
+                console.error('[svelterm] exports:', mod.exports ? Object.keys(mod.exports) : 'none')
+                console.error('[svelterm] default type:', typeof mod.exports?.default)
+                console.error('[svelterm] default value:', String(mod.exports?.default)?.substring(0, 100))
+                const css = mod.exports?.default
+                if (typeof css === 'string' && css.length > 0) {
+                    parts.push(css)
+                }
+            }
+        }
+    }
+    return parts.join('\n')
 }
 
 function fetchText(url: string): Promise<string | null> {

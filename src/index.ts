@@ -53,7 +53,7 @@ export function run<Props extends Record<string, any>>(
     const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
-    const stylesheet = options?.css ? parseCSS(options.css) : null
+    let stylesheet = options?.css ? parseCSS(options.css) : null
 
     // Console capture — intercept console methods and route to callback
     const onConsole = options?.onConsole
@@ -345,6 +345,15 @@ export function run<Props extends Record<string, any>>(
         AppComponent as any,
         { target: root, props: (options as any)?.props ?? {} },
     )
+
+    // Collect CSS from injected <style> elements (css: 'injected' mode)
+    if (!stylesheet) {
+        const injectedCss = collectInjectedCss(root)
+        if (injectedCss) {
+            stylesheet = parseCSS(injectedCss)
+        }
+    }
+
     scheduleRender()
 
     io.onResize(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
@@ -552,6 +561,16 @@ function findFirstElement(node: TermNode): TermNode | null {
         if (child.nodeType === 'element') return child
     }
     return node
+}
+
+function collectInjectedCss(root: TermNode): string {
+    const parts: string[] = []
+    for (const child of root.children) {
+        if (child.tag === 'style') {
+            parts.push(child.collectText())
+        }
+    }
+    return parts.join('\n')
 }
 
 export { TermNode } from './renderer/node.js'

@@ -17,8 +17,8 @@
       "default": "./dist/src/headless.js"
     },
     "./vite": {
-      "types": "./dist/src/vite/plugin.d.ts",
-      "default": "./dist/src/vite/plugin.js"
+      "types": "./dist/src/vite/config.d.ts",
+      "default": "./dist/src/vite/config.js"
     }
   },
   "bin": {
@@ -49,7 +49,7 @@
     "svelte": "^5.0.0"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@sveltejs/vite-plugin-svelte": "file:../vite-plugin-svelte-fork/packages/vite-plugin-svelte",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "typescript": "^6.0.2",

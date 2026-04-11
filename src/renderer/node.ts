@@ -79,6 +79,41 @@ export class TermNode {
         return new Set(raw.split(/\s+/).filter(Boolean))
     }
 
+    /** DOM compat — returns the root of the tree */
+    getRootNode(): TermNode {
+        let node: TermNode = this
+        while (node.parent) node = node.parent
+        return node
+    }
+
+    /** DOM compat — append_styles uses querySelector */
+    querySelector(selector: string): TermNode | null {
+        // Simple #id selector support for append_styles
+        if (selector.startsWith('#')) {
+            const id = selector.slice(1)
+            return this.findById(id)
+        }
+        return null
+    }
+
+    private findById(id: string): TermNode | null {
+        if (this.attributes.get('id') === id) return this
+        for (const child of this.children) {
+            const found = child.findById(id)
+            if (found) return found
+        }
+        return null
+    }
+
+    /** DOM compat — append_styles checks for .host on the root */
+    get host(): undefined { return undefined }
+
+    /** DOM compat — append_styles accesses .head */
+    get head(): TermNode { return this }
+
+    /** DOM compat — append_styles accesses .ownerDocument */
+    get ownerDocument(): TermNode { return this.getRootNode() }
+
     getFirstChild(): TermNode | null {
         return this.children[0] ?? null
     }
