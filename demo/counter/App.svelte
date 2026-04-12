@@ -9,16 +9,14 @@
 
 <style>
     :root {
-        --primary: cyan;
-        --accent: yellow;
-        --muted: gray;
+        --primary: #00b4d8;
+        --accent: #e6a817;
+        --muted: #888;
     }
 
     .app {
         display: flex;
         flex-direction: column;
-        gap: 1cell;
-        padding: 1cell 2cell;
     }
 
     .title {
@@ -29,28 +27,16 @@
     .panels {
         display: flex;
         flex-direction: row;
-        gap: 2cell;
     }
 
     .panel {
-        width: 25cell;
-        border: rounded;
-        border-color: var(--primary);
-        padding: 1cell;
         display: flex;
         flex-direction: column;
-        gap: 1cell;
     }
 
     .count {
         color: var(--accent);
         font-weight: bold;
-    }
-
-    button {
-        border: single;
-        border-color: var(--muted);
-        padding: 0 2cell;
     }
 
     button:focus {
@@ -68,8 +54,69 @@
     }
 
     .hint {
-        opacity: dim;
         color: var(--muted);
+    }
+
+    @media (display-mode: browser) {
+        .app {
+            gap: 1rem;
+            padding: 2rem;
+            font-family: system-ui, sans-serif;
+            max-width: 600px;
+        }
+
+        .title { font-size: 1.5rem; }
+        .panels { gap: 2rem; }
+        .count { font-size: 2rem; }
+
+        .panel {
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 1rem;
+            gap: 0.75rem;
+        }
+
+        button {
+            border: 1px solid var(--muted);
+            border-radius: 4px;
+            padding: 0.4rem 1.2rem;
+            background: white;
+            cursor: pointer;
+            font-size: inherit;
+        }
+
+        button:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        button:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .hint { opacity: 0.6; }
+    }
+
+    @media (display-mode: terminal) {
+        .app { gap: 1cell; padding: 1cell 2cell; }
+        .panels { gap: 2cell; }
+
+        .panel {
+            width: 25cell;
+            border: rounded;
+            border-color: var(--primary);
+            padding: 1cell;
+            gap: 1cell;
+        }
+
+        button {
+            border: single;
+            border-color: var(--muted);
+            padding: 0 2cell;
+        }
+
+        .hint { opacity: dim; }
     }
 </style>
 

@@ -41,9 +41,19 @@ async function main() {
 
     const runner = new ModuleRunner({ transport })
 
-    const entry = parsedUrl.pathname !== '/'
-        ? parsedUrl.pathname
-        : '/src/App.svelte'
+    // Discover entry from the server config, or use the URL path
+    let entry: string
+    if (parsedUrl.pathname !== '/') {
+        entry = parsedUrl.pathname
+    } else {
+        const serverConfig = await fetchJson(`${baseUrl}/__svelterm/config`)
+        if (!serverConfig) {
+            console.error('svelterm not configured on this server.')
+            console.error('Add svelterm.terminalServer() to your vite plugins.')
+            process.exit(1)
+        }
+        entry = '/' + serverConfig.entry.replace(/^\.\//, '')
+    }
 
     let cleanup: (() => void) | null = null
 
@@ -77,6 +87,19 @@ async function main() {
         if (cleanup) cleanup()
         runner.close()
         process.exit(0)
+    })
+}
+
+function fetchJson(url: string): Promise<any> {
+    return new Promise((resolve) => {
+        http.get(url, (res) => {
+            let data = ''
+            res.on('data', (chunk: string) => data += chunk)
+            res.on('end', () => {
+                try { resolve(JSON.parse(data)) }
+                catch { resolve(null) }
+            })
+        }).on('error', () => resolve(null))
     })
 }
 

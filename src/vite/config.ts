@@ -23,6 +23,8 @@ import { createRunnableDevEnvironment } from 'vite'
 export interface SveltermConfig {
     /** Custom renderer module specifier. Default: '@svelterm/core' */
     renderer?: string
+    /** Terminal entry component. Default: './App.svelte' */
+    entry?: string
 }
 
 /**
@@ -83,6 +85,16 @@ export function terminalServer(config: SveltermConfig = {}): any[] {
             wss = new ws.WebSocketServer({ noServer: true })
         },
         configureServer(server: any) {
+            // Discovery endpoint
+            server.middlewares.use('/__svelterm/config', (_req: any, res: any) => {
+                res.setHeader('Content-Type', 'application/json')
+                res.end(JSON.stringify({
+                    version: 1,
+                    entry: config.entry ?? './App.svelte',
+                    renderer: rendererModule,
+                }))
+            })
+
             // CSS endpoint — re-compiles .svelte files to extract CSS
             server.middlewares.use('/__svelterm/css', async (_req: any, res: any) => {
                 const env = server.environments?.terminal
