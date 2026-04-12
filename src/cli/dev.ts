@@ -33,9 +33,16 @@ async function main() {
     const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`
 
     const wsUrl = `ws://${parsedUrl.host}/__svelterm`
+    const ws = new WebSocket(wsUrl)
+
+    await new Promise<void>((resolve, reject) => {
+        ws.on('open', resolve)
+        ws.on('error', reject)
+    })
+
     const transport = createWebSocketModuleRunnerTransport({
         createConnection() {
-            return new WebSocket(wsUrl) as any
+            return ws as any
         },
     })
 
@@ -56,36 +63,71 @@ async function main() {
     }
 
     let cleanup: (() => void) | null = null
+    let restartTimer: ReturnType<typeof setTimeout> | null = null
 
-    try {
-        const mod = await runner.import(entry)
-        const Component = mod.default
-        if (!Component) {
-            console.error(`${entry} must default-export a Svelte component`)
-            process.exit(1)
+    async function startApp() {
+        if (cleanup) {
+            try { cleanup() } catch {}
+            cleanup = null
         }
 
-        const sveltermMod = await runner.import('@svelterm/core/app')
-        const css = await fetchText(`${baseUrl}/__svelterm/css`) ?? ''
+        try {
+            // Clear evaluated modules for fresh imports
+            const mods = (runner as any).evaluatedModules
+            if (mods?.idToModuleMap) {
+                mods.idToModuleMap.clear()
+            }
 
-        cleanup = sveltermMod.run(Component, {
-            css,
-            fullscreen: true,
-            mouse: true,
-        })
-    } catch (err) {
-        console.error('[svelterm] Error:', err)
-        process.exit(1)
+            const mod = await runner.import(entry)
+            const Component = mod.default
+            if (!Component) {
+                console.error(`${entry} must default-export a Svelte component`)
+                return
+            }
+
+            const sveltermMod = await runner.import('@svelterm/core/app')
+            const css = await fetchText(`${baseUrl}/__svelterm/css`) ?? ''
+
+            cleanup = sveltermMod.run(Component, {
+                css,
+                fullscreen: true,
+                mouse: true,
+            })
+        } catch (err) {
+            console.error('[svelterm] Error:', err)
+        }
     }
+
+    function scheduleRestart() {
+        if (restartTimer) clearTimeout(restartTimer)
+        restartTimer = setTimeout(() => {
+            restartTimer = null
+            startApp()
+        }, 100)
+    }
+
+    // Listen for HMR updates from the server
+    ws.on('message', (data) => {
+        try {
+            const msg = JSON.parse(data.toString())
+            if (msg.type === 'update' || msg.type === 'full-reload') {
+                scheduleRestart()
+            }
+        } catch {}
+    })
+
+    await startApp()
 
     process.on('SIGINT', () => {
         if (cleanup) cleanup()
         runner.close()
+        ws.close()
         process.exit(0)
     })
     process.on('SIGTERM', () => {
         if (cleanup) cleanup()
         runner.close()
+        ws.close()
         process.exit(0)
     })
 }

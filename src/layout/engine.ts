@@ -58,14 +58,25 @@ function layoutText(
     const preserveWhitespace = parentStyle?.whiteSpace === 'pre'
 
     // Skip empty text and inter-element whitespace.
-    // Whitespace-only text between element siblings is formatting, not content.
-    // Preserve whitespace-only text that is the sole child (e.g. grid rows of spaces).
-    const isInterElementWhitespace = !preserveWhitespace
-        && text.trim() === ''
-        && node.parent?.children.some(c => c.nodeType === 'element')
-    if (text === '' || isInterElementWhitespace) {
+    // Preserve whitespace between inline siblings (matching browser behaviour),
+    // but collapse between block-level siblings or inside flex/grid containers
+    // (where children are blockified).
+    if (text === '') {
         boxes.set(node.id, { x, y, width: 0, height: 0 })
         return { width: 0, height: 0 }
+    }
+    if (!preserveWhitespace && text.trim() === '' && node.parent?.children.some(c => c.nodeType === 'element')) {
+        const parentDisplay = parentStyle?.display ?? 'block'
+        const isFlexOrGrid = parentDisplay === 'flex' || parentDisplay === 'grid'
+        const hasBlockSibling = node.parent.children.some(c => {
+            if (c.nodeType !== 'element') return false
+            const d = styles?.get(c.id)?.display ?? 'block'
+            return d !== 'inline'
+        })
+        if (isFlexOrGrid || hasBlockSibling) {
+            boxes.set(node.id, { x, y, width: 0, height: 0 })
+            return { width: 0, height: 0 }
+        }
     }
 
     // Check parent's whiteSpace

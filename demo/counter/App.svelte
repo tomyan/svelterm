@@ -56,6 +56,10 @@
         border-color: var(--panel-border);
     }
 
+    .panel-title {
+        font-weight: bold;
+    }
+
     .count {
         color: var(--accent);
         font-weight: bold;
@@ -132,8 +136,15 @@
         .panel {
             width: 25cell;
             border: rounded;
-            padding: 1cell;
-            gap: 1cell;
+            padding: 0 1cell;
+        }
+
+        .count {
+            margin: 1cell 0;
+        }
+
+        ul {
+            margin-top: 1cell;
         }
 
         button {
@@ -149,7 +160,7 @@
     <span class="title">Svelterm — Counter Demo</span>
     <div class="panels">
         <div class="panel">
-            <span>Counter</span>
+            <span class="panel-title">Counter</span>
             <span class="count">{count}</span>
             <button
                 onclick={() => count++}
@@ -168,7 +179,7 @@
             >Reset</button>
         </div>
         <div class="panel">
-            <span>Features</span>
+            <span class="panel-title">Features</span>
             <ul>
                 <li>CSS Variables</li>
                 <li>Flexbox Layout</li>
@@ -177,6 +188,6 @@
             </ul>
         </div>
     </div>
-    <span><span class="focus-label">Focused: </span><span class="focus-indicator">{focusedName}</span></span>
+    <span><span class="focus-label">Focused:</span> <span class="focus-indicator">{focusedName}</span></span>
     <span class="hint">Tab to focus, Enter to click, Ctrl+C to exit</span>
 </div>

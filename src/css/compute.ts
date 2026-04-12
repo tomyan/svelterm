@@ -86,6 +86,7 @@ function defaultDisplay(tag?: string): ResolvedStyle['display'] {
 }
 
 export function defaultStyle(tag?: string): ResolvedStyle {
+    const defaultPaddingLeft = tag === 'ul' ? 2 : tag === 'ol' ? 4 : 0
     return {
         fg: 'default', bg: 'default',
         bold: false, italic: false, underline: false, strikethrough: false, dim: false,
@@ -93,7 +94,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         flexDirection: 'row',
         justifyContent: 'start', alignItems: 'start', alignSelf: 'auto',
         gap: 0,
-        paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0,
+        paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: defaultPaddingLeft,
         width: null, height: null,
         minWidth: null, minHeight: null, maxWidth: null, maxHeight: null,
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,

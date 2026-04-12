@@ -155,8 +155,11 @@ function paintListMarker(
         marker = '• '
     }
 
+    // Paint marker before the content (offset left by marker width)
+    const markerX = box.x - marker.length
     for (let i = 0; i < marker.length; i++) {
-        const cx = box.x + i
+        const cx = markerX + i
+        if (cx < 0) continue
         if (clip && !inClip(cx, box.y, clip)) continue
         buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
     }
