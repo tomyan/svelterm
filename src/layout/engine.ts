@@ -576,12 +576,15 @@ function positionChildren(
             mainSize += Math.floor(freeSpace * growValues[i] / totalGrow)
         }
         if (overflow > 0 && totalShrink > 0 && shrinkValues[i] > 0) {
-            // Compute minimum size: bordered elements need border + 1 content row
+            // CSS min-height:auto — items with explicit sizes can shrink toward
+            // content size, but not below it. Items without explicit sizes don't shrink.
             const childStyle = styles.get(ordered[i].id)
-            const hasBorder = childStyle?.borderStyle !== undefined && childStyle.borderStyle !== 'none'
-            const minMain = hasBorder ? 3 : 0
-            mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
-            mainSize = Math.max(minMain, mainSize)
+            const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
+            const contentMain = baseDir === 'row' ? sizes[i].width : sizes[i].height
+            if (explicitMain !== undefined) {
+                mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
+                mainSize = Math.max(0, mainSize)
+            }
         }
 
         // Wrap check
