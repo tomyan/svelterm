@@ -406,45 +406,134 @@ function layoutGrid(
         }
     }
 
-    let rowY = y
-    let maxWidth = 0
+    // Pass 1: assign each child to a row/col and compute content-based row heights
+    interface GridPlacement { child: TermNode; col: number; span: number; row: number }
+    const placements: GridPlacement[] = []
+    const computedRowHeights: number[] = []
     let col = 0
     let rowIdx = 0
-    let currentRowHeight = 0 // auto-computed from content
 
     for (const child of children) {
-        if (col >= numCols) {
-            const explicitH = rowHeights[rowIdx]
-            rowY += (explicitH ?? currentRowHeight) + vGap
-            col = 0
-            rowIdx++
-            currentRowHeight = 0
-        }
+        const childStyle = styles.get(child.id)
+        const span = childStyle?.gridColumnSpan ?? 1
 
-        const colX = x + colWidths.slice(0, col).reduce((sum, w) => sum + w + hGap, 0)
-        const colW = colWidths[col] ?? availW
-        const explicitRowH = rowHeights[rowIdx]
+        if (col >= numCols) { col = 0; rowIdx++ }
 
-        const size = layoutNode(child, styles, boxes, colX, rowY, colW, explicitRowH ?? (availH - (rowY - y)))
+        const colStart = resolveGridColumnStart(childStyle, col, numCols)
+        const colEnd = resolveGridColumnEnd(childStyle, colStart, span, numCols)
+        const actualSpan = colEnd - colStart
 
-        // Grid children fill their column width
-        const childBox = boxes.get(child.id)
-        if (childBox && childBox.width < colW) childBox.width = colW
+        if (colStart > col) col = colStart
+        if (col + actualSpan > numCols) { col = 0; rowIdx++ }
 
-        currentRowHeight = Math.max(currentRowHeight, size.height)
-        maxWidth = Math.max(maxWidth, colX - x + colW)
-        col++
+        const colW = columnSpanWidth(colWidths, col, actualSpan, hGap)
+        // Measure content height with unconstrained available height
+        const size = layoutNode(child, styles, boxes, 0, 0, colW, availH)
+
+        placements.push({ child, col, span: actualSpan, row: rowIdx })
+        if (!computedRowHeights[rowIdx]) computedRowHeights[rowIdx] = 0
+        computedRowHeights[rowIdx] = Math.max(computedRowHeights[rowIdx], size.height)
+        col += actualSpan
     }
 
-    const finalRowH = rowHeights[rowIdx] ?? currentRowHeight
-    return { width: maxWidth, height: (rowY - y) + finalRowH }
+    // Pass 2: layout each child at its final position with the correct row height
+    let rowY = y
+    let maxWidth = 0
+    let prevRow = 0
+
+    for (const { child, col, span, row } of placements) {
+        // Advance rowY for new rows
+        while (prevRow < row) {
+            const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
+            rowY += rh + vGap
+            prevRow++
+        }
+
+        const colX = x + columnOffset(colWidths, col, hGap)
+        const colW = columnSpanWidth(colWidths, col, span, hGap)
+        const rh = rowHeights[row] ?? computedRowHeights[row] ?? 0
+
+        layoutNode(child, styles, boxes, colX, rowY, colW, rh)
+
+        const childBox = boxes.get(child.id)
+        if (childBox) {
+            childBox.width = colW
+            childBox.height = rh
+        }
+
+        maxWidth = Math.max(maxWidth, colX - x + colW)
+    }
+
+    // Advance past the last row
+    while (prevRow <= rowIdx) {
+        if (prevRow === rowIdx) {
+            const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
+            return { width: maxWidth, height: (rowY - y) + rh }
+        }
+        const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
+        rowY += rh + vGap
+        prevRow++
+    }
+
+    return { width: maxWidth, height: rowY - y }
 }
 
-function parseGridTemplate(template: string, availW: number): number[] {
+/** Resolve the start column for a grid item (0-indexed) */
+function resolveGridColumnStart(style: ResolvedStyle | undefined, autoCol: number, numCols: number): number {
+    if (!style) return autoCol
+    if (style.gridColumnStart != null) return style.gridColumnStart - 1 // CSS lines are 1-indexed
+    return autoCol
+}
+
+/** Resolve the end column for a grid item (0-indexed, exclusive) */
+function resolveGridColumnEnd(style: ResolvedStyle | undefined, start: number, span: number, numCols: number): number {
+    if (!style) return start + span
+    if (style.gridColumnEnd != null) return style.gridColumnEnd - 1 // CSS lines are 1-indexed
+    return start + span
+}
+
+/** Calculate pixel offset to the start of a column */
+function columnOffset(colWidths: number[], col: number, gap: number): number {
+    let offset = 0
+    for (let i = 0; i < col; i++) {
+        offset += colWidths[i] + gap
+    }
+    return offset
+}
+
+/** Calculate total width spanning multiple columns including gaps between them */
+function columnSpanWidth(colWidths: number[], startCol: number, span: number, gap: number): number {
+    let width = 0
+    for (let i = startCol; i < startCol + span && i < colWidths.length; i++) {
+        if (i > startCol) width += gap
+        width += colWidths[i]
+    }
+    return width
+}
+
+function parseGridTemplate(template: string, availSize: number): number[] {
     if (!template) return []
 
-    const parts = template.trim().split(/\s+/)
-    const widths: number[] = []
+    // Expand repeat() before splitting
+    const expanded = expandRepeat(template)
+    const parts = expanded.trim().split(/\s+/)
+    return resolveTrackSizes(parts, availSize)
+}
+
+/** Expand repeat(N, tracks...) into flat track list */
+function expandRepeat(template: string): string {
+    return template.replace(
+        /repeat\(\s*(\d+)\s*,\s*([^)]+)\)/g,
+        (_match, countStr, tracks) => {
+            const count = parseInt(countStr)
+            const trackList = tracks.trim()
+            return Array(count).fill(trackList).join(' ')
+        },
+    )
+}
+
+function resolveTrackSizes(parts: string[], availSize: number): number[] {
+    const sizes: number[] = []
     const frParts: { index: number; fr: number }[] = []
     let fixedTotal = 0
 
@@ -452,31 +541,31 @@ function parseGridTemplate(template: string, availW: number): number[] {
         const part = parts[i]
         if (part.endsWith('cell')) {
             const w = Math.round(parseFloat(part))
-            widths.push(w)
+            sizes.push(w)
             fixedTotal += w
         } else if (part.endsWith('%')) {
-            const w = Math.floor(availW * parseFloat(part) / 100)
-            widths.push(w)
+            const w = Math.floor(availSize * parseFloat(part) / 100)
+            sizes.push(w)
             fixedTotal += w
         } else if (part.endsWith('fr')) {
             const fr = parseFloat(part)
-            widths.push(0) // placeholder
+            sizes.push(0) // placeholder
             frParts.push({ index: i, fr })
         } else {
-            widths.push(0)
+            sizes.push(0)
         }
     }
 
     // Distribute remaining space to fr units
     if (frParts.length > 0) {
         const totalFr = frParts.reduce((sum, p) => sum + p.fr, 0)
-        const remaining = Math.max(0, availW - fixedTotal)
+        const remaining = Math.max(0, availSize - fixedTotal)
         for (const { index, fr } of frParts) {
-            widths[index] = Math.floor(remaining * fr / totalFr)
+            sizes[index] = Math.floor(remaining * fr / totalFr)
         }
     }
 
-    return widths
+    return sizes
 }
 
 function positionChildren(

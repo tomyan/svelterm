@@ -51,6 +51,9 @@ export interface ResolvedStyle {
     order: number
     gridTemplateColumns: string | null
     gridTemplateRows: string | null
+    gridColumnStart: number | null
+    gridColumnEnd: number | null
+    gridColumnSpan: number | null
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
@@ -100,6 +103,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0,
         flexGrow: 0, flexShrink: 1, flexBasis: 'auto', flexWrap: 'nowrap', order: 0,
         gridTemplateColumns: null, gridTemplateRows: null,
+        gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
@@ -183,7 +187,7 @@ export function filterByMedia(stylesheet: CSSStyleSheet, context: MediaContext):
 const SUPPORTED_PROPERTIES = new Set([
     'display', 'flex-direction', 'justify-content', 'align-items', 'align-self',
     'gap', 'flex-grow', 'flex-shrink', 'flex-wrap', 'flex', 'order',
-    'grid-template-columns',
+    'grid-template-columns', 'grid-column',
     'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
     'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
     'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
@@ -460,6 +464,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'order': style.order = parseInt(value) || 0; break
         case 'grid-template-columns': style.gridTemplateColumns = value; break
         case 'grid-template-rows': style.gridTemplateRows = value; break
+        case 'grid-column': parseGridColumn(style, value); break
         case 'animation': parseAnimationShorthand(style, value); break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
@@ -539,6 +544,27 @@ function parseSizeOrCell(value: string): number | string {
     if (value.endsWith('%')) return value
     if (value.startsWith('calc(') || value.startsWith('min(') || value.startsWith('max(') || value.startsWith('clamp(')) return value
     return parseCellValue(value)
+}
+
+/** Parse grid-column: span N | start / end | start */
+function parseGridColumn(style: ResolvedStyle, value: string): void {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('span')) {
+        style.gridColumnSpan = parseInt(trimmed.replace('span', '').trim()) || 1
+        return
+    }
+    const parts = trimmed.split('/').map(s => s.trim())
+    if (parts.length === 2) {
+        style.gridColumnStart = parseIntOrNull(parts[0])
+        style.gridColumnEnd = parseIntOrNull(parts[1])
+    } else {
+        style.gridColumnStart = parseIntOrNull(parts[0])
+    }
+}
+
+function parseIntOrNull(s: string): number | null {
+    const n = parseInt(s)
+    return isNaN(n) ? null : n
 }
 
 function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
