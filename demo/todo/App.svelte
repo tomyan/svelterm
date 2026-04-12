@@ -27,6 +27,35 @@
     let remaining = $derived(todos.filter(t => !t.done).length)
 </script>
 
+<div class="app">
+    <div class="title">Todo List</div>
+
+    <div class="input-row">
+        <div class={inputFocused ? 'input-field-focused' : 'input-field'}>
+            <span class="input-label">{'> '}</span>
+            <span class="input-text">{inputText}</span>
+            <span class="cursor">{'_'}</span>
+        </div>
+        <button class="add-btn" onclick={addTodo}>[Add]</button>
+    </div>
+
+    <div class="todo-list">
+        {#each todos as todo (todo.id)}
+            <div class="todo-item">
+                <button
+                    class={todo.done ? 'checkbox-done' : 'checkbox'}
+                    onclick={() => toggleTodo(todo.id)}
+                >{todo.done ? '☑' : '☐'}</button>
+                <span class={todo.done ? 'todo-text-done' : 'todo-text'}>{todo.text}</span>
+                <button class="delete-btn" onclick={() => removeTodo(todo.id)}>[×]</button>
+            </div>
+        {/each}
+    </div>
+
+    <span class="status">{remaining} of {todos.length} remaining</span>
+    <span class="footer">Tab to navigate, Enter to toggle/click, Ctrl+C to exit</span>
+</div>
+
 <style>
     :root {
         --primary: cyan;
@@ -153,32 +182,3 @@
         text-align: center;
     }
 </style>
-
-<div class="app">
-    <div class="title">Todo List</div>
-
-    <div class="input-row">
-        <div class={inputFocused ? 'input-field-focused' : 'input-field'}>
-            <span class="input-label">{'> '}</span>
-            <span class="input-text">{inputText}</span>
-            <span class="cursor">{'_'}</span>
-        </div>
-        <button class="add-btn" onclick={addTodo}>[Add]</button>
-    </div>
-
-    <div class="todo-list">
-        {#each todos as todo (todo.id)}
-            <div class="todo-item">
-                <button
-                    class={todo.done ? 'checkbox-done' : 'checkbox'}
-                    onclick={() => toggleTodo(todo.id)}
-                >{todo.done ? '☑' : '☐'}</button>
-                <span class={todo.done ? 'todo-text-done' : 'todo-text'}>{todo.text}</span>
-                <button class="delete-btn" onclick={() => removeTodo(todo.id)}>[×]</button>
-            </div>
-        {/each}
-    </div>
-
-    <span class="status">{remaining} of {todos.length} remaining</span>
-    <span class="footer">Tab to navigate, Enter to toggle/click, Ctrl+C to exit</span>
-</div>

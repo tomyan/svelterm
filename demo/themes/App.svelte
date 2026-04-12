@@ -45,6 +45,47 @@
     }
 </script>
 
+<div class="app {themeClass}">
+    <div class="header">Theme Switcher</div>
+
+    <div class="controls">
+        <div class="control-row">
+            <span class="control-label"><span class="label">Mode: </span><span class="value">{modeLabel}</span></span>
+            <button onclick={cycleMode}>Cycle Mode</button>
+        </div>
+        <div class="control-row">
+            <span class="control-label"><span class="label">Theme: </span><span class="value">{themeName}</span></span>
+            <button onclick={cycleTheme}>Cycle Theme</button>
+        </div>
+    </div>
+
+    <div class="preview">
+        <span class="preview-title">Color Palette</span>
+        <div class="color-row">
+            <span class="sw-primary"> primary </span>
+            <span class="sw-secondary"> secondary </span>
+            <span class="sw-accent"> accent </span>
+            <span class="sw-success"> success </span>
+            <span class="sw-error"> error </span>
+            <span class="sw-muted"> muted </span>
+        </div>
+    </div>
+
+    <div class="preview">
+        <span class="preview-title">Sample UI</span>
+        <div class="sample">
+            <span class="s-heading">Dashboard</span>
+            <span class="s-body">Everything is running smoothly.</span>
+            <span class="s-link">View details</span>
+            <span class="s-ok">● 3 services healthy</span>
+            <span class="s-err">● 1 alert active</span>
+            <span class="s-dim">Last updated 2 minutes ago</span>
+        </div>
+    </div>
+
+    <span class="footer">Tab to focus buttons, Enter to cycle, Ctrl+C to exit</span>
+</div>
+
 <style>
     /* --- Dark Themes --- */
     .dark-ocean {
@@ -189,44 +230,3 @@
         text-align: center;
     }
 </style>
-
-<div class="app {themeClass}">
-    <div class="header">Theme Switcher</div>
-
-    <div class="controls">
-        <div class="control-row">
-            <span class="control-label"><span class="label">Mode: </span><span class="value">{modeLabel}</span></span>
-            <button onclick={cycleMode}>Cycle Mode</button>
-        </div>
-        <div class="control-row">
-            <span class="control-label"><span class="label">Theme: </span><span class="value">{themeName}</span></span>
-            <button onclick={cycleTheme}>Cycle Theme</button>
-        </div>
-    </div>
-
-    <div class="preview">
-        <span class="preview-title">Color Palette</span>
-        <div class="color-row">
-            <span class="sw-primary"> primary </span>
-            <span class="sw-secondary"> secondary </span>
-            <span class="sw-accent"> accent </span>
-            <span class="sw-success"> success </span>
-            <span class="sw-error"> error </span>
-            <span class="sw-muted"> muted </span>
-        </div>
-    </div>
-
-    <div class="preview">
-        <span class="preview-title">Sample UI</span>
-        <div class="sample">
-            <span class="s-heading">Dashboard</span>
-            <span class="s-body">Everything is running smoothly.</span>
-            <span class="s-link">View details</span>
-            <span class="s-ok">● 3 services healthy</span>
-            <span class="s-err">● 1 alert active</span>
-            <span class="s-dim">Last updated 2 minutes ago</span>
-        </div>
-    </div>
-
-    <span class="footer">Tab to focus buttons, Enter to cycle, Ctrl+C to exit</span>
-</div>

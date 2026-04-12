@@ -7,6 +7,44 @@
     })
 </script>
 
+<div class="app">
+    <span class="title">Svelterm — Counter Demo</span>
+    <div class="panels">
+        <div class="panel">
+            <span class="panel-title">Counter</span>
+            <span class="count">{count}</span>
+            <button
+                onclick={() => count++}
+                onfocus={() => focusedName = 'Increment'}
+                onblur={() => focusedName = 'none'}
+            >Increment</button>
+            <button
+                onclick={() => count--}
+                onfocus={() => focusedName = 'Decrement'}
+                onblur={() => focusedName = 'none'}
+            >Decrement</button>
+            <button
+                onclick={() => count = 0}
+                onfocus={() => focusedName = 'Reset'}
+                onblur={() => focusedName = 'none'}
+            >Reset</button>
+        </div>
+        <div class="panel">
+            <span class="panel-title">Features</span>
+            <ul>
+                <li>Dual Target</li>
+                <li>CSS Variables</li>
+                <li>Flexbox Layout</li>
+                <li>Focus + :focus</li>
+                <li>Light/Dark Mode</li>
+                <li>Vite HMR</li>
+            </ul>
+        </div>
+    </div>
+    <span><span class="focus-label">Focused:</span> <span class="focus-indicator">{focusedName}</span></span>
+    <span class="hint">Tab to focus, Enter to click, Ctrl+C to exit</span>
+</div>
+
 <style>
     /* Light mode (default) */
     :root {
@@ -157,41 +195,3 @@
         .hint { opacity: dim; }
     }
 </style>
-
-<div class="app">
-    <span class="title">Svelterm — Counter Demo</span>
-    <div class="panels">
-        <div class="panel">
-            <span class="panel-title">Counter</span>
-            <span class="count">{count}</span>
-            <button
-                onclick={() => count++}
-                onfocus={() => focusedName = 'Increment'}
-                onblur={() => focusedName = 'none'}
-            >Increment</button>
-            <button
-                onclick={() => count--}
-                onfocus={() => focusedName = 'Decrement'}
-                onblur={() => focusedName = 'none'}
-            >Decrement</button>
-            <button
-                onclick={() => count = 0}
-                onfocus={() => focusedName = 'Reset'}
-                onblur={() => focusedName = 'none'}
-            >Reset</button>
-        </div>
-        <div class="panel">
-            <span class="panel-title">Features</span>
-            <ul>
-                <li>Dual Target</li>
-                <li>CSS Variables</li>
-                <li>Flexbox Layout</li>
-                <li>Focus + :focus</li>
-                <li>Light/Dark Mode</li>
-                <li>Vite HMR</li>
-            </ul>
-        </div>
-    </div>
-    <span><span class="focus-label">Focused:</span> <span class="focus-indicator">{focusedName}</span></span>
-    <span class="hint">Tab to focus, Enter to click, Ctrl+C to exit</span>
-</div>

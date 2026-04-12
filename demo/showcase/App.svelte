@@ -2,6 +2,131 @@
     let inputValue = $state('')
 </script>
 
+<div class="showcase">
+    <div class="title">Svelterm Style Showcase</div>
+
+    <div class="section">
+        <span class="section-title">ANSI Colors (Background)</span>
+        <div class="color-row">
+            <span class="swatch-red"> red </span>
+            <span class="swatch-green"> green </span>
+            <span class="swatch-yellow"> yellow </span>
+            <span class="swatch-blue"> blue </span>
+            <span class="swatch-magenta"> magenta </span>
+            <span class="swatch-cyan"> cyan </span>
+            <span class="swatch-white"> white </span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Foreground Colors</span>
+        <div class="color-row">
+            <span class="color-fg-red">Red</span>
+            <span class="color-fg-green">Green</span>
+            <span class="color-fg-yellow">Yellow</span>
+            <span class="color-fg-blue">Blue</span>
+            <span class="color-fg-magenta">Magenta</span>
+            <span class="color-fg-cyan">Cyan</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Truecolor (24-bit Hex)</span>
+        <div class="hex-demo">
+            <span class="hex-1">#ff6b6b</span>
+            <span class="hex-2">#51cf66</span>
+            <span class="hex-3">#339af0</span>
+            <span class="hex-4">#fcc419</span>
+            <span class="hex-5">#cc5de8</span>
+            <span class="hex-6">#ff922b</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">CSS Named Colors</span>
+        <div class="named-demo">
+            <span class="coral">coral</span>
+            <span class="teal">teal</span>
+            <span class="gold">gold</span>
+            <span class="tomato">tomato</span>
+            <span class="orchid">orchid</span>
+            <span class="salmon">salmon</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Decorations</span>
+        <div class="text-styles">
+            <span class="bold">Bold</span>
+            <span class="italic">Italic</span>
+            <span class="underline">Underline</span>
+            <span class="strike">Strike</span>
+            <span class="dim">Dim</span>
+            <span class="bold-italic">Bold+Italic</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Border Styles</span>
+        <div class="borders-row">
+            <div class="border-single"><span>single</span></div>
+            <div class="border-double"><span>double</span></div>
+            <div class="border-rounded"><span>rounded</span></div>
+            <div class="border-heavy"><span>heavy</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Hyperlinks</span>
+        <a class="link" href="https://github.com">GitHub (OSC 8)</a>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Flex Layout (grow ratios 1:2:3)</span>
+        <div class="layout-demo">
+            <div class="layout-box grow-1"><span>1fr</span></div>
+            <div class="layout-box grow-2"><span>2fr</span></div>
+            <div class="layout-box grow-3"><span>3fr</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Alignment</span>
+        <div class="align-demo">
+            <div class="left-align"><span>left</span></div>
+            <div class="center-align"><span>center</span></div>
+            <div class="right-align"><span>right</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Hover (move mouse over items)</span>
+        <div class="hover-demo">
+            <span class="hover-item">Item A</span>
+            <span class="hover-item">Item B</span>
+            <span class="hover-item">Item C</span>
+            <span class="hover-item">Item D</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Overflow (ellipsis)</span>
+        <div class="truncate-demo">
+            <div class="truncate-box"><span>/Users/tom/projects/svelterm/src/render/incremental-paint.ts</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">Text Input (Tab to focus, type to edit)</span>
+        <div class="input-demo">
+            <input value="" oninput={(e) => inputValue = e.data?.value ?? ''} />
+            <span class="input-echo">Value: "{inputValue}"</span>
+        </div>
+    </div>
+
+    <span class="footer">Tab / Shift+Tab to navigate, mouse hover, Ctrl+C to exit</span>
+</div>
+
 <style>
     :root {
         --primary: cyan;
@@ -194,128 +319,3 @@
         text-align: center;
     }
 </style>
-
-<div class="showcase">
-    <div class="title">Svelterm Style Showcase</div>
-
-    <div class="section">
-        <span class="section-title">ANSI Colors (Background)</span>
-        <div class="color-row">
-            <span class="swatch-red"> red </span>
-            <span class="swatch-green"> green </span>
-            <span class="swatch-yellow"> yellow </span>
-            <span class="swatch-blue"> blue </span>
-            <span class="swatch-magenta"> magenta </span>
-            <span class="swatch-cyan"> cyan </span>
-            <span class="swatch-white"> white </span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Foreground Colors</span>
-        <div class="color-row">
-            <span class="color-fg-red">Red</span>
-            <span class="color-fg-green">Green</span>
-            <span class="color-fg-yellow">Yellow</span>
-            <span class="color-fg-blue">Blue</span>
-            <span class="color-fg-magenta">Magenta</span>
-            <span class="color-fg-cyan">Cyan</span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Truecolor (24-bit Hex)</span>
-        <div class="hex-demo">
-            <span class="hex-1">#ff6b6b</span>
-            <span class="hex-2">#51cf66</span>
-            <span class="hex-3">#339af0</span>
-            <span class="hex-4">#fcc419</span>
-            <span class="hex-5">#cc5de8</span>
-            <span class="hex-6">#ff922b</span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">CSS Named Colors</span>
-        <div class="named-demo">
-            <span class="coral">coral</span>
-            <span class="teal">teal</span>
-            <span class="gold">gold</span>
-            <span class="tomato">tomato</span>
-            <span class="orchid">orchid</span>
-            <span class="salmon">salmon</span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Text Decorations</span>
-        <div class="text-styles">
-            <span class="bold">Bold</span>
-            <span class="italic">Italic</span>
-            <span class="underline">Underline</span>
-            <span class="strike">Strike</span>
-            <span class="dim">Dim</span>
-            <span class="bold-italic">Bold+Italic</span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Border Styles</span>
-        <div class="borders-row">
-            <div class="border-single"><span>single</span></div>
-            <div class="border-double"><span>double</span></div>
-            <div class="border-rounded"><span>rounded</span></div>
-            <div class="border-heavy"><span>heavy</span></div>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Hyperlinks</span>
-        <a class="link" href="https://github.com">GitHub (OSC 8)</a>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Flex Layout (grow ratios 1:2:3)</span>
-        <div class="layout-demo">
-            <div class="layout-box grow-1"><span>1fr</span></div>
-            <div class="layout-box grow-2"><span>2fr</span></div>
-            <div class="layout-box grow-3"><span>3fr</span></div>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Text Alignment</span>
-        <div class="align-demo">
-            <div class="left-align"><span>left</span></div>
-            <div class="center-align"><span>center</span></div>
-            <div class="right-align"><span>right</span></div>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Hover (move mouse over items)</span>
-        <div class="hover-demo">
-            <span class="hover-item">Item A</span>
-            <span class="hover-item">Item B</span>
-            <span class="hover-item">Item C</span>
-            <span class="hover-item">Item D</span>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Text Overflow (ellipsis)</span>
-        <div class="truncate-demo">
-            <div class="truncate-box"><span>/Users/tom/projects/svelterm/src/render/incremental-paint.ts</span></div>
-        </div>
-    </div>
-
-    <div class="section">
-        <span class="section-title">Text Input (Tab to focus, type to edit)</span>
-        <div class="input-demo">
-            <input value="" oninput={(e) => inputValue = e.data?.value ?? ''} />
-            <span class="input-echo">Value: "{inputValue}"</span>
-        </div>
-    </div>
-
-    <span class="footer">Tab / Shift+Tab to navigate, mouse hover, Ctrl+C to exit</span>
-</div>

@@ -16,6 +16,56 @@
     }, 1000)
 </script>
 
+<div class="dashboard">
+    <div class="header">Svelterm Dashboard</div>
+
+    <div class="panels">
+        <div class="panel">
+            <span class="panel-title">CPU</span>
+            <span class={cpu > 80 ? 'value-bad' : cpu > 50 ? 'value' : 'value-good'}>{cpu}%</span>
+            <span class="bar-track">{'░'.repeat(20)}</span>
+            <span class="bar-fill">{'█'.repeat(Math.floor(cpu / 5))}</span>
+        </div>
+
+        <div class="panel">
+            <span class="panel-title">Memory</span>
+            <span class="value">{memory.toFixed(1)} GB</span>
+            <span class="bar-track">{'░'.repeat(20)}</span>
+            <span class="bar-fill">{'█'.repeat(Math.floor(memory / 8 * 20))}</span>
+        </div>
+    </div>
+
+    <div class="panels">
+        <div class="panel">
+            <span class="panel-title">Requests</span>
+            <span class="value-good">{requests.toLocaleString()}</span>
+        </div>
+
+        <div class="panel">
+            <span class="panel-title">Errors</span>
+            <span class={errors > 5 ? 'value-bad' : 'value'}>{errors}</span>
+        </div>
+
+        <div class="panel">
+            <span class="panel-title">Uptime</span>
+            <span class="value-good">{Math.floor(uptime / 60)}m {uptime % 60}s</span>
+        </div>
+    </div>
+
+    <div class="status-row">
+        <div class="status-item">
+            <span class="label">Status:</span>
+            <span class="value-good">● Online</span>
+        </div>
+        <div class="status-item">
+            <span class="label">Region:</span>
+            <span class="value">us-east-1</span>
+        </div>
+    </div>
+
+    <div class="footer">Press Ctrl+C to exit — Updates every 1s</div>
+</div>
+
 <style>
     :root {
         --primary: cyan;
@@ -109,53 +159,3 @@
         text-align: center;
     }
 </style>
-
-<div class="dashboard">
-    <div class="header">Svelterm Dashboard</div>
-
-    <div class="panels">
-        <div class="panel">
-            <span class="panel-title">CPU</span>
-            <span class={cpu > 80 ? 'value-bad' : cpu > 50 ? 'value' : 'value-good'}>{cpu}%</span>
-            <span class="bar-track">{'░'.repeat(20)}</span>
-            <span class="bar-fill">{'█'.repeat(Math.floor(cpu / 5))}</span>
-        </div>
-
-        <div class="panel">
-            <span class="panel-title">Memory</span>
-            <span class="value">{memory.toFixed(1)} GB</span>
-            <span class="bar-track">{'░'.repeat(20)}</span>
-            <span class="bar-fill">{'█'.repeat(Math.floor(memory / 8 * 20))}</span>
-        </div>
-    </div>
-
-    <div class="panels">
-        <div class="panel">
-            <span class="panel-title">Requests</span>
-            <span class="value-good">{requests.toLocaleString()}</span>
-        </div>
-
-        <div class="panel">
-            <span class="panel-title">Errors</span>
-            <span class={errors > 5 ? 'value-bad' : 'value'}>{errors}</span>
-        </div>
-
-        <div class="panel">
-            <span class="panel-title">Uptime</span>
-            <span class="value-good">{Math.floor(uptime / 60)}m {uptime % 60}s</span>
-        </div>
-    </div>
-
-    <div class="status-row">
-        <div class="status-item">
-            <span class="label">Status:</span>
-            <span class="value-good">● Online</span>
-        </div>
-        <div class="status-item">
-            <span class="label">Region:</span>
-            <span class="value">us-east-1</span>
-        </div>
-    </div>
-
-    <div class="footer">Press Ctrl+C to exit — Updates every 1s</div>
-</div>

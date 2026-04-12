@@ -132,6 +132,46 @@
     )
 </script>
 
+<div class="game" onkeydown={(e) => handleKey(e.data?.key)}>
+    <div class="header">
+        <span class="title">KEYBOARD HERO</span>
+        <span class="score-display">Score: {score}</span>
+        <span class="lives">{livesDisplay}</span>
+    </div>
+
+    <div class="stats">
+        <span><span class="stat-label">Level: </span><span class="stat-value">{level}</span></span>
+        <span><span class="stat-label">Speed: </span><span class="stat-value">{speed}ms</span></span>
+        {#if combo >= 3}
+            <span class="combo-display">🔥 x{combo}</span>
+        {/if}
+    </div>
+
+    <div class="board">
+        {#each grid as row, i}
+            {#if i === BOARD_HEIGHT - 2}
+                <span class="target-line">{row}</span>
+            {:else}
+                <span class="board-row">{row}</span>
+            {/if}
+        {/each}
+    </div>
+
+    <div class={flash ? 'key-row-flash' : 'key-row'}>
+        <span>{keyDisplay}</span>
+    </div>
+
+    {#if gameOver}
+        <div class="game-over">
+            <span class="game-over-title">GAME OVER</span>
+            <span class="game-over-score">Final Score: {score}</span>
+            <span class="game-over-hint">Press R to restart</span>
+        </div>
+    {/if}
+
+    <span class="footer">Type the falling letters! Ctrl+C to exit</span>
+</div>
+
 <style>
     :root {
         --primary: cyan;
@@ -254,43 +294,3 @@
         text-align: center;
     }
 </style>
-
-<div class="game" onkeydown={(e) => handleKey(e.data?.key)}>
-    <div class="header">
-        <span class="title">KEYBOARD HERO</span>
-        <span class="score-display">Score: {score}</span>
-        <span class="lives">{livesDisplay}</span>
-    </div>
-
-    <div class="stats">
-        <span><span class="stat-label">Level: </span><span class="stat-value">{level}</span></span>
-        <span><span class="stat-label">Speed: </span><span class="stat-value">{speed}ms</span></span>
-        {#if combo >= 3}
-            <span class="combo-display">🔥 x{combo}</span>
-        {/if}
-    </div>
-
-    <div class="board">
-        {#each grid as row, i}
-            {#if i === BOARD_HEIGHT - 2}
-                <span class="target-line">{row}</span>
-            {:else}
-                <span class="board-row">{row}</span>
-            {/if}
-        {/each}
-    </div>
-
-    <div class={flash ? 'key-row-flash' : 'key-row'}>
-        <span>{keyDisplay}</span>
-    </div>
-
-    {#if gameOver}
-        <div class="game-over">
-            <span class="game-over-title">GAME OVER</span>
-            <span class="game-over-score">Final Score: {score}</span>
-            <span class="game-over-hint">Press R to restart</span>
-        </div>
-    {/if}
-
-    <span class="footer">Type the falling letters! Ctrl+C to exit</span>
-</div>

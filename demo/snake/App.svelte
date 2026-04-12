@@ -94,6 +94,29 @@
     })
 </script>
 
+<div class="game" onkeydown={(e) => handleKey(e.data?.key)}>
+    <div class="header">
+        <span class="title">SNAKE</span>
+        <span class="score">Score: {score}</span>
+    </div>
+
+    <div class="board">
+        {#each grid as row}
+            <span class="board-row">{row}</span>
+        {/each}
+    </div>
+
+    {#if gameOver}
+        <div class="game-over-overlay">
+            <span class="game-over-text">GAME OVER</span>
+            <span class="final-score">Final Score: {score}</span>
+            <span class="hint">Press R to restart</span>
+        </div>
+    {/if}
+
+    <span class="footer">Arrow keys to move, Ctrl+C to exit</span>
+</div>
+
 <style>
     :root {
         --primary: cyan;
@@ -169,26 +192,3 @@
         text-align: center;
     }
 </style>
-
-<div class="game" onkeydown={(e) => handleKey(e.data?.key)}>
-    <div class="header">
-        <span class="title">SNAKE</span>
-        <span class="score">Score: {score}</span>
-    </div>
-
-    <div class="board">
-        {#each grid as row}
-            <span class="board-row">{row}</span>
-        {/each}
-    </div>
-
-    {#if gameOver}
-        <div class="game-over-overlay">
-            <span class="game-over-text">GAME OVER</span>
-            <span class="final-score">Final Score: {score}</span>
-            <span class="hint">Press R to restart</span>
-        </div>
-    {/if}
-
-    <span class="footer">Arrow keys to move, Ctrl+C to exit</span>
-</div>
