@@ -122,6 +122,6 @@ describe('incremental paint focus change', () => {
         const btnBBox = layout.get(btnB.id)!
         const btnBCorner = newBuffer.getCell(btnBBox.x, btnBBox.y)
         assert.equal(btnBCorner?.fg, 'yellow', 'btnB corner should be yellow')
-        assert.equal(btnBCorner?.char, '┌', 'btnB corner char should be ┌')
+        assert.equal(btnBCorner?.char, '├', 'btnB corner char should be ├ (collapsed with btnA border)')
     })
 })

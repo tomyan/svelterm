@@ -4,6 +4,25 @@ import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
 import { resolveSize, constrain } from './size.js'
 
+/**
+ * Check if two adjacent siblings both have borders on their shared edge.
+ * Returns true if the gap between them should be reduced by 1 to account
+ * for the visual spacing inherent in box-drawing border characters.
+ */
+function shouldAdjustBorderGap(
+    prevStyle: ResolvedStyle | undefined,
+    nextStyle: ResolvedStyle | undefined,
+    direction: 'vertical' | 'horizontal',
+): boolean {
+    if (!prevStyle || !nextStyle) return false
+    if (prevStyle.borderStyle === 'none' || nextStyle.borderStyle === 'none') return false
+    if (direction === 'vertical') {
+        return prevStyle.borderBottom && nextStyle.borderTop
+    } else {
+        return prevStyle.borderRight && nextStyle.borderLeft
+    }
+}
+
 /** Flatten display:contents elements, promoting their children. */
 function flattenContents(children: TermNode[], styles: Map<number, ResolvedStyle>): TermNode[] {
     const result: TermNode[] = []
@@ -245,6 +264,7 @@ function layoutBlockFlow(
     let lineHeight = 0
     let maxWidth = 0
     let prevBlockMarginBottom = 0
+    let prevBlockStyle: ResolvedStyle | undefined
 
     const flatChildren = flattenContents(children, styles)
 
@@ -279,10 +299,16 @@ function layoutBlockFlow(
                 cursorY -= overlap
             }
 
+            // Border collapse: adjacent bordered blocks overlap by 1
+            if (shouldAdjustBorderGap(prevBlockStyle, s, 'vertical')) {
+                cursorY -= 1
+            }
+
             const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
             cursorY += size.height
             maxWidth = Math.max(maxWidth, size.width)
             prevBlockMarginBottom = resolvePadding(s?.marginBottom, availW)
+            prevBlockStyle = s
         }
     }
 
@@ -366,6 +392,20 @@ function layoutGrid(
     const numCols = colWidths.length || 1
     const gap = style.gap ?? 0
 
+    // Pre-compute border-adjusted gaps for grid children
+    let hGap = gap
+    let vGap = gap
+    if (children.length >= 2) {
+        // Check first two adjacent children for horizontal collapse
+        if (numCols >= 2 && shouldAdjustBorderGap(styles.get(children[0].id), styles.get(children[1].id), 'horizontal')) {
+            hGap = Math.max(-1, gap - 1)
+        }
+        // Check first child and first child of second row for vertical collapse
+        if (children.length > numCols && shouldAdjustBorderGap(styles.get(children[0].id), styles.get(children[numCols].id), 'vertical')) {
+            vGap = Math.max(-1, gap - 1)
+        }
+    }
+
     let rowY = y
     let maxWidth = 0
     let col = 0
@@ -375,13 +415,13 @@ function layoutGrid(
     for (const child of children) {
         if (col >= numCols) {
             const explicitH = rowHeights[rowIdx]
-            rowY += (explicitH ?? currentRowHeight) + gap
+            rowY += (explicitH ?? currentRowHeight) + vGap
             col = 0
             rowIdx++
             currentRowHeight = 0
         }
 
-        const colX = x + colWidths.slice(0, col).reduce((sum, w) => sum + w + gap, 0)
+        const colX = x + colWidths.slice(0, col).reduce((sum, w) => sum + w + hGap, 0)
         const colW = colWidths[col] ?? availW
         const explicitRowH = rowHeights[rowIdx]
 
@@ -501,8 +541,18 @@ function positionChildren(
     const shrinkValues = ordered.map(child => styles.get(child.id)?.flexShrink ?? 1)
     const totalGrow = growValues.reduce((a, b) => a + b, 0)
 
+    // Compute per-pair gap, adjusting for border collapse
+    const borderDir = baseDir === 'column' ? 'vertical' as const : 'horizontal' as const
+    const pairGaps = ordered.map((child, i) => {
+        if (i === 0) return 0
+        const adjust = shouldAdjustBorderGap(
+            styles.get(ordered[i - 1].id), styles.get(child.id), borderDir,
+        ) ? 1 : 0
+        return Math.max(-1, gap - adjust)
+    })
+
     const totalMain = sizes.reduce((sum, s, i) => {
-        return sum + (baseDir === 'row' ? s.width : s.height) + (i > 0 ? gap : 0)
+        return sum + (baseDir === 'row' ? s.width : s.height) + pairGaps[i]
     }, 0)
 
     const availMain = baseDir === 'row' ? innerW : innerH
@@ -513,7 +563,7 @@ function positionChildren(
 
     // Position
     let mainPos = computeMainStart(justify, freeSpace, ordered.length, hasGrow)
-    const itemGap = computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
+    const baseItemGap = computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
 
     let contentWidth = 0
     let contentHeight = 0
@@ -526,8 +576,12 @@ function positionChildren(
             mainSize += Math.floor(freeSpace * growValues[i] / totalGrow)
         }
         if (overflow > 0 && totalShrink > 0 && shrinkValues[i] > 0) {
+            // Compute minimum size: bordered elements need border + 1 content row
+            const childStyle = styles.get(ordered[i].id)
+            const hasBorder = childStyle?.borderStyle !== undefined && childStyle.borderStyle !== 'none'
+            const minMain = hasBorder ? 3 : 0
             mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
-            mainSize = Math.max(0, mainSize)
+            mainSize = Math.max(minMain, mainSize)
         }
 
         // Wrap check
@@ -568,7 +622,11 @@ function positionChildren(
         }
 
         lineHeight = Math.max(lineHeight, baseDir === 'row' ? sizes[i].height : sizes[i].width)
-        mainPos += mainSize + (i < ordered.length - 1 ? itemGap : 0)
+        // Use per-pair gap (with border adjustment) when not using justify spacing
+        const pairItemGap = i < ordered.length - 1
+            ? (baseItemGap !== gap ? baseItemGap : pairGaps[i + 1])
+            : 0
+        mainPos += mainSize + pairItemGap
         contentWidth = baseDir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
         contentHeight = baseDir === 'row' ? crossPos + lineHeight : mainPos
     }
