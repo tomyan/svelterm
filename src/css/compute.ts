@@ -106,7 +106,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         overflow: 'visible',
         textOverflow: 'clip',
         whiteSpace: 'normal',
-        textAlign: 'left',
+        textAlign: tag === 'button' ? 'center' : 'left',
         position: 'static',
         top: null, right: null, bottom: null, left: null,
         zIndex: 0,

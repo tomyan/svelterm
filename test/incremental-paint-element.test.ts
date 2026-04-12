@@ -44,9 +44,9 @@ describe('incremental paint element nodes', () => {
         assert.equal(buffer.getCell(7, 0)?.char, '┐')
         assert.equal(buffer.getCell(0, 2)?.char, '└')
         assert.equal(buffer.getCell(7, 2)?.char, '┘')
-        // Text should also be repainted
-        assert.equal(buffer.getCell(1, 1)?.char, 'O')
-        assert.equal(buffer.getCell(2, 1)?.char, 'K')
+        // Text should also be repainted (centered in 6-cell content area: x=3,4)
+        assert.equal(buffer.getCell(3, 1)?.char, 'O')
+        assert.equal(buffer.getCell(4, 1)?.char, 'K')
     })
 
     it('repaints element background', () => {

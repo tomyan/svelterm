@@ -220,7 +220,69 @@ function parseRule(css: string, start: number, rules: CSSRule[], media: string |
 
     const declarations: CSSDeclaration[] = []
     while (pos < css.length) {
-        pos = skipWhitespace(css, pos)
+        pos = skipWhitespaceAndComments(css, pos)
+        if (pos >= css.length || css[pos] === '}') {
+            pos++
+            break
+        }
+
+        // Check for nested @media inside a rule block
+        if (css.substring(pos, pos + 6) === '@media') {
+            // Flush current declarations as a rule
+            if (selectors.length > 0 && declarations.length > 0) {
+                rules.push({ selectors: [...selectors], declarations: [...declarations], media, supports, container })
+                declarations.length = 0
+            }
+            pos = parseNestedMediaBlock(css, pos, rules, selectors, supports, container)
+            continue
+        }
+
+        const colonPos = css.indexOf(':', pos)
+        const nextBrace = css.indexOf('{', pos)
+        // If a brace comes before a colon, this might be a nested selector — skip it
+        if (colonPos === -1 || (nextBrace !== -1 && nextBrace < colonPos)) {
+            pos = skipToClosingBrace(css, pos)
+            continue
+        }
+
+        const property = css.substring(pos, colonPos).trim()
+        const valueEnd = findValueEnd(css, colonPos + 1)
+        const value = css.substring(colonPos + 1, valueEnd).trim()
+
+        declarations.push({ property, value })
+        pos = valueEnd
+        if (pos < css.length && css[pos] === ';') pos++
+    }
+
+    if (selectors.length > 0 && declarations.length > 0) {
+        rules.push({ selectors, declarations, media, supports, container })
+    }
+
+    return pos
+}
+
+/** Parse a nested @media block inside a selector block */
+function parseNestedMediaBlock(
+    css: string, start: number, rules: CSSRule[],
+    parentSelectors: string[], supports?: string, container?: string,
+): number {
+    let pos = start + 6 // skip "@media"
+    pos = skipWhitespace(css, pos)
+
+    const bracePos = css.indexOf('{', pos)
+    if (bracePos === -1) return skipToClosingBrace(css, pos)
+
+    const rawCondition = css.substring(pos, bracePos).trim()
+    const condition = rawCondition.startsWith('(') && !rawCondition.includes(') and (')
+        ? rawCondition.slice(1, -1).trim()
+        : rawCondition
+
+    pos = bracePos + 1
+
+    // Parse declarations inside the nested @media block
+    const declarations: CSSDeclaration[] = []
+    while (pos < css.length) {
+        pos = skipWhitespaceAndComments(css, pos)
         if (pos >= css.length || css[pos] === '}') {
             pos++
             break
@@ -238,8 +300,14 @@ function parseRule(css: string, start: number, rules: CSSRule[], media: string |
         if (pos < css.length && css[pos] === ';') pos++
     }
 
-    if (selectors.length > 0 && declarations.length > 0) {
-        rules.push({ selectors, declarations, media, supports, container })
+    if (parentSelectors.length > 0 && declarations.length > 0) {
+        rules.push({
+            selectors: [...parentSelectors],
+            declarations,
+            media: condition,
+            supports,
+            container,
+        })
     }
 
     return pos
