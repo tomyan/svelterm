@@ -401,6 +401,8 @@ export function run<Props extends Record<string, any>>(
     return doCleanup
 }
 
+let lastHoveredId = -1
+
 function handleMouse(
     mouse: MouseEvent,
     root: TermNode,
@@ -412,13 +414,14 @@ function handleMouse(
 ): void {
     if (!layout) return
 
-    // Handle hover — set data-hovered on element under cursor
+    // Handle hover — only update when the hovered element changes
     if (mouse.type === 'motion') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         const hoveredId = target?.id ?? -1
-        // Walk tree and update data-hovered
-        updateHover(root, hoveredId, ctx)
-        scheduleRender()
+        if (hoveredId !== lastHoveredId) {
+            updateHover(root, hoveredId, ctx)
+            lastHoveredId = hoveredId
+        }
         return
     }
 
