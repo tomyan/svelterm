@@ -295,7 +295,7 @@ export function run<Props extends Record<string, any>>(
     const handleMouseData = (data: Buffer | Uint8Array) => {
         const mouse = parseMouseEvent(data)
         if (!mouse) return
-        handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx)
+        handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx, io)
     }
 
     const handlePaste = (text: string) => {
@@ -411,6 +411,7 @@ function handleMouse(
     scheduleRender: () => void,
     lastStyles: Map<number, ResolvedStyle> | undefined,
     ctx: RenderContext,
+    io: TerminalIO,
 ): void {
     if (!layout) return
 
@@ -452,8 +453,11 @@ function handleMouse(
                         const cBox = layout.get(c.id)
                         return cBox ? Math.max(sum, cBox.y - box.y + cBox.height) : sum
                     }, 0)
-                    const delta = mouse.button === 'scrollUp' ? -3 : 3
-                    const maxScroll = Math.max(0, contentHeight - box.height)
+                    const viewportHeight = scrollTarget.tag === 'root'
+                        ? io.getSize().height
+                        : box.height
+                    const maxScroll = Math.max(0, contentHeight - viewportHeight)
+                    const delta = mouse.button === 'scrollUp' ? -1 : 1
                     scrollTarget.scrollTop = Math.max(0, Math.min(scrollTarget.scrollTop + delta, maxScroll))
                     ctx.onScroll(scrollTarget)
                 }
@@ -502,6 +506,8 @@ function updateHover(node: TermNode, hoveredId: number, ctx: RenderContext): voi
 function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedStyle>): TermNode | null {
     let current: TermNode | null = node
     while (current) {
+        // Root element is implicitly scrollable (it's the viewport)
+        if (current.tag === 'root') return current
         const style = styles?.get(current.id)
         if (style && (style.overflow === 'scroll' || style.overflow === 'auto' || style.overflow === 'hidden')) {
             return current

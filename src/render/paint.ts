@@ -102,7 +102,10 @@ function paintNode(
     let childScroll = scroll
     if (node.nodeType === 'element' && box) {
         const ownStyle = styles?.get(node.id)
-        if (ownStyle && ownStyle.overflow !== 'visible') {
+        if (node.tag === 'root') {
+            // Root clips to the terminal viewport (buffer bounds)
+            childClip = intersectClip(clip, { x: 0, y: 0, width: buffer.width, height: buffer.height })
+        } else if (ownStyle && ownStyle.overflow !== 'visible') {
             childClip = intersectClip(clip, box)
         }
         if (node.scrollTop !== 0 || node.scrollLeft !== 0) {
