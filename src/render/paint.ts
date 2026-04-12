@@ -40,8 +40,9 @@ export function paint(
     buffer: CellBuffer,
     styles?: Map<number, ResolvedStyle>,
     layout?: Map<number, LayoutBox>,
+    damageClip?: ClipRect,
 ): void {
-    paintNode(root, buffer, styles, layout, DEFAULT_VISUALS, null, NO_SCROLL)
+    paintNode(root, buffer, styles, layout, DEFAULT_VISUALS, null, NO_SCROLL, damageClip)
 }
 
 function paintNode(
@@ -52,12 +53,16 @@ function paintNode(
     inherited: InheritedVisuals,
     clip: ClipRect | null,
     scroll: ScrollOffset,
+    damageClip?: ClipRect,
 ): void {
     if (node.nodeType === 'comment') return
 
     const visuals = resolveVisuals(node, styles, inherited)
     const rawBox = layout?.get(node.id)
     const box = rawBox ? applyScroll(rawBox, scroll) : undefined
+
+    // Skip nodes entirely outside the damage region
+    if (damageClip && box && !boxesOverlap(box, damageClip)) return
 
     // Check display:none — element and all descendants are invisible and take no space
     const ownStyle = node.nodeType === 'element' ? styles?.get(node.id) : undefined
@@ -106,8 +111,13 @@ function paintNode(
     }
 
     for (const child of node.children) {
-        paintNode(child, buffer, styles, layout, visuals, childClip, childScroll)
+        paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
     }
+}
+
+function boxesOverlap(a: LayoutBox, b: ClipRect): boolean {
+    return a.x < b.x + b.width && a.x + a.width > b.x
+        && a.y < b.y + b.height && a.y + a.height > b.y
 }
 
 function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
