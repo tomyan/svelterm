@@ -92,7 +92,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         bold: false, italic: false, underline: false, strikethrough: false, dim: false,
         display: defaultDisplay(tag),
         flexDirection: 'row',
-        justifyContent: 'start', alignItems: 'start', alignSelf: 'auto',
+        justifyContent: 'start', alignItems: 'stretch', alignSelf: 'auto',
         gap: 0,
         paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: defaultPaddingLeft,
         width: null, height: null,

@@ -100,6 +100,8 @@
         .panels { gap: 2rem; }
         .count { font-size: 2rem; }
 
+        ul { padding-left: 1em; }
+
         .panel {
             border: 2px solid var(--panel-border);
             border-radius: 8px;
@@ -181,10 +183,12 @@
         <div class="panel">
             <span class="panel-title">Features</span>
             <ul>
+                <li>Dual Target</li>
                 <li>CSS Variables</li>
                 <li>Flexbox Layout</li>
                 <li>Focus + :focus</li>
-                <li>Event Handling</li>
+                <li>Light/Dark Mode</li>
+                <li>Vite HMR</li>
             </ul>
         </div>
     </div>

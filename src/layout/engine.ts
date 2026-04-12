@@ -545,20 +545,26 @@ function positionChildren(
         const selfAlign: ResolvedStyle['alignItems'] = childStyle?.alignSelf !== 'auto'
             ? (childStyle?.alignSelf as ResolvedStyle['alignItems']) ?? align
             : align
-        const crossOffset = computeCrossOffset(selfAlign, crossAvail, crossSize)
+        const isStretch = selfAlign === 'stretch'
+        const crossOffset = isStretch ? 0 : computeCrossOffset(selfAlign, crossAvail, crossSize)
 
         const finalCx = baseDir === 'row' ? innerX + mainPos : innerX + crossOffset
         const finalCy = baseDir === 'row' ? innerY + crossPos + crossOffset : innerY + mainPos
 
         const childAvailW = baseDir === 'row' ? mainSize : innerW
-        const childAvailH = baseDir === 'row' ? innerH : mainSize
+        const childAvailH = baseDir === 'row' ? (isStretch ? crossAvail : innerH) : mainSize
         layoutNode(ordered[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
 
-        // Override main-axis size for flex-grown/shrunk items
+        // Override sizes for flex items
         const box = boxes.get(ordered[i].id)
         if (box) {
             if (baseDir === 'row' && box.width !== mainSize) box.width = mainSize
             if (baseDir === 'column' && box.height !== mainSize) box.height = mainSize
+            // Stretch: expand cross-axis to fill available space
+            if (isStretch) {
+                if (baseDir === 'row' && box.height < crossAvail) box.height = crossAvail
+                if (baseDir === 'column' && box.width < crossAvail) box.width = crossAvail
+            }
         }
 
         lineHeight = Math.max(lineHeight, baseDir === 'row' ? sizes[i].height : sizes[i].width)
