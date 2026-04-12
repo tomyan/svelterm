@@ -8,15 +8,36 @@
 </script>
 
 <style>
+    /* Light mode (default) */
     :root {
-        --primary: #00b4d8;
-        --accent: #e6a817;
-        --muted: #888;
+        --primary: #0077b6;
+        --accent: #c77d00;
+        --muted: #666;
+        --fg: #1a1a1a;
+        --bg: #ffffff;
+        --panel-border: #0077b6;
+        --btn-bg: #f5f5f5;
+        --btn-border: #ccc;
+    }
+
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --primary: #48cae4;
+            --accent: #fbbf24;
+            --muted: #999;
+            --fg: #e8e8e8;
+            --bg: #1a1a2e;
+            --panel-border: #48cae4;
+            --btn-bg: #2a2a3e;
+            --btn-border: #555;
+        }
     }
 
     .app {
         display: flex;
         flex-direction: column;
+        color: var(--fg);
     }
 
     .title {
@@ -32,11 +53,17 @@
     .panel {
         display: flex;
         flex-direction: column;
+        border-color: var(--panel-border);
     }
 
     .count {
         color: var(--accent);
         font-weight: bold;
+    }
+
+    button {
+        color: var(--fg);
+        border-color: var(--btn-border);
     }
 
     button:focus {
@@ -70,17 +97,17 @@
         .count { font-size: 2rem; }
 
         .panel {
-            border: 2px solid var(--primary);
+            border: 2px solid var(--panel-border);
             border-radius: 8px;
             padding: 1rem;
             gap: 0.75rem;
         }
 
         button {
-            border: 1px solid var(--muted);
+            border: 1px solid var(--btn-border);
             border-radius: 4px;
             padding: 0.4rem 1.2rem;
-            background: white;
+            background: var(--btn-bg);
             cursor: pointer;
             font-size: inherit;
         }
@@ -105,14 +132,12 @@
         .panel {
             width: 25cell;
             border: rounded;
-            border-color: var(--primary);
             padding: 1cell;
             gap: 1cell;
         }
 
         button {
             border: single;
-            border-color: var(--muted);
             padding: 0 2cell;
         }
 
