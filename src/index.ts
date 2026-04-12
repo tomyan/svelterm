@@ -401,6 +401,10 @@ export function run<Props extends Record<string, any>>(
     return doCleanup
 }
 
+const SCROLLBAR_VISIBLE_MS = 600
+const SCROLLBAR_FADE_MS = 400
+const SCROLLBAR_FADE_FRAMES = 16
+const SCROLLBAR_TOTAL_MS = SCROLLBAR_VISIBLE_MS + SCROLLBAR_FADE_MS
 let lastHoveredId = -1
 
 function handleMouse(
@@ -459,6 +463,12 @@ function handleMouse(
                     const maxScroll = Math.max(0, contentHeight - viewportHeight)
                     const delta = mouse.button === 'scrollUp' ? -1 : 1
                     scrollTarget.scrollTop = Math.max(0, Math.min(scrollTarget.scrollTop + delta, maxScroll))
+                    scrollTarget.scrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
+                    const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
+                    const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
+                    for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
+                        setTimeout(forceRepaint, SCROLLBAR_VISIBLE_MS + i * frameInterval)
+                    }
                     ctx.onScroll(scrollTarget)
                 }
             }

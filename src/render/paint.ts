@@ -4,6 +4,7 @@ import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
+import { renderScrollbar } from './scrollbar.js'
 
 interface InheritedVisuals {
     fg: string
@@ -115,6 +116,24 @@ function paintNode(
 
     for (const child of node.children) {
         paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
+    }
+
+    // Render scrollbar overlay for scrollable containers
+    if (node.nodeType === 'element' && node.scrollbarVisibleUntil > Date.now()) {
+        const remaining = node.scrollbarVisibleUntil - Date.now()
+        const visibleMs = 600
+        const fadeMs = 400
+        const opacity = remaining > fadeMs ? 1 : remaining / fadeMs
+        const contentHeight = node.children.reduce((sum, c) => {
+            const cBox = layout?.get(c.id)
+            const nodeBox = layout?.get(node.id)
+            return cBox && nodeBox ? Math.max(sum, cBox.y - nodeBox.y + cBox.height) : sum
+        }, 0)
+        if (node.tag === 'root') {
+            renderScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentHeight, node.scrollTop, opacity)
+        } else if (box) {
+            renderScrollbar(buffer, box.x, box.y, box.width, box.height, contentHeight, node.scrollTop, opacity)
+        }
     }
 }
 
