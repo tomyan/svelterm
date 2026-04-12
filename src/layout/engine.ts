@@ -580,8 +580,7 @@ function positionChildren(
             // content size, but not below it. Items without explicit sizes don't shrink.
             const childStyle = styles.get(ordered[i].id)
             const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
-            const contentMain = baseDir === 'row' ? sizes[i].width : sizes[i].height
-            if (explicitMain !== undefined) {
+            if (explicitMain != null) {
                 mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
                 mainSize = Math.max(0, mainSize)
             }
