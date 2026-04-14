@@ -148,7 +148,10 @@ export function run<Props extends Record<string, any>>(
             }
         }
         lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
-        if (lastLayout) syncLayoutCache(root, lastLayout)
+        if (lastLayout) {
+            syncLayoutCache(root, lastLayout)
+            clampScrollPositions(root, lastLayout, io)
+        }
         paint(root, buffer, lastStyles, lastLayout)
         const output = diffBuffers(prevBuffer, buffer)
         if (output.length > 0) writeOutput(output)
@@ -548,6 +551,23 @@ function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedSty
         current = current.parent
     }
     return null
+}
+
+/** Clamp scroll positions on all nodes after resize/relayout. */
+function clampScrollPositions(node: TermNode, layout: Map<number, LayoutBox>, io: TerminalIO): void {
+    if (node.scrollTop !== 0 || node.scrollLeft !== 0) {
+        const box = layout.get(node.id)
+        if (box) {
+            const extent = contentExtent(node, layout, box)
+            const viewH = node.tag === 'root' ? io.getSize().height : box.height
+            const viewW = node.tag === 'root' ? io.getSize().width : box.width
+            const maxScrollY = Math.max(0, extent.height - viewH)
+            const maxScrollX = Math.max(0, extent.width - viewW)
+            if (node.scrollTop > maxScrollY) node.scrollTop = maxScrollY
+            if (node.scrollLeft > maxScrollX) node.scrollLeft = maxScrollX
+        }
+    }
+    for (const child of node.children) clampScrollPositions(child, layout, io)
 }
 
 /** Find the maximum content extent of all descendants relative to the ancestor's position. */
