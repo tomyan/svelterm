@@ -24,15 +24,15 @@ export function renderScrollbar(
     const maxScroll = contentHeight - viewportHeight
     const thumbPos = Math.round((scrollTop / maxScroll) * (viewportHeight - thumbSize))
 
-    for (let row = 0; row < thumbSize; row++) {
-        const y = viewportY + thumbPos + row
-        if (y < viewportY || y >= viewportY + viewportHeight) continue
+    for (let row = 0; row < viewportHeight; row++) {
+        const y = viewportY + row
+        const isThumb = row >= thumbPos && row < thumbPos + thumbSize
         const existing = buffer.getCell(col, y)
         const bg = parseColor(existing?.bg ?? 'default')
-        const fg = lerpColor(bg, SCROLLBAR_COLOR, opacity)
+        const fg = lerpColor(bg, SCROLLBAR_COLOR, isThumb ? opacity : opacity * 0.3)
         buffer.setCell(col, y, {
-            char: V_THUMB,
-            fg: toHex(fg),
+            char: isThumb ? V_THUMB : ' ',
+            fg: isThumb ? toHex(fg) : undefined,
             dim: false,
         })
     }
@@ -58,15 +58,15 @@ export function renderHScrollbar(
     const maxScroll = contentWidth - viewportWidth
     const thumbPos = Math.round((scrollLeft / maxScroll) * (viewportWidth - thumbSize))
 
-    for (let col = 0; col < thumbSize; col++) {
-        const x = viewportX + thumbPos + col
-        if (x < viewportX || x >= viewportX + viewportWidth) continue
+    for (let col = 0; col < viewportWidth; col++) {
+        const x = viewportX + col
+        const isThumb = col >= thumbPos && col < thumbPos + thumbSize
         const existing = buffer.getCell(x, row)
         const bg = parseColor(existing?.bg ?? 'default')
-        const fg = lerpColor(bg, SCROLLBAR_COLOR, opacity)
+        const fg = lerpColor(bg, SCROLLBAR_COLOR, isThumb ? opacity : opacity * 0.3)
         buffer.setCell(x, row, {
-            char: H_THUMB,
-            fg: toHex(fg),
+            char: isThumb ? H_THUMB : ' ',
+            fg: isThumb ? toHex(fg) : undefined,
             dim: false,
         })
     }
