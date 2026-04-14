@@ -1,7 +1,7 @@
 import { CellBuffer } from './buffer.js'
 
 const V_THUMB = '┃'
-const H_THUMB = '━'
+const H_THUMB = '▁'
 const SCROLLBAR_COLOR = { r: 180, g: 180, b: 180 }
 
 /**

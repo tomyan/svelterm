@@ -28,6 +28,7 @@ export class TermNode {
     scrollTop: number = 0
     scrollLeft: number = 0
     scrollbarVisibleUntil: number = 0
+    hScrollbarVisibleUntil: number = 0
     textBuffer: TextBuffer | null = null
     cache: RenderCache = { resolvedStyle: null, layoutBox: null, classAttr: '' }
 

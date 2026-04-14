@@ -118,27 +118,44 @@ function paintNode(
         paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
     }
 
-    // Render scrollbar overlay for scrollable containers
-    if (node.nodeType === 'element' && node.scrollbarVisibleUntil > Date.now()) {
-        const remaining = node.scrollbarVisibleUntil - Date.now()
+    // Render scrollbar overlays for scrollable containers
+    const now = Date.now()
+    const showVScroll = node.nodeType === 'element' && node.scrollbarVisibleUntil > now
+    const showHScroll = node.nodeType === 'element' && node.hScrollbarVisibleUntil > now
+    if (showVScroll || showHScroll) {
+        const nodeBox = layout?.get(node.id)
+        let contentHeight = 0
+        let contentWidth = 0
+        if (nodeBox && layout) {
+            const walk = (n: TermNode) => {
+                const cBox = layout.get(n.id)
+                if (cBox) {
+                    contentHeight = Math.max(contentHeight, cBox.y - nodeBox.y + cBox.height)
+                    contentWidth = Math.max(contentWidth, cBox.x - nodeBox.x + cBox.width)
+                }
+                for (const child of n.children) walk(child)
+            }
+            for (const child of node.children) walk(child)
+        }
         const visibleMs = 600
         const fadeMs = 400
-        const opacity = remaining > fadeMs ? 1 : remaining / fadeMs
-        const nodeBox = layout?.get(node.id)
-        const contentHeight = node.children.reduce((sum, c) => {
-            const cBox = layout?.get(c.id)
-            return cBox && nodeBox ? Math.max(sum, cBox.y - nodeBox.y + cBox.height) : sum
-        }, 0)
-        const contentWidth = node.children.reduce((sum, c) => {
-            const cBox = layout?.get(c.id)
-            return cBox && nodeBox ? Math.max(sum, cBox.x - nodeBox.x + cBox.width) : sum
-        }, 0)
-        if (node.tag === 'root') {
-            renderScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentHeight, node.scrollTop, opacity)
-            renderHScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentWidth, node.scrollLeft, opacity)
-        } else if (box) {
-            renderScrollbar(buffer, box.x, box.y, box.width, box.height, contentHeight, node.scrollTop, opacity)
-            renderHScrollbar(buffer, box.x, box.y, box.width, box.height, contentWidth, node.scrollLeft, opacity)
+        if (showVScroll) {
+            const remaining = node.scrollbarVisibleUntil - now
+            const opacity = remaining > fadeMs ? 1 : remaining / fadeMs
+            if (node.tag === 'root') {
+                renderScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentHeight, node.scrollTop, opacity)
+            } else if (box) {
+                renderScrollbar(buffer, box.x, box.y, box.width, box.height, contentHeight, node.scrollTop, opacity)
+            }
+        }
+        if (showHScroll && !showVScroll) {
+            const remaining = node.hScrollbarVisibleUntil - now
+            const opacity = remaining > fadeMs ? 1 : remaining / fadeMs
+            if (node.tag === 'root') {
+                renderHScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentWidth, node.scrollLeft, opacity)
+            } else if (box) {
+                renderHScrollbar(buffer, box.x, box.y, box.width, box.height, contentWidth, node.scrollLeft, opacity)
+            }
         }
     }
 }

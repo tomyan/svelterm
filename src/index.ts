@@ -453,17 +453,14 @@ function handleMouse(
             if (scrollTarget) {
                 const box = layout.get(scrollTarget.id)
                 if (box) {
-                    const contentWidth = scrollTarget.children.reduce((sum, c) => {
-                        const cBox = layout.get(c.id)
-                        return cBox ? Math.max(sum, cBox.x - box.x + cBox.width) : sum
-                    }, 0)
+                    const { width: contentWidth } = contentExtent(scrollTarget, layout, box)
                     const viewportWidth = scrollTarget.tag === 'root'
                         ? io.getSize().width
                         : box.width
                     const maxScroll = Math.max(0, contentWidth - viewportWidth)
                     const delta = mouse.button === 'scrollLeft' ? -1 : 1
                     scrollTarget.scrollLeft = Math.max(0, Math.min(scrollTarget.scrollLeft + delta, maxScroll))
-                    scrollTarget.scrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
+                    scrollTarget.hScrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
                     const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
                     const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
                     for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
@@ -482,10 +479,7 @@ function handleMouse(
             if (scrollTarget) {
                 const box = layout.get(scrollTarget.id)
                 if (box) {
-                    const contentHeight = scrollTarget.children.reduce((sum, c) => {
-                        const cBox = layout.get(c.id)
-                        return cBox ? Math.max(sum, cBox.y - box.y + cBox.height) : sum
-                    }, 0)
+                    const { height: contentHeight } = contentExtent(scrollTarget, layout, box)
                     const viewportHeight = scrollTarget.tag === 'root'
                         ? io.getSize().height
                         : box.height
@@ -554,6 +548,26 @@ function findScrollableAncestor(node: TermNode, styles?: Map<number, ResolvedSty
         current = current.parent
     }
     return null
+}
+
+/** Find the maximum content extent of all descendants relative to the ancestor's position. */
+function contentExtent(
+    node: TermNode,
+    layout: Map<number, LayoutBox>,
+    ancestorBox: LayoutBox,
+): { width: number; height: number } {
+    let maxW = 0
+    let maxH = 0
+    function walk(n: TermNode) {
+        const box = layout.get(n.id)
+        if (box) {
+            maxW = Math.max(maxW, box.x - ancestorBox.x + box.width)
+            maxH = Math.max(maxH, box.y - ancestorBox.y + box.height)
+        }
+        for (const child of n.children) walk(child)
+    }
+    for (const child of node.children) walk(child)
+    return { width: maxW, height: maxH }
 }
 
 function scrollIntoView(
