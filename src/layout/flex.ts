@@ -8,10 +8,10 @@ export function computeMainStart(
 ): number {
     if (hasGrow || count === 0) return 0
     switch (justify) {
-        case 'end': return freeSpace
-        case 'center': return Math.floor(freeSpace / 2)
-        case 'space-around': return Math.floor(freeSpace / (count * 2))
-        case 'space-evenly': return Math.floor(freeSpace / (count + 1))
+        case 'end': return Math.max(0, freeSpace)
+        case 'center': return Math.floor(freeSpace / 2) // allows negative for overflow
+        case 'space-around': return freeSpace > 0 ? Math.floor(freeSpace / (count * 2)) : 0
+        case 'space-evenly': return freeSpace > 0 ? Math.floor(freeSpace / (count + 1)) : 0
         default: return 0
     }
 }

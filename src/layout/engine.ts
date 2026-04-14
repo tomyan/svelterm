@@ -1,5 +1,8 @@
 import { TermNode } from '../renderer/node.js'
-import { ResolvedStyle } from '../css/compute.js'
+import { ResolvedStyle, type StyleMap } from '../css/compute.js'
+import { NodeMap } from '../utils/node-map.js'
+
+export type LayoutMap = NodeMap<LayoutBox>
 import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
 import { resolveSize, constrain } from './size.js'
@@ -49,7 +52,7 @@ export function computeLayout(
     availWidth: number,
     availHeight: number,
 ): Map<number, LayoutBox> {
-    const boxes = new Map<number, LayoutBox>()
+    const boxes = new NodeMap<LayoutBox>()
     layoutNode(root, styles, boxes, 0, 0, availWidth, availHeight)
     return boxes
 }
@@ -595,11 +598,24 @@ function positionChildren(
     })
     if (visible.length === 0) return { width: 0, height: 0 }
 
-    // Pre-measure to filter out zero-size items (e.g. whitespace text nodes)
-    const measured = visible.map(child => ({
-        child,
-        size: layoutNode(child, styles, boxes, 0, 0, innerW, innerH),
-    }))
+    const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
+    const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
+
+    // Pre-measure to get content sizes. In row flex, block children should
+    // shrink-wrap to content rather than filling the container width.
+    const measured = visible.map(child => {
+        const s = styles.get(child.id)
+        const explicitW = s?.width != null ? resolveSize(s.width, innerW) : null
+        const explicitH = s?.height != null ? resolveSize(s.height, innerH) : null
+        // For row flex: if child has no explicit width, measure at 0 to get content width
+        // For column flex: if child has no explicit height, use container width (normal block fill)
+        const mw = baseDir === 'row' && explicitW == null ? 0 : innerW
+        const size = layoutNode(child, styles, boxes, 0, 0, mw, innerH)
+        // Use explicit size when set
+        if (explicitW != null && baseDir === 'row') size.width = explicitW
+        if (explicitH != null && baseDir === 'column') size.height = explicitH
+        return { child, size }
+    })
     const nonEmpty = measured.filter(({ size }) => size.width > 0 || size.height > 0)
     if (nonEmpty.length === 0) return { width: 0, height: 0 }
 
@@ -609,8 +625,6 @@ function positionChildren(
         const orderB = styles.get(b.child.id)?.order ?? 0
         return orderA - orderB
     })
-    const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
-    const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
     const orderedItems = isReverse ? sorted.reverse() : sorted
     const ordered = orderedItems.map(item => item.child)
 
@@ -645,14 +659,148 @@ function positionChildren(
     }, 0)
 
     const availMain = baseDir === 'row' ? innerW : innerH
-    const freeSpace = Math.max(0, availMain - totalMain)
-    const overflow = Math.max(0, totalMain - availMain)
+    const rawFreeSpace = availMain - totalMain
+    const freeSpace = Math.max(0, rawFreeSpace)
+    // With wrapping enabled, items wrap instead of shrinking
+    const overflow = wrap === 'wrap' ? 0 : Math.max(0, -rawFreeSpace)
     const hasGrow = totalGrow > 0
     const totalShrink = overflow > 0 ? shrinkValues.reduce((a, b) => a + b, 0) : 0
 
+    // Pre-compute grow/shrink adjustments with correct rounding
+    const mainAdjust = new Array<number>(ordered.length).fill(0)
+    if (hasGrow && freeSpace > 0) {
+        let distributed = 0
+        for (let i = 0; i < ordered.length; i++) {
+            if (growValues[i] > 0) {
+                const share = Math.floor(freeSpace * growValues[i] / totalGrow)
+                mainAdjust[i] = share
+                distributed += share
+            }
+        }
+        // Distribute remainder 1px each to items with largest fractional parts
+        let remainder = freeSpace - distributed
+        if (remainder > 0) {
+            const fractions = ordered.map((_, i) =>
+                growValues[i] > 0 ? (freeSpace * growValues[i] / totalGrow) % 1 : 0
+            )
+            const indices = ordered.map((_, i) => i)
+                .filter(i => growValues[i] > 0)
+                .sort((a, b) => fractions[b] - fractions[a])
+            for (const idx of indices) {
+                if (remainder <= 0) break
+                mainAdjust[idx] += 1
+                remainder--
+            }
+        }
+    }
+    if (overflow > 0 && totalShrink > 0) {
+        let distributed = 0
+        for (let i = 0; i < ordered.length; i++) {
+            if (shrinkValues[i] > 0) {
+                const childStyle = styles.get(ordered[i].id)
+                const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
+                if (explicitMain != null) {
+                    const share = Math.floor(overflow * shrinkValues[i] / totalShrink)
+                    mainAdjust[i] = -share
+                    distributed += share
+                }
+            }
+        }
+        // Distribute remainder to last shrinking item with explicit size
+        let remainder = overflow - distributed
+        for (let i = ordered.length - 1; i >= 0 && remainder > 0; i--) {
+            if (shrinkValues[i] > 0) {
+                const childStyle = styles.get(ordered[i].id)
+                const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
+                if (explicitMain != null) {
+                    mainAdjust[i] -= remainder
+                    remainder = 0
+                }
+            }
+        }
+    }
+
+    // Apply min-width/min-height constraints to shrink adjustments
+    for (let i = 0; i < ordered.length; i++) {
+        if (mainAdjust[i] < 0) {
+            const baseSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
+            const childStyle = styles.get(ordered[i].id)
+            const minMain = baseDir === 'row' ? childStyle?.minWidth : childStyle?.minHeight
+            if (minMain != null) {
+                const adjusted = baseSize + mainAdjust[i]
+                if (adjusted < minMain) mainAdjust[i] = minMain - baseSize
+            }
+            // Never shrink below 0
+            if (baseSize + mainAdjust[i] < 0) mainAdjust[i] = -baseSize
+        }
+    }
+
+    // Apply max-width/max-height constraints to grow adjustments
+    for (let i = 0; i < ordered.length; i++) {
+        if (mainAdjust[i] > 0) {
+            const baseSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
+            const childStyle = styles.get(ordered[i].id)
+            const maxMain = baseDir === 'row' ? childStyle?.maxWidth : childStyle?.maxHeight
+            if (maxMain != null) {
+                const adjusted = baseSize + mainAdjust[i]
+                if (adjusted > maxMain) {
+                    const excess = adjusted - maxMain
+                    mainAdjust[i] -= excess
+                    // Redistribute excess to other growing items
+                    for (let j = 0; j < ordered.length; j++) {
+                        if (j !== i && growValues[j] > 0) {
+                            mainAdjust[j] += excess
+                            break
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // §9.8.1 Auto margins absorb free space before justify-content
+    const autoMargins: { before: number; after: number }[] = ordered.map(() => ({ before: 0, after: 0 }))
+    if (freeSpace > 0 && !hasGrow) {
+        const marginProp = baseDir === 'row'
+            ? { before: 'marginLeft' as const, after: 'marginRight' as const }
+            : { before: 'marginTop' as const, after: 'marginBottom' as const }
+        let autoCount = 0
+        for (let i = 0; i < ordered.length; i++) {
+            const s = styles.get(ordered[i].id)
+            if (s && s[marginProp.before] === -1) autoCount++
+            if (s && s[marginProp.after] === -1) autoCount++
+        }
+        if (autoCount > 0) {
+            const perAuto = Math.floor(freeSpace / autoCount)
+            let distributed = 0
+            for (let i = 0; i < ordered.length; i++) {
+                const s = styles.get(ordered[i].id)
+                if (s && s[marginProp.before] === -1) {
+                    autoMargins[i].before = perAuto
+                    distributed += perAuto
+                }
+                if (s && s[marginProp.after] === -1) {
+                    autoMargins[i].after = perAuto
+                    distributed += perAuto
+                }
+            }
+            // Distribute remainder to last auto margin
+            let remainder = freeSpace - distributed
+            for (let i = ordered.length - 1; i >= 0 && remainder > 0; i--) {
+                const s = styles.get(ordered[i].id)
+                if (s && s[marginProp.after] === -1) {
+                    autoMargins[i].after += remainder; remainder = 0
+                } else if (s && s[marginProp.before] === -1) {
+                    autoMargins[i].before += remainder; remainder = 0
+                }
+            }
+        }
+    }
+    const hasAutoMargins = autoMargins.some(m => m.before > 0 || m.after > 0)
+
     // Position
-    let mainPos = computeMainStart(justify, freeSpace, ordered.length, hasGrow)
-    const baseItemGap = computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
+    let mainPos = hasAutoMargins ? 0 : computeMainStart(justify, rawFreeSpace, ordered.length, hasGrow)
+    const baseItemGap = hasAutoMargins ? gap : computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
 
     let contentWidth = 0
     let contentHeight = 0
@@ -660,23 +808,15 @@ function positionChildren(
     let lineHeight = 0
 
     for (let i = 0; i < ordered.length; i++) {
-        let mainSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
-        if (hasGrow && growValues[i] > 0) {
-            mainSize += Math.floor(freeSpace * growValues[i] / totalGrow)
-        }
-        if (overflow > 0 && totalShrink > 0 && shrinkValues[i] > 0) {
-            // CSS min-height:auto — items with explicit sizes can shrink toward
-            // content size, but not below it. Items without explicit sizes don't shrink.
-            const childStyle = styles.get(ordered[i].id)
-            const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
-            if (explicitMain != null) {
-                mainSize -= Math.floor(overflow * shrinkValues[i] / totalShrink)
-                mainSize = Math.max(0, mainSize)
-            }
-        }
+        // Apply auto margin before this item
+        mainPos += autoMargins[i].before
 
-        // Wrap check
-        if (wrap === 'wrap' && mainPos + mainSize > availMain && i > 0) {
+        let mainSize = (baseDir === 'row' ? sizes[i].width : sizes[i].height) + mainAdjust[i]
+        mainSize = Math.max(0, mainSize)
+
+        // Wrap check: use content size (before grow) to determine wrapping
+        const contentMainSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
+        if (wrap === 'wrap' && mainPos + contentMainSize > availMain && i > 0) {
             crossPos += lineHeight + gap
             mainPos = 0
             lineHeight = 0
@@ -705,10 +845,14 @@ function positionChildren(
         if (box) {
             if (baseDir === 'row' && box.width !== mainSize) box.width = mainSize
             if (baseDir === 'column' && box.height !== mainSize) box.height = mainSize
-            // Stretch: expand cross-axis to fill available space
+            // Stretch: expand cross-axis to fill available space, clamped by min/max
             if (isStretch) {
-                if (baseDir === 'row' && box.height < crossAvail) box.height = crossAvail
-                if (baseDir === 'column' && box.width < crossAvail) box.width = crossAvail
+                if (baseDir === 'row' && box.height < crossAvail) {
+                    box.height = constrain(crossAvail, childStyle?.minHeight, childStyle?.maxHeight)
+                }
+                if (baseDir === 'column' && box.width < crossAvail) {
+                    box.width = constrain(crossAvail, childStyle?.minWidth, childStyle?.maxWidth)
+                }
             }
         }
 
@@ -717,7 +861,7 @@ function positionChildren(
         const pairItemGap = i < ordered.length - 1
             ? (baseItemGap !== gap ? baseItemGap : pairGaps[i + 1])
             : 0
-        mainPos += mainSize + pairItemGap
+        mainPos += mainSize + autoMargins[i].after + pairItemGap
         contentWidth = baseDir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
         contentHeight = baseDir === 'row' ? crossPos + lineHeight : mainPos
     }

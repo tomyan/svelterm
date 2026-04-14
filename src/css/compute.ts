@@ -1,4 +1,7 @@
 import { TermNode } from '../renderer/node.js'
+import { NodeMap } from '../utils/node-map.js'
+
+export type StyleMap = NodeMap<ResolvedStyle>
 import { CSSStyleSheet } from './parser.js'
 import { matchesSelector } from './selector.js'
 import { resolveColor } from './color.js'
@@ -6,7 +9,7 @@ import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding 
 import { collectVariables, resolveVar } from './variables.js'
 import { computeSpecificity, compareSpecificity } from './specificity.js'
 import { evaluateMediaQuery, type MediaContext } from './media.js'
-import { computeLayout } from '../layout/engine.js'
+import { computeLayout, type LayoutBox } from '../layout/engine.js'
 
 const DEFAULT_MEDIA: MediaContext = {
     colorScheme: 'dark',
@@ -133,7 +136,7 @@ export function resolveStyles(
     if (!hasContainerRules) {
         // Simple path: no container queries
         const variables = collectVariables(root, filtered)
-        const styles = new Map<number, ResolvedStyle>()
+        const styles = new NodeMap<ResolvedStyle>()
         resolveNode(root, filtered, styles, variables)
         return styles
     }
@@ -142,7 +145,7 @@ export function resolveStyles(
     // Pass 1: resolve without @container rules to get initial layout
     const withoutContainer = filterContainerRules(filtered, false)
     const variables1 = collectVariables(root, withoutContainer)
-    const styles1 = new Map<number, ResolvedStyle>()
+    const styles1 = new NodeMap<ResolvedStyle>()
     resolveNode(root, withoutContainer, styles1, variables1)
 
     // Compute layout to get container dimensions
@@ -162,7 +165,7 @@ export function resolveStyles(
         keyframes: filtered.keyframes,
     }
     const variables2 = collectVariables(root, withMatchingContainers)
-    const styles2 = new Map<number, ResolvedStyle>()
+    const styles2 = new NodeMap<ResolvedStyle>()
     resolveNode(root, withMatchingContainers, styles2, variables2)
     return styles2
 }
@@ -206,7 +209,7 @@ function filterContainerRules(stylesheet: CSSStyleSheet, include: boolean): CSSS
 function evaluateContainerQuery(
     rule: import('./parser.js').CSSRule,
     root: TermNode,
-    layout: Map<number, import('../layout/engine.js').LayoutBox>,
+    layout: Map<number, LayoutBox>,
 ): boolean {
     if (!rule.container) return false
     const condition = rule.container
@@ -241,7 +244,7 @@ function walkNodes(node: TermNode, fn: (n: TermNode) => void): void {
 
 function hasMatchingContainerAncestor(
     node: TermNode, feature: string, value: number,
-    layout: Map<number, import('../layout/engine.js').LayoutBox>,
+    layout: Map<number, LayoutBox>,
 ): boolean {
     // Check nearest ancestor with a layout box (closest container)
     const ancestor = node.parent

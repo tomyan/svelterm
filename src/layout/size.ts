@@ -16,7 +16,8 @@ export function resolveSize(value: number | string | null | undefined, available
 
 export function constrain(value: number, min: number | null | undefined, max: number | null | undefined): number {
     let result = value
-    if (min != null) result = Math.max(result, min)
+    // Apply max first, then min — per CSS spec, min wins when conflicting
     if (max != null) result = Math.min(result, max)
+    if (min != null) result = Math.max(result, min)
     return result
 }
