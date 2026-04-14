@@ -70,6 +70,7 @@ export interface ResolvedStyle {
     textOverflow: 'clip' | 'ellipsis' | 'ellipsis-middle'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
     textAlign: 'left' | 'center' | 'right'
+    textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize'
     position: 'static' | 'relative' | 'absolute' | 'fixed'
     top: number | null
     right: number | null
@@ -114,6 +115,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         textOverflow: 'clip',
         whiteSpace: 'normal',
         textAlign: tag === 'button' ? 'center' : 'left',
+        textTransform: 'none',
         position: 'static',
         top: null, right: null, bottom: null, left: null,
         zIndex: 0,
@@ -195,7 +197,7 @@ const SUPPORTED_PROPERTIES = new Set([
     'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
     'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
     'color', 'background-color', 'background',
-    'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow',
+    'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow', 'text-transform',
     'white-space', 'overflow', 'visibility', 'opacity',
     'border', 'border-style', 'border-color',
     'position', 'top', 'right', 'bottom', 'left', 'z-index',
@@ -355,6 +357,7 @@ function applyInherit(style: ResolvedStyle, property: string, parentStyle: Resol
         case 'text-decoration': style.underline = parentStyle.underline; style.strikethrough = parentStyle.strikethrough; break
         case 'white-space': style.whiteSpace = parentStyle.whiteSpace; break
         case 'text-align': style.textAlign = parentStyle.textAlign; break
+        case 'text-transform': style.textTransform = parentStyle.textTransform; break
         case 'visibility': style.visibility = parentStyle.visibility; break
         case 'opacity': style.dim = parentStyle.dim; break
     }
@@ -502,6 +505,10 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'text-align':
             if (value === 'center' || value === 'right') style.textAlign = value
             else style.textAlign = 'left'
+            break
+        case 'text-transform':
+            if (value === 'uppercase' || value === 'lowercase' || value === 'capitalize') style.textTransform = value
+            else style.textTransform = 'none'
             break
         case 'position':
             if (value === 'relative' || value === 'absolute' || value === 'fixed') style.position = value

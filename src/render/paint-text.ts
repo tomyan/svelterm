@@ -32,7 +32,7 @@ export function paintTextContent(
     layout: Map<number, LayoutBox>,
     clip?: { x: number; y: number; width: number; height: number } | null,
 ): void {
-    const text = node.text ?? ''
+    let text = node.text ?? ''
     if (!text) return
     if (box.width === 0 && box.height === 0) return
 
@@ -41,6 +41,10 @@ export function paintTextContent(
     const align = alignResult?.value ?? 'left'
     const whiteSpace = findAncestorProp(node, styles, s => s.whiteSpace !== 'normal' ? s.whiteSpace : undefined) ?? 'normal'
     const textOverflow = findAncestorProp(node, styles, s => s.textOverflow !== 'clip' ? s.textOverflow : undefined) ?? 'clip'
+    const textTransform = findAncestorProp(node, styles, s => s.textTransform !== 'none' ? s.textTransform : undefined)
+    if (textTransform === 'uppercase') text = text.toUpperCase()
+    else if (textTransform === 'lowercase') text = text.toLowerCase()
+    else if (textTransform === 'capitalize') text = text.replace(/\b\w/g, c => c.toUpperCase())
 
     const noWrap = whiteSpace === 'nowrap'
     const ellipsis = textOverflow === 'ellipsis'

@@ -4,7 +4,7 @@ import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
-import { renderScrollbar } from './scrollbar.js'
+import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 
 interface InheritedVisuals {
     fg: string
@@ -124,15 +124,21 @@ function paintNode(
         const visibleMs = 600
         const fadeMs = 400
         const opacity = remaining > fadeMs ? 1 : remaining / fadeMs
+        const nodeBox = layout?.get(node.id)
         const contentHeight = node.children.reduce((sum, c) => {
             const cBox = layout?.get(c.id)
-            const nodeBox = layout?.get(node.id)
             return cBox && nodeBox ? Math.max(sum, cBox.y - nodeBox.y + cBox.height) : sum
+        }, 0)
+        const contentWidth = node.children.reduce((sum, c) => {
+            const cBox = layout?.get(c.id)
+            return cBox && nodeBox ? Math.max(sum, cBox.x - nodeBox.x + cBox.width) : sum
         }, 0)
         if (node.tag === 'root') {
             renderScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentHeight, node.scrollTop, opacity)
+            renderHScrollbar(buffer, 0, 0, buffer.width, buffer.height, contentWidth, node.scrollLeft, opacity)
         } else if (box) {
             renderScrollbar(buffer, box.x, box.y, box.width, box.height, contentHeight, node.scrollTop, opacity)
+            renderHScrollbar(buffer, box.x, box.y, box.width, box.height, contentWidth, node.scrollLeft, opacity)
         }
     }
 }

@@ -1,5 +1,5 @@
 export interface MouseEvent {
-    button: 'left' | 'right' | 'middle' | 'scrollUp' | 'scrollDown' | 'none'
+    button: 'left' | 'right' | 'middle' | 'scrollUp' | 'scrollDown' | 'scrollLeft' | 'scrollRight' | 'none'
     type: 'press' | 'release' | 'motion' | 'scroll'
     col: number  // 0-indexed
     row: number  // 0-indexed
@@ -28,7 +28,14 @@ export function parseMouseEvent(data: Buffer | Uint8Array): MouseEvent | null {
 
     // Scroll: codes 64-67
     if (base >= 64 && base <= 67) {
-        return { button: base === 64 ? 'scrollUp' : 'scrollDown', type: 'scroll', col, row }
+        // Shift modifier (bit 2) on vertical scroll = horizontal scroll
+        const hasShift = (code & 4) !== 0
+        let button: MouseEvent['button']
+        if (base === 64) button = hasShift ? 'scrollLeft' : 'scrollUp'
+        else if (base === 65) button = hasShift ? 'scrollRight' : 'scrollDown'
+        else if (base === 66) button = 'scrollLeft'
+        else button = 'scrollRight'
+        return { button, type: 'scroll', col, row }
     }
 
     // Motion: bit 5 (32)

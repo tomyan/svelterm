@@ -162,12 +162,27 @@ function layoutElement(
 
     const boxX = x + margin.left
     const boxY = y + margin.top
+    // Walk past display:contents ancestors to find the actual layout parent
+    let layoutParent = node.parent
+    while (layoutParent && styles.get(layoutParent.id)?.display === 'contents') {
+        layoutParent = layoutParent.parent
+    }
+    const parentDisplay = layoutParent ? styles.get(layoutParent.id)?.display : undefined
+    const isFlexOrGridChild = parentDisplay === 'flex' || parentDisplay === 'grid'
     const explicitWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
-    const nodeWidth = explicitWidth !== null ? Math.min(explicitWidth, availWidth - margin.left - margin.right) : null
+    // Flex/grid children are sized by their parent algorithm, not clamped to available width
+    const nodeWidth = explicitWidth !== null
+        ? (isFlexOrGridChild ? explicitWidth : Math.min(explicitWidth, availWidth - margin.left - margin.right))
+        : null
     const nodeHeight = resolveSize(style?.height, availHeight - margin.top - margin.bottom)
 
-    const innerW = (nodeWidth ?? (availWidth - margin.left - margin.right)) - inset.left - inset.right
-    const innerH = (nodeHeight ?? (availHeight - margin.top - margin.bottom)) - inset.top - inset.bottom
+    // Apply max-width/max-height to available space so children (e.g. flex-wrap) respect constraints
+    let effectiveW = nodeWidth ?? (availWidth - margin.left - margin.right)
+    if (style?.maxWidth != null && effectiveW > style.maxWidth) effectiveW = style.maxWidth
+    let effectiveH = nodeHeight ?? (availHeight - margin.top - margin.bottom)
+    if (style?.maxHeight != null && effectiveH > style.maxHeight) effectiveH = style.maxHeight
+    const innerW = effectiveW - inset.left - inset.right
+    const innerH = effectiveH - inset.top - inset.bottom
 
     const display = style?.display ?? 'block'
     let content: { width: number; height: number }
@@ -191,8 +206,6 @@ function layoutElement(
 
     // Block elements fill parent width; inline/inline-block shrink-wrap to content.
     // Flex/grid children are sized by the flex/grid algorithm, so they shrink-wrap.
-    const parentDisplay = node.parent ? styles.get(node.parent.id)?.display : undefined
-    const isFlexOrGridChild = parentDisplay === 'flex' || parentDisplay === 'grid'
     const isBlock = (display === 'block' || display === 'flex' || display === 'grid' || display === 'table')
         && !isFlexOrGridChild
     const autoWidth = isBlock
@@ -601,21 +614,11 @@ function positionChildren(
     const isReverse = dir === 'row-reverse' || dir === 'column-reverse'
     const baseDir = (dir === 'row' || dir === 'row-reverse') ? 'row' : 'column'
 
-    // Pre-measure to get content sizes. In row flex, block children should
-    // shrink-wrap to content rather than filling the container width.
-    const measured = visible.map(child => {
-        const s = styles.get(child.id)
-        const explicitW = s?.width != null ? resolveSize(s.width, innerW) : null
-        const explicitH = s?.height != null ? resolveSize(s.height, innerH) : null
-        // For row flex: if child has no explicit width, measure at 0 to get content width
-        // For column flex: if child has no explicit height, use container width (normal block fill)
-        const mw = baseDir === 'row' && explicitW == null ? 0 : innerW
-        const size = layoutNode(child, styles, boxes, 0, 0, mw, innerH)
-        // Use explicit size when set
-        if (explicitW != null && baseDir === 'row') size.width = explicitW
-        if (explicitH != null && baseDir === 'column') size.height = explicitH
-        return { child, size }
-    })
+    // Pre-measure to filter out zero-size items (e.g. whitespace text nodes)
+    const measured = visible.map(child => ({
+        child,
+        size: layoutNode(child, styles, boxes, 0, 0, innerW, innerH),
+    }))
     const nonEmpty = measured.filter(({ size }) => size.width > 0 || size.height > 0)
     if (nonEmpty.length === 0) return { width: 0, height: 0 }
 
@@ -798,6 +801,29 @@ function positionChildren(
     }
     const hasAutoMargins = autoMargins.some(m => m.before > 0 || m.after > 0)
 
+    // For wrapping, first determine line breaks and per-line cross sizes
+    const itemLine: number[] = []  // which line each item is on
+    const lineHeights: number[] = []  // cross size per line
+    if (wrap === 'wrap') {
+        let lineMainPos = 0
+        let currentLine = 0
+        let currentLineHeight = 0
+        for (let i = 0; i < ordered.length; i++) {
+            const contentMainSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
+            if (lineMainPos + contentMainSize > availMain && i > 0) {
+                lineHeights.push(currentLineHeight)
+                currentLine++
+                lineMainPos = 0
+                currentLineHeight = 0
+            }
+            itemLine.push(currentLine)
+            const crossSize = baseDir === 'row' ? sizes[i].height : sizes[i].width
+            currentLineHeight = Math.max(currentLineHeight, crossSize)
+            lineMainPos += contentMainSize + (i < ordered.length - 1 ? pairGaps[i + 1] : 0)
+        }
+        lineHeights.push(currentLineHeight)
+    }
+
     // Position
     let mainPos = hasAutoMargins ? 0 : computeMainStart(justify, rawFreeSpace, ordered.length, hasGrow)
     const baseItemGap = hasAutoMargins ? gap : computeItemGap(justify, gap, freeSpace, ordered.length, hasGrow)
@@ -806,26 +832,36 @@ function positionChildren(
     let contentHeight = 0
     let crossPos = 0
     let lineHeight = 0
+    let currentLine = 0
+    let naturalMain = 0
 
     for (let i = 0; i < ordered.length; i++) {
-        // Apply auto margin before this item
         mainPos += autoMargins[i].before
 
         let mainSize = (baseDir === 'row' ? sizes[i].width : sizes[i].height) + mainAdjust[i]
         mainSize = Math.max(0, mainSize)
 
-        // Wrap check: use content size (before grow) to determine wrapping
+        // Wrap check
         const contentMainSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
         if (wrap === 'wrap' && mainPos + contentMainSize > availMain && i > 0) {
-            crossPos += lineHeight + gap
+            // Border collapse between wrap lines: reduce gap when adjacent
+            // items have borders on the shared edge
+            const crossDir = baseDir === 'row' ? 'vertical' as const : 'horizontal' as const
+            const prevLineItem = ordered[i - 1]
+            const prevStyle = styles.get(prevLineItem.id)
+            const curStyle = styles.get(ordered[i].id)
+            const collapseGap = shouldAdjustBorderGap(prevStyle, curStyle, crossDir) ? 1 : 0
+            crossPos += lineHeight + Math.max(-1, gap - collapseGap)
             mainPos = 0
             lineHeight = 0
+            currentLine++
         }
 
         const crossSize = baseDir === 'row' ? sizes[i].height : sizes[i].width
-        const crossAvail = baseDir === 'row' ? innerH : innerW
+        // In wrap mode, cross available is the line height; otherwise full container
+        const lineCrossSize = wrap === 'wrap' ? lineHeights[currentLine] : 0
+        const crossAvail = wrap === 'wrap' ? lineCrossSize : (baseDir === 'row' ? innerH : innerW)
 
-        // Check align-self
         const childStyle = styles.get(ordered[i].id)
         const selfAlign: ResolvedStyle['alignItems'] = childStyle?.alignSelf !== 'auto'
             ? (childStyle?.alignSelf as ResolvedStyle['alignItems']) ?? align
@@ -840,31 +876,43 @@ function positionChildren(
         const childAvailH = baseDir === 'row' ? (isStretch ? crossAvail : innerH) : mainSize
         layoutNode(ordered[i], styles, boxes, finalCx, finalCy, childAvailW, childAvailH)
 
-        // Override sizes for flex items
         const box = boxes.get(ordered[i].id)
         if (box) {
             if (baseDir === 'row' && box.width !== mainSize) box.width = mainSize
             if (baseDir === 'column' && box.height !== mainSize) box.height = mainSize
-            // Stretch: expand cross-axis to fill available space, clamped by min/max
             if (isStretch) {
                 if (baseDir === 'row' && box.height < crossAvail) {
-                    box.height = constrain(crossAvail, childStyle?.minHeight, childStyle?.maxHeight)
+                    const stretchH = constrain(crossAvail, childStyle?.minHeight, childStyle?.maxHeight)
+                    box.height = stretchH
+                    layoutNode(ordered[i], styles, boxes, finalCx, finalCy, mainSize, stretchH)
+                    const rebox = boxes.get(ordered[i].id)
+                    if (rebox) { rebox.width = mainSize; rebox.height = stretchH }
                 }
                 if (baseDir === 'column' && box.width < crossAvail) {
-                    box.width = constrain(crossAvail, childStyle?.minWidth, childStyle?.maxWidth)
+                    const stretchW = constrain(crossAvail, childStyle?.minWidth, childStyle?.maxWidth)
+                    box.width = stretchW
+                    layoutNode(ordered[i], styles, boxes, finalCx, finalCy, stretchW, mainSize)
+                    const rebox = boxes.get(ordered[i].id)
+                    if (rebox) { rebox.width = stretchW; rebox.height = mainSize }
                 }
             }
         }
 
-        lineHeight = Math.max(lineHeight, baseDir === 'row' ? sizes[i].height : sizes[i].width)
-        // Use per-pair gap (with border adjustment) when not using justify spacing
+        lineHeight = Math.max(lineHeight, crossSize)
+        const usesJustifySpacing = justify === 'space-between' || justify === 'space-around' || justify === 'space-evenly'
         const pairItemGap = i < ordered.length - 1
-            ? (baseItemGap !== gap ? baseItemGap : pairGaps[i + 1])
+            ? (usesJustifySpacing && !hasGrow ? baseItemGap : pairGaps[i + 1])
             : 0
         mainPos += mainSize + autoMargins[i].after + pairItemGap
+        naturalMain += mainSize + (i > 0 ? pairGaps[i] : 0)
         contentWidth = baseDir === 'row' ? Math.max(contentWidth, mainPos) : Math.max(contentWidth, sizes[i].width)
         contentHeight = baseDir === 'row' ? crossPos + lineHeight : mainPos
     }
 
-    return { width: contentWidth, height: contentHeight }
+    // Return natural size for shrink-wrap auto-sizing (no justify offset).
+    // For wrapping containers, use positioned extent (wrapping already happened).
+    const mainResult = wrap === 'wrap' ? (baseDir === 'row' ? contentWidth : contentHeight) : naturalMain
+    return baseDir === 'row'
+        ? { width: mainResult, height: contentHeight }
+        : { width: contentWidth, height: mainResult }
 }

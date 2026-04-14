@@ -1,11 +1,11 @@
 import { CellBuffer } from './buffer.js'
 
-const THUMB_CHAR = '┃'
+const V_THUMB = '┃'
+const H_THUMB = '━'
 const SCROLLBAR_COLOR = { r: 180, g: 180, b: 180 }
 
 /**
- * Render a scrollbar overlay on the rightmost column of the viewport.
- * Uses color interpolation for smooth fade animation.
+ * Render a vertical scrollbar overlay on the rightmost column.
  */
 export function renderScrollbar(
     buffer: CellBuffer,
@@ -31,7 +31,41 @@ export function renderScrollbar(
         const bg = parseColor(existing?.bg ?? 'default')
         const fg = lerpColor(bg, SCROLLBAR_COLOR, opacity)
         buffer.setCell(col, y, {
-            char: THUMB_CHAR,
+            char: V_THUMB,
+            fg: toHex(fg),
+            dim: false,
+        })
+    }
+}
+
+/**
+ * Render a horizontal scrollbar overlay on the bottom row.
+ */
+export function renderHScrollbar(
+    buffer: CellBuffer,
+    viewportX: number,
+    viewportY: number,
+    viewportWidth: number,
+    viewportHeight: number,
+    contentWidth: number,
+    scrollLeft: number,
+    opacity: number,
+): void {
+    if (contentWidth <= viewportWidth || opacity <= 0) return
+
+    const row = viewportY + viewportHeight - 1
+    const thumbSize = Math.max(1, Math.round(viewportWidth * (viewportWidth / contentWidth)))
+    const maxScroll = contentWidth - viewportWidth
+    const thumbPos = Math.round((scrollLeft / maxScroll) * (viewportWidth - thumbSize))
+
+    for (let col = 0; col < thumbSize; col++) {
+        const x = viewportX + thumbPos + col
+        if (x < viewportX || x >= viewportX + viewportWidth) continue
+        const existing = buffer.getCell(x, row)
+        const bg = parseColor(existing?.bg ?? 'default')
+        const fg = lerpColor(bg, SCROLLBAR_COLOR, opacity)
+        buffer.setCell(x, row, {
+            char: H_THUMB,
             fg: toHex(fg),
             dim: false,
         })

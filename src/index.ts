@@ -446,6 +446,35 @@ function handleMouse(
             }
             scheduleRender()
         }
+    } else if (mouse.button === 'scrollLeft' || mouse.button === 'scrollRight') {
+        const target = hitTest(root, layout, mouse.col, mouse.row)
+        if (target) {
+            const scrollTarget = findScrollableAncestor(target, lastStyles)
+            if (scrollTarget) {
+                const box = layout.get(scrollTarget.id)
+                if (box) {
+                    const contentWidth = scrollTarget.children.reduce((sum, c) => {
+                        const cBox = layout.get(c.id)
+                        return cBox ? Math.max(sum, cBox.x - box.x + cBox.width) : sum
+                    }, 0)
+                    const viewportWidth = scrollTarget.tag === 'root'
+                        ? io.getSize().width
+                        : box.width
+                    const maxScroll = Math.max(0, contentWidth - viewportWidth)
+                    const delta = mouse.button === 'scrollLeft' ? -1 : 1
+                    scrollTarget.scrollLeft = Math.max(0, Math.min(scrollTarget.scrollLeft + delta, maxScroll))
+                    scrollTarget.scrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
+                    const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
+                    const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
+                    for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
+                        setTimeout(forceRepaint, SCROLLBAR_VISIBLE_MS + i * frameInterval)
+                    }
+                    ctx.onScroll(scrollTarget)
+                }
+            }
+            dispatchEvent(target, 'scroll', mouse)
+            scheduleRender()
+        }
     } else if (mouse.button === 'scrollUp' || mouse.button === 'scrollDown') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {

@@ -294,3 +294,94 @@ describe('order with negative values', () => {
         assert.equal(boxes.get(c!.id)!.x, 20)
     })
 })
+
+describe('flex-wrap line handling', () => {
+
+    it('wrapped items do not overlap previous line', () => {
+        // Given: 5 items of width 8 in a 30-wide wrapping row with gap 1
+        // Line 1: A(8)+gap(1)+B(8)+gap(1)+C(8)=26 fits
+        // Line 2: D(8)+gap(1)+E(8)=17 wraps
+        let items: TermNode[] = []
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ flexWrap: 'wrap', maxWidth: 30, gap: 1 }) as any)
+            for (let i = 0; i < 5; i++) {
+                items.push(addChild(root, styles, { width: 8, height: 3 }))
+                addText(items[i], String.fromCharCode(65 + i))
+            }
+        }, 97)
+
+        // Then: D starts below A-C
+        const aBox = boxes.get(items[0].id)!
+        const dBox = boxes.get(items[3].id)!
+        assert.ok(dBox.y >= aBox.y + aBox.height,
+            `D (y=${dBox.y}) should start at or below A's bottom (${aBox.y + aBox.height})`)
+    })
+
+    it('stretch in wrap applies to line height, not container height', () => {
+        // Given: wrapping row with a tall item on line 1, short items on line 2
+        // Per spec §9.4: items stretch to their LINE's cross size, not the container
+        let short1: TermNode, tall: TermNode, short2: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ flexWrap: 'wrap', maxWidth: 30, gap: 1, alignItems: 'stretch' }) as any)
+            short1 = addChild(root, styles, { width: 10, height: 1 })
+            addText(short1, 'S')
+            tall = addChild(root, styles, { width: 10, height: 5 })
+            addText(tall, 'T')
+            // Third item wraps to line 2
+            short2 = addChild(root, styles, { width: 15 })
+            addText(short2, 'S2')
+        }, 30)
+
+        // Then: short1 should stretch to line 1 height (5, matching tall), not container height
+        const s1 = boxes.get(short1!.id)!
+        const t = boxes.get(tall!.id)!
+        assert.equal(s1.height, t.height,
+            `short1 (h=${s1.height}) should stretch to line height (${t.height})`)
+
+        // short2 on line 2 should NOT stretch to line 1 height
+        const s2 = boxes.get(short2!.id)!
+        assert.ok(s2.height <= t.height,
+            `short2 (h=${s2.height}) should not stretch beyond its own line height`)
+        assert.ok(s2.y >= t.y + t.height,
+            `short2 (y=${s2.y}) should be on line 2, below line 1 (bottom=${t.y + t.height})`)
+    })
+
+    it('container height includes all wrap lines', () => {
+        // Given: wrapping row with items that create 2 lines
+        let items: TermNode[] = []
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ flexWrap: 'wrap', maxWidth: 20, gap: 1 }) as any)
+            for (let i = 0; i < 4; i++) {
+                items.push(addChild(root, styles, { width: 8, height: 3 }))
+                addText(items[i], String(i))
+            }
+        }, 97)
+
+        // Then: 2 items per line (8+1+8=17 <= 20), 2 lines of height 3 + 1 gap = 7 total
+        const rootBox = [...boxes.entries()].find(([id]) => id === items[0].id)?.[1]
+        const lastItem = boxes.get(items[3].id)!
+        const firstItem = boxes.get(items[0].id)!
+        const totalHeight = lastItem.y + lastItem.height - firstItem.y
+        assert.equal(totalHeight, 7, 'two lines of 3 + 1 gap = 7')
+    })
+
+    it('each wrap line computes its own cross size independently', () => {
+        // Given: line 1 has tall items (h=5), line 2 has short items (h=2)
+        let tall1: TermNode, tall2: TermNode, short1: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ flexWrap: 'wrap', maxWidth: 20, gap: 1, alignItems: 'stretch' }) as any)
+            tall1 = addChild(root, styles, { width: 8, height: 5 })
+            addText(tall1, 'T1')
+            tall2 = addChild(root, styles, { width: 8, height: 5 })
+            addText(tall2, 'T2')
+            // Wraps to line 2
+            short1 = addChild(root, styles, { width: 8, height: 2 })
+            addText(short1, 'S1')
+        }, 97)
+
+        // Then: line 1 items have height 5, line 2 items have height 2
+        assert.equal(boxes.get(tall1!.id)!.height, 5)
+        assert.equal(boxes.get(tall2!.id)!.height, 5)
+        assert.equal(boxes.get(short1!.id)!.height, 2)
+    })
+})
