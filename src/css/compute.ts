@@ -340,7 +340,27 @@ function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<strin
         }
     }
 
+    // Inline style="..." attribute — applied last (higher than any selector specificity)
+    const inline = node.attributes?.get('style')
+    if (inline) {
+        for (const decl of parseInlineStyle(inline)) {
+            applyDeclaration(style, decl.property, resolveVar(decl.value, vars))
+        }
+    }
+
     return style
+}
+
+function parseInlineStyle(text: string): { property: string; value: string }[] {
+    const result: { property: string; value: string }[] = []
+    for (const part of text.split(';')) {
+        const colon = part.indexOf(':')
+        if (colon < 0) continue
+        const property = part.slice(0, colon).trim().toLowerCase()
+        const value = part.slice(colon + 1).trim()
+        if (property && value) result.push({ property, value })
+    }
+    return result
 }
 
 const INHERITABLE_PROPERTIES = new Set([

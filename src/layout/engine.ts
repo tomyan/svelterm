@@ -26,6 +26,29 @@ function shouldAdjustBorderGap(
     }
 }
 
+/**
+ * Approximate auto min-size in the main flex axis (CSS Flexbox §4.5).
+ * Returns the smallest size the item can be without losing essential content:
+ * borders that occupy main-axis space + (1 cell if the item has children, else 0).
+ * overflow:hidden items can collapse to 0.
+ */
+function autoMinMainSize(
+    node: TermNode,
+    style: ResolvedStyle | undefined,
+    baseDir: 'row' | 'column',
+): number {
+    if (!style) return 0
+    if (style.overflow === 'hidden' || style.overflow === 'scroll') return 0
+    if (node.children.length === 0) return 0
+    const hasBorder = style.borderStyle && style.borderStyle !== 'none'
+    const borderMain = hasBorder
+        ? (baseDir === 'row'
+            ? (style.borderLeft ? 1 : 0) + (style.borderRight ? 1 : 0)
+            : (style.borderTop ? 1 : 0) + (style.borderBottom ? 1 : 0))
+        : 0
+    return borderMain + 1
+}
+
 /** Flatten display:contents elements, promoting their children. */
 function flattenContents(children: TermNode[], styles: Map<number, ResolvedStyle>): TermNode[] {
     const result: TermNode[] = []
@@ -723,7 +746,10 @@ function positionChildren(
         }
     }
 
-    // Apply min-width/min-height constraints to shrink adjustments
+    // Apply min-width/min-height constraints to shrink adjustments.
+    // CSS Flexbox §4.5: items have auto min-size = min(content-size, specified-size).
+    // Approximate content-min as: borders in main axis + (1 if has children, else 0).
+    // overflow:hidden allows min to be 0 (per spec).
     for (let i = 0; i < ordered.length; i++) {
         if (mainAdjust[i] < 0) {
             const baseSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
@@ -732,6 +758,9 @@ function positionChildren(
             if (minMain != null) {
                 const adjusted = baseSize + mainAdjust[i]
                 if (adjusted < minMain) mainAdjust[i] = minMain - baseSize
+            } else {
+                const autoMin = autoMinMainSize(ordered[i], childStyle, baseDir)
+                if (baseSize + mainAdjust[i] < autoMin) mainAdjust[i] = autoMin - baseSize
             }
             // Never shrink below 0
             if (baseSize + mainAdjust[i] < 0) mainAdjust[i] = -baseSize
