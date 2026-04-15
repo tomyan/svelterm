@@ -166,11 +166,21 @@ function layoutElement(
         left: resolvePadding(style?.marginLeft, availWidth),
     }
     const borderWidth = (style?.borderStyle && style.borderStyle !== 'none') ? 1 : 0
+    const collapsesPadding = isOuterFacingBorder(style?.borderStyle)
+    const collapsesMargin = isInnerFacingBorder(style?.borderStyle)
     const inset = {
-        top: resolvePadding(style?.paddingTop, availWidth) + borderWidth,
-        right: resolvePadding(style?.paddingRight, availWidth) + borderWidth,
-        bottom: resolvePadding(style?.paddingBottom, availWidth) + borderWidth,
-        left: resolvePadding(style?.paddingLeft, availWidth) + borderWidth,
+        top: insetWithCollapse(style?.paddingTop, availWidth, style?.borderTop, borderWidth, collapsesPadding),
+        right: insetWithCollapse(style?.paddingRight, availWidth, style?.borderRight, borderWidth, collapsesPadding),
+        bottom: insetWithCollapse(style?.paddingBottom, availWidth, style?.borderBottom, borderWidth, collapsesPadding),
+        left: insetWithCollapse(style?.paddingLeft, availWidth, style?.borderLeft, borderWidth, collapsesPadding),
+    }
+    if (collapsesMargin) {
+        margin = {
+            top: collapseMargin(margin.top, style?.borderTop, borderWidth),
+            right: collapseMargin(margin.right, style?.borderRight, borderWidth),
+            bottom: collapseMargin(margin.bottom, style?.borderBottom, borderWidth),
+            left: collapseMargin(margin.left, style?.borderLeft, borderWidth),
+        }
     }
 
     // Resolve auto margins for centering
@@ -252,11 +262,12 @@ function layoutAbsolute(
     x: number, y: number, availWidth: number, availHeight: number, style: ResolvedStyle,
 ) {
     const borderWidth = (style.borderStyle && style.borderStyle !== 'none') ? 1 : 0
+    const collapsesPadding = isOuterFacingBorder(style.borderStyle)
     const inset = {
-        top: resolvePadding(style.paddingTop, availWidth) + borderWidth,
-        right: resolvePadding(style.paddingRight, availWidth) + borderWidth,
-        bottom: resolvePadding(style.paddingBottom, availWidth) + borderWidth,
-        left: resolvePadding(style.paddingLeft, availWidth) + borderWidth,
+        top: insetWithCollapse(style.paddingTop, availWidth, style.borderTop, borderWidth, collapsesPadding),
+        right: insetWithCollapse(style.paddingRight, availWidth, style.borderRight, borderWidth, collapsesPadding),
+        bottom: insetWithCollapse(style.paddingBottom, availWidth, style.borderBottom, borderWidth, collapsesPadding),
+        left: insetWithCollapse(style.paddingLeft, availWidth, style.borderLeft, borderWidth, collapsesPadding),
     }
     const nodeWidth = resolveSize(style.width, availWidth)
     const nodeHeight = resolveSize(style.height, availHeight)
@@ -284,6 +295,54 @@ function resolvePadding(value: number | string | undefined, availWidth: number):
     if (value === undefined) return 0
     if (typeof value === 'number') return value
     return resolveSize(value, availWidth) ?? 0
+}
+
+/**
+ * Block-character border styles whose stroke faces outward.
+ * The unused (inner) portion of the border cell collapses with `padding`.
+ */
+function isOuterFacingBorder(borderStyle: string | undefined): boolean {
+    return borderStyle === 'eighth-cell-outer' || borderStyle === 'half-cell-outer'
+}
+
+/**
+ * Block-character border styles whose stroke faces inward.
+ * The unused (outer) portion of the border cell collapses with `margin`.
+ */
+function isInnerFacingBorder(borderStyle: string | undefined): boolean {
+    return borderStyle === 'eighth-cell-inner' || borderStyle === 'half-cell-inner'
+}
+
+/**
+ * Compute total inset on one side, applying the padding/border collapse rule when applicable.
+ * When the border absorbs padding, total inset = max(padding, borderWidth).
+ * Otherwise total inset = padding + borderWidth.
+ */
+function insetWithCollapse(
+    padding: number | string | undefined,
+    availWidth: number,
+    sideHasBorder: boolean | undefined,
+    borderWidth: number,
+    collapses: boolean,
+): number {
+    const p = resolvePadding(padding, availWidth)
+    const sideBorder = sideHasBorder ? borderWidth : 0
+    if (collapses && sideHasBorder) return Math.max(p, sideBorder)
+    return p + sideBorder
+}
+
+/**
+ * Apply the margin collapse rule for inner-facing borders on a single side.
+ * When the border absorbs margin: effective margin = max(margin - 1, 0).
+ * Caller must check the side actually has a border before calling.
+ */
+function collapseMargin(
+    marginValue: number,
+    sideHasBorder: boolean | undefined,
+    borderWidth: number,
+): number {
+    if (!sideHasBorder || marginValue <= 0) return marginValue
+    return Math.max(marginValue - borderWidth, 0)
 }
 
 function layoutBlockFlow(

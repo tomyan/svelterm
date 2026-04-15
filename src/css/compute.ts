@@ -61,6 +61,10 @@ export interface ResolvedStyle {
     animationDuration: number
     animationIterationCount: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
+        | 'eighth-cell-inner' | 'eighth-cell-outer'
+        | 'half-cell-inner' | 'half-cell-outer'
+        | 'full-cell'
+    borderCorner: 'none' | 'h' | 'v'
     borderColor: string
     borderTop: boolean
     borderRight: boolean
@@ -109,7 +113,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         gridTemplateColumns: null, gridTemplateRows: null,
         gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
-        borderStyle: 'none', borderColor: 'default',
+        borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         overflow: 'visible',
         textOverflow: 'clip',
@@ -199,7 +203,7 @@ const SUPPORTED_PROPERTIES = new Set([
     'color', 'background-color', 'background',
     'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow', 'text-transform',
     'white-space', 'overflow', 'visibility', 'opacity',
-    'border', 'border-style', 'border-color',
+    'border', 'border-style', 'border-color', 'border-corner',
     'position', 'top', 'right', 'bottom', 'left', 'z-index',
 ])
 
@@ -506,6 +510,9 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
         case 'border-color':
             style.borderColor = value === 'currentColor' ? style.fg : resolveColor(value)
             break
+        case 'border-corner':
+            if (value === 'h' || value === 'v' || value === 'none') style.borderCorner = value
+            break
         case 'border-top': setIndividualBorderSide(style, 'borderTop', value); break
         case 'border-right': setIndividualBorderSide(style, 'borderRight', value); break
         case 'border-bottom': setIndividualBorderSide(style, 'borderBottom', value); break
@@ -550,7 +557,12 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
     }
 }
 
-const BORDER_STYLES = new Set(['none', 'single', 'double', 'rounded', 'heavy'])
+const BORDER_STYLES = new Set([
+    'none', 'single', 'double', 'rounded', 'heavy',
+    'eighth-cell-inner', 'eighth-cell-outer',
+    'half-cell-inner', 'half-cell-outer',
+    'full-cell',
+])
 
 function setIndividualBorderSide(style: ResolvedStyle, side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft', value: string): void {
     const enabled = value === 'true' || value === '1'

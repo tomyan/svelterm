@@ -73,8 +73,29 @@ function mergeCorner(
     }
 }
 
+interface BlockEdges {
+    top: string
+    bottom: string
+    left: string
+    right: string
+}
+
+const BLOCK_EDGES: Record<string, BlockEdges> = {
+    'eighth-cell-inner': { top: '\u2581', bottom: '\u2594', left: '\u2595', right: '\u258F' },
+    'eighth-cell-outer': { top: '\u2594', bottom: '\u2581', left: '\u258F', right: '\u2595' },
+    'half-cell-inner':   { top: '\u2584', bottom: '\u2580', left: '\u2590', right: '\u258C' },
+    'half-cell-outer':   { top: '\u2580', bottom: '\u2584', left: '\u258C', right: '\u2590' },
+    'full-cell':         { top: '\u2588', bottom: '\u2588', left: '\u2588', right: '\u2588' },
+}
+
 export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: ResolvedStyle): void {
     if (style.borderStyle === 'none') return
+
+    const blockEdges = BLOCK_EDGES[style.borderStyle]
+    if (blockEdges) {
+        renderBlockBorder(buffer, box, style, blockEdges)
+        return
+    }
 
     const chars = BORDER_SETS[style.borderStyle]
     if (!chars) return
@@ -137,6 +158,56 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
         const endRow = bottom ? y + height - 1 : y + height
         for (let row = startRow; row < endRow; row++) {
             buffer.setCell(x + width - 1, row, { char: chars.vertical, fg })
+        }
+    }
+}
+
+/**
+ * Render a block-character border (eighth-cell-*, half-cell-*, full-cell).
+ * Corner cells are owned by the axis selected via border-corner: 'h' (default top/bottom),
+ * 'v' (sides), or 'none' (corners blank).
+ */
+function renderBlockBorder(
+    buffer: CellBuffer, box: LayoutBox, style: ResolvedStyle, edges: BlockEdges,
+): void {
+    const fg = style.borderColor !== 'default' ? style.borderColor : undefined
+    const { x, y, width, height } = box
+    const top = style.borderTop
+    const right = style.borderRight
+    const bottom = style.borderBottom
+    const left = style.borderLeft
+    const corner = style.borderCorner
+
+    // Corner ownership controls how far horizontal vs vertical edges extend.
+    // 'h' = top/bottom strokes extend through the full row, sides indent by 1
+    // 'v' = sides extend through the full column, top/bottom indent by 1
+    // 'none' = corners blank, both axes indent by 1
+    const hOwnsCorners = corner === 'h'
+    const vOwnsCorners = corner === 'v'
+
+    const horizStart = (left && !hOwnsCorners) ? x + 1 : x
+    const horizEnd = (right && !hOwnsCorners) ? x + width - 1 : x + width
+    const vertStart = (top && !vOwnsCorners) ? y + 1 : y
+    const vertEnd = (bottom && !vOwnsCorners) ? y + height - 1 : y + height
+
+    if (top) {
+        for (let col = horizStart; col < horizEnd; col++) {
+            buffer.setCell(col, y, { char: edges.top, fg })
+        }
+    }
+    if (bottom) {
+        for (let col = horizStart; col < horizEnd; col++) {
+            buffer.setCell(col, y + height - 1, { char: edges.bottom, fg })
+        }
+    }
+    if (left) {
+        for (let row = vertStart; row < vertEnd; row++) {
+            buffer.setCell(x, row, { char: edges.left, fg })
+        }
+    }
+    if (right) {
+        for (let row = vertStart; row < vertEnd; row++) {
+            buffer.setCell(x + width - 1, row, { char: edges.right, fg })
         }
     }
 }
