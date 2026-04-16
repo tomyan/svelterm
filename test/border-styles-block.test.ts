@@ -73,31 +73,41 @@ describe('block-character border rendering', () => {
         assert.equal(lines[3], ' \u2594\u2594\u2594\u2594 ')
     })
 
-    it('eighth-cell-outer: corners blank, edges face outward', () => {
+    it('eighth-cell-outer: top/bottom extend through corners by default', () => {
         // When
         const lines = renderBox('eighth-cell-outer')
-        // Then — top: ▔ at top of cell; bottom: ▁; sides ▏ on left, ▕ on right
-        assert.equal(lines[0], ' \u2594\u2594\u2594\u2594 ')
+        // Then — default corner ownership is 'h' for outer (no 1/8 L corner glyph):
+        // top row full of ▔, bottom row full of ▁, sides indent by one
+        assert.equal(lines[0], '\u2594\u2594\u2594\u2594\u2594\u2594')
         assert.equal(lines[1], '\u258F    \u2595')
-        assert.equal(lines[3], ' \u2581\u2581\u2581\u2581 ')
+        assert.equal(lines[3], '\u2581\u2581\u2581\u2581\u2581\u2581')
     })
 
-    it('half-cell-inner: corners blank', () => {
+    it('half-cell-inner: quadrant corners face inward', () => {
         // When
         const lines = renderBox('half-cell-inner')
-        // Then
-        assert.equal(lines[0], ' \u2584\u2584\u2584\u2584 ')
+        // Then — corners are diagonally-opposite quadrants pointing into content
+        assert.equal(lines[0], '\u2597\u2584\u2584\u2584\u2584\u2596')  // ▗▄▄▄▄▖
         assert.equal(lines[1], '\u2590    \u258C')
-        assert.equal(lines[3], ' \u2580\u2580\u2580\u2580 ')
+        assert.equal(lines[3], '\u259D\u2580\u2580\u2580\u2580\u2598')  // ▝▀▀▀▀▘
     })
 
-    it('full-cell: full block on all border cells', () => {
+    it('full-cell: full block on all border cells including corners', () => {
         // When
         const lines = renderBox('full-cell')
-        // Then — corners blank by default
-        assert.equal(lines[0], ' \u2588\u2588\u2588\u2588 ')
+        // Then — entire border ring is █
+        assert.equal(lines[0], '\u2588\u2588\u2588\u2588\u2588\u2588')
         assert.equal(lines[1], '\u2588    \u2588')
-        assert.equal(lines[3], ' \u2588\u2588\u2588\u2588 ')
+        assert.equal(lines[3], '\u2588\u2588\u2588\u2588\u2588\u2588')
+    })
+
+    it('half-cell-outer: three-quadrant L corners point outward', () => {
+        // When
+        const lines = renderBox('half-cell-outer')
+        // Then — corners are three-quadrant L glyphs (▛▜▙▟)
+        assert.equal(lines[0], '\u259B\u2580\u2580\u2580\u2580\u259C')  // ▛▀▀▀▀▜
+        assert.equal(lines[1], '\u258C    \u2590')
+        assert.equal(lines[3], '\u2599\u2584\u2584\u2584\u2584\u259F')  // ▙▄▄▄▄▟
     })
 
     it('border-corner: h — top/bottom strokes extend through corners', () => {

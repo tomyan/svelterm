@@ -215,9 +215,13 @@ function isInnerFacingBlockBorder(style: ResolvedStyle): boolean {
 
 function hasBlankCorners(style: ResolvedStyle): boolean {
     if (style.borderCorner !== 'none') return false
-    const bs = style.borderStyle
-    return bs === 'eighth-cell-inner' || bs === 'eighth-cell-outer'
-        || bs === 'half-cell-inner' || bs === 'half-cell-outer'
+    // Only eighth-cell-inner has blank corners in the default configuration:
+    // the stroke sits at the inner edge, so the corner cell has nothing to
+    // draw and the bg should not leak through.
+    // eighth-cell-outer extends top/bottom strokes through corners by default
+    // (see renderBlockBorder), so the bg should fill the corner cells too.
+    // half-cell-* use quadrant/L corner glyphs.
+    return style.borderStyle === 'eighth-cell-inner'
 }
 
 function isBorderCell(

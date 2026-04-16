@@ -88,6 +88,41 @@ const BLOCK_EDGES: Record<string, BlockEdges> = {
     'full-cell':         { top: '\u2588', bottom: '\u2588', left: '\u2588', right: '\u2588' },
 }
 
+/**
+ * Quadrant glyphs used as corner pieces for half-cell borders. Each combines
+ * the stroke of two adjacent half-cell edges into a single cell. Eighth-cell
+ * borders have no equivalent corner glyph (no 1/8-thick L shape in Block
+ * Elements) so they fall back to border-corner: h|v|none.
+ */
+interface BlockCorners {
+    topLeft: string
+    topRight: string
+    bottomLeft: string
+    bottomRight: string
+}
+const BLOCK_CORNERS: Record<string, BlockCorners> = {
+    // Inner-facing: strokes face the content area, so corner glyphs fill the
+    // inner quadrant relative to the cell (e.g. top-left corner fills lower-right).
+    'half-cell-inner': {
+        topLeft:     '\u2597',  // ▗ lower-right quadrant
+        topRight:    '\u2596',  // ▖ lower-left quadrant
+        bottomLeft:  '\u259D',  // ▝ upper-right quadrant
+        bottomRight: '\u2598',  // ▘ upper-left quadrant
+    },
+    // Outer-facing: strokes face outward. Corner cells combine the full upper
+    // half (or lower half) with the full left half (or right half), forming
+    // three-quadrant L glyphs with just the diagonally-inner quadrant empty.
+    'half-cell-outer': {
+        topLeft:     '\u259B',  // ▛ TL+TR+BL (missing BR)
+        topRight:    '\u259C',  // ▜ TL+TR+BR (missing BL)
+        bottomLeft:  '\u2599',  // ▙ TL+BL+BR (missing TR)
+        bottomRight: '\u259F',  // ▟ TR+BL+BR (missing TL)
+    },
+    'full-cell': {
+        topLeft: '\u2588', topRight: '\u2588', bottomLeft: '\u2588', bottomRight: '\u2588',
+    },
+}
+
 export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: ResolvedStyle): void {
     if (style.borderStyle === 'none') return
 
@@ -181,14 +216,28 @@ function renderBlockBorder(
     // Corner ownership controls how far horizontal vs vertical edges extend.
     // 'h' = top/bottom strokes extend through the full row, sides indent by 1
     // 'v' = sides extend through the full column, top/bottom indent by 1
-    // 'none' = corners blank, both axes indent by 1
-    const hOwnsCorners = corner === 'h'
-    const vOwnsCorners = corner === 'v'
+    // 'none' = corners blank (or filled by dedicated corner glyphs, if available)
+    //
+    // eighth-cell-outer defaults to 'h' when 'none' is specified — there's no
+    // corner glyph in Block Elements for 1/8-thick L pieces, and with no
+    // extension the corners would be visibly missing from the outer frame.
+    const effectiveCorner = (corner === 'none' && style.borderStyle === 'eighth-cell-outer') ? 'h' : corner
+    const hOwnsCorners = effectiveCorner === 'h'
+    const vOwnsCorners = effectiveCorner === 'v'
+    const corners = (effectiveCorner === 'none') ? BLOCK_CORNERS[style.borderStyle] : undefined
 
     const horizStart = (left && !hOwnsCorners) ? x + 1 : x
     const horizEnd = (right && !hOwnsCorners) ? x + width - 1 : x + width
     const vertStart = (top && !vOwnsCorners) ? y + 1 : y
     const vertEnd = (bottom && !vOwnsCorners) ? y + height - 1 : y + height
+
+    // Place corner glyphs first so edge-paint loops don't overwrite them.
+    if (corners) {
+        if (top && left)    buffer.setCell(x, y, { char: corners.topLeft, fg })
+        if (top && right)   buffer.setCell(x + width - 1, y, { char: corners.topRight, fg })
+        if (bottom && left) buffer.setCell(x, y + height - 1, { char: corners.bottomLeft, fg })
+        if (bottom && right) buffer.setCell(x + width - 1, y + height - 1, { char: corners.bottomRight, fg })
+    }
 
     if (top) {
         for (let col = horizStart; col < horizEnd; col++) {
