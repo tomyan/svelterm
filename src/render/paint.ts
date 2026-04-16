@@ -82,7 +82,7 @@ function paintNode(
     }
 
     if (node.nodeType === 'element' && box && !isHidden) {
-        fillBackground(buffer, box, visuals, clip)
+        fillBackground(buffer, box, visuals, clip, ownStyle)
         if (ownStyle && ownStyle.borderStyle !== 'none') {
             renderBorder(buffer, box, ownStyle)
         }
@@ -183,14 +183,36 @@ function paintText(
 
 function fillBackground(
     buffer: CellBuffer, box: LayoutBox, visuals: InheritedVisuals, clip: ClipRect | null,
+    style?: ResolvedStyle,
 ): void {
     if (visuals.bg === 'default') return
+    // For block-character borders with no corner glyph (border-corner: none),
+    // the corner cells should remain transparent so the box bg doesn't bleed
+    // through the gap where no stroke is drawn.
+    const skipCorners = style ? isBlockBorderWithBlankCorners(style) : false
+    const right = box.x + box.width - 1
+    const bottom = box.y + box.height - 1
     for (let row = box.y; row < box.y + box.height; row++) {
         for (let col = box.x; col < box.x + box.width; col++) {
             if (clip && !inClip(col, row, clip)) continue
+            if (skipCorners && isCorner(col, row, box.x, right, box.y, bottom)) continue
             buffer.setCell(col, row, { bg: visuals.bg })
         }
     }
+}
+
+function isBlockBorderWithBlankCorners(style: ResolvedStyle): boolean {
+    if (style.borderCorner !== 'none') return false
+    const bs = style.borderStyle
+    return bs === 'eighth-cell-inner' || bs === 'eighth-cell-outer'
+        || bs === 'half-cell-inner' || bs === 'half-cell-outer'
+}
+
+function isCorner(
+    col: number, row: number,
+    left: number, right: number, top: number, bottom: number,
+): boolean {
+    return (col === left || col === right) && (row === top || row === bottom)
 }
 
 function paintListMarker(
