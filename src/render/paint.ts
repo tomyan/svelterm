@@ -186,26 +186,45 @@ function fillBackground(
     style?: ResolvedStyle,
 ): void {
     if (visuals.bg === 'default') return
-    // For block-character borders with no corner glyph (border-corner: none),
-    // the corner cells should remain transparent so the box bg doesn't bleed
-    // through the gap where no stroke is drawn.
-    const skipCorners = style ? isBlockBorderWithBlankCorners(style) : false
+    // For inner-facing block-character borders, the border cells' bg should
+    // stop AT the stroke, not extend past it. Skip the entire border-cell ring
+    // so the stroke is the visible outer edge of the colored area. The stroke
+    // glyph still paints its 1/8 or 1/2 cell mark on a transparent cell.
+    const skipBorderRing = style ? isInnerFacingBlockBorder(style) : false
+    // For borders with blank corners (no corner glyph), the corner cells stay
+    // transparent so bg doesn't leak through the gap.
+    const skipCorners = style ? hasBlankCorners(style) : false
+    const left = box.x
     const right = box.x + box.width - 1
+    const top = box.y
     const bottom = box.y + box.height - 1
-    for (let row = box.y; row < box.y + box.height; row++) {
-        for (let col = box.x; col < box.x + box.width; col++) {
+    for (let row = top; row <= bottom; row++) {
+        for (let col = left; col <= right; col++) {
             if (clip && !inClip(col, row, clip)) continue
-            if (skipCorners && isCorner(col, row, box.x, right, box.y, bottom)) continue
+            if (skipBorderRing && isBorderCell(col, row, left, right, top, bottom)) continue
+            if (skipCorners && isCorner(col, row, left, right, top, bottom)) continue
             buffer.setCell(col, row, { bg: visuals.bg })
         }
     }
 }
 
-function isBlockBorderWithBlankCorners(style: ResolvedStyle): boolean {
+function isInnerFacingBlockBorder(style: ResolvedStyle): boolean {
+    const bs = style.borderStyle
+    return bs === 'eighth-cell-inner' || bs === 'half-cell-inner'
+}
+
+function hasBlankCorners(style: ResolvedStyle): boolean {
     if (style.borderCorner !== 'none') return false
     const bs = style.borderStyle
     return bs === 'eighth-cell-inner' || bs === 'eighth-cell-outer'
         || bs === 'half-cell-inner' || bs === 'half-cell-outer'
+}
+
+function isBorderCell(
+    col: number, row: number,
+    left: number, right: number, top: number, bottom: number,
+): boolean {
+    return col === left || col === right || row === top || row === bottom
 }
 
 function isCorner(
