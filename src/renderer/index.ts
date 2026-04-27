@@ -1,6 +1,6 @@
 import { createRenderer as svelteCreateRenderer, type Renderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
-import { TermNode } from './node.js'
+import { TermNode, SvtRegionNode } from './node.js'
 
 export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
     return svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>({
@@ -9,6 +9,7 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
         },
 
         createElement(name: string): TermNode {
+            if (name === 'svt-region') return new SvtRegionNode()
             return new TermNode('element', name)
         },
 
@@ -127,4 +128,4 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
  *
  * Call this AFTER renderer.render() which pops the renderer.
  */
-export { TermNode } from './node.js'
+export { TermNode, SvtRegionNode } from './node.js'

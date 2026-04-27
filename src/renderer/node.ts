@@ -2,6 +2,7 @@ import type { ResolvedStyle } from '../css/compute.js'
 import type { LayoutBox } from '../layout/engine.js'
 import type { RenderContext } from '../render/context.js'
 import { TextBuffer } from '../components/text-buffer.js'
+import type { Cell } from '../render/buffer.js'
 
 let nextId = 1
 
@@ -199,6 +200,49 @@ export class TermNode {
         for (const child of this.children) {
             child.cleanup()
         }
+    }
+}
+
+/**
+ * A layout-participating region whose contents are filled by an external
+ * source. The consumer (typically `EmbeddedTerminal`) registers a
+ * cell-source function via `setCellSource`, and the paint phase calls
+ * it for each cell of the region's allocated box.
+ *
+ * Local coordinates: the cell-source function receives `(col, row)`
+ * relative to the region's own top-left, NOT the surrounding buffer.
+ *
+ * Resize: when the layout-allocated cell dimensions change between
+ * paints, a `resize` event fires with `{ cols, rows }` so the consumer
+ * can resize the upstream Terminal / stream to match.
+ */
+export class SvtRegionNode extends TermNode {
+    private cellSource: ((col: number, row: number) => Cell) | null = null
+    private lastCols = -1
+    private lastRows = -1
+
+    constructor() {
+        super('element', 'svt-region')
+    }
+
+    setCellSource(fn: (col: number, row: number) => Cell): void {
+        this.cellSource = fn
+    }
+
+    getCellSource(): ((col: number, row: number) => Cell) | null {
+        return this.cellSource
+    }
+
+    /**
+     * Called by the paint phase with the region's currently-allocated
+     * dimensions. Fires `resize` if they've changed since the last call.
+     * Returns the (possibly newly-fired) dimensions.
+     */
+    notifyAllocatedSize(cols: number, rows: number, fire: (cols: number, rows: number) => void): void {
+        if (cols === this.lastCols && rows === this.lastRows) return
+        this.lastCols = cols
+        this.lastRows = rows
+        fire(cols, rows)
     }
 }
 

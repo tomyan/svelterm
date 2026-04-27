@@ -1,10 +1,11 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, SvtRegionNode } from '../renderer/node.js'
 import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
+import { dispatchEvent } from '../input/dispatch.js'
 
 interface InheritedVisuals {
     fg: string
@@ -95,6 +96,10 @@ function paintNode(
         }
         if (node.tag === 'input' && box) {
             paintInput(node, buffer, box, visuals, clip)
+        }
+        if (node instanceof SvtRegionNode) {
+            paintRegion(node, buffer, box, clip)
+            return
         }
     }
 
@@ -360,6 +365,30 @@ function paintHorizontalRule(
     for (let col = box.x; col < box.x + box.width; col++) {
         if (clip && !inClip(col, box.y, clip)) continue
         buffer.setCell(col, box.y, { char: '─', fg: visuals.fg, dim: true })
+    }
+}
+
+/**
+ * Paint an svt-region. Fires `resize` if the allocated cell dimensions
+ * have changed since the last paint, then calls the consumer-registered
+ * cell source for each cell of the region's box (local coordinates) and
+ * writes the returned cell into the buffer at the absolute position.
+ */
+function paintRegion(
+    node: SvtRegionNode, buffer: CellBuffer, box: LayoutBox, clip: ClipRect | null,
+): void {
+    node.notifyAllocatedSize(box.width, box.height, (cols, rows) => {
+        dispatchEvent(node, 'resize', { cols, rows })
+    })
+    const cellSource = node.getCellSource()
+    if (!cellSource) return
+    for (let r = 0; r < box.height; r++) {
+        for (let c = 0; c < box.width; c++) {
+            const x = box.x + c
+            const y = box.y + r
+            if (clip && !inClip(x, y, clip)) continue
+            buffer.setCell(x, y, cellSource(c, r))
+        }
     }
 }
 

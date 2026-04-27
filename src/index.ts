@@ -341,11 +341,21 @@ export function run<Props extends Record<string, any>>(
         return result ? parseOSC11Scheme(result) : 'dark'
     }
 
-    // Render immediately with default scheme
+    // Render immediately with default scheme. Seed a Svelte context so
+    // descendant components can detect they're rendered in the svelterm
+    // target (vs plain browser-Svelte) without resorting to globals —
+    // important for components like EmbeddedTerminal that branch their
+    // render path. Browser-Svelte mounts have no such key, so a
+    // `getContext` call there returns undefined and the component
+    // defaults to the browser path.
     ctx.queue.setFullRecompute()
     const { unmount: svUnmount } = renderer.render(
         AppComponent as any,
-        { target: root, props: (options as any)?.props ?? {} },
+        {
+            target: root,
+            props: (options as any)?.props ?? {},
+            context: new Map([[Symbol.for('@svelterm/target'), 'terminal']]),
+        },
     )
 
     // Collect CSS from injected <style> elements (css: 'injected' mode)
