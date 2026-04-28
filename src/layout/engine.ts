@@ -202,12 +202,15 @@ function layoutElement(
     }
     const parentDisplay = layoutParent ? styles.get(layoutParent.id)?.display : undefined
     const isFlexOrGridChild = parentDisplay === 'flex' || parentDisplay === 'grid'
-    const explicitWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
+    const isContentBox = style?.boxSizing === 'content-box'
+    let explicitWidth = resolveSize(style?.width, availWidth - margin.left - margin.right)
+    if (explicitWidth !== null && isContentBox) explicitWidth += inset.left + inset.right
     // Flex/grid children are sized by their parent algorithm, not clamped to available width
     const nodeWidth = explicitWidth !== null
         ? (isFlexOrGridChild ? explicitWidth : Math.min(explicitWidth, availWidth - margin.left - margin.right))
         : null
-    const nodeHeight = resolveSize(style?.height, availHeight - margin.top - margin.bottom)
+    let nodeHeight = resolveSize(style?.height, availHeight - margin.top - margin.bottom)
+    if (nodeHeight !== null && isContentBox) nodeHeight += inset.top + inset.bottom
 
     // Apply max-width/max-height to available space so children (e.g. flex-wrap) respect constraints
     let effectiveW = nodeWidth ?? (availWidth - margin.left - margin.right)

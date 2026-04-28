@@ -70,6 +70,7 @@ export interface ResolvedStyle {
     borderRight: boolean
     borderBottom: boolean
     borderLeft: boolean
+    boxSizing: 'border-box' | 'content-box'
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
     textOverflow: 'clip' | 'ellipsis' | 'ellipsis-middle'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
@@ -115,6 +116,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
+        boxSizing: 'border-box',
         overflow: 'visible',
         textOverflow: 'clip',
         whiteSpace: 'normal',
@@ -204,6 +206,7 @@ const SUPPORTED_PROPERTIES = new Set([
     'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow', 'text-transform',
     'white-space', 'overflow', 'visibility', 'opacity',
     'border', 'border-style', 'border-color', 'border-corner',
+    'box-sizing',
     'position', 'top', 'right', 'bottom', 'left', 'z-index',
 ])
 
@@ -473,6 +476,9 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             }
             break
         }
+        case 'box-sizing':
+            if (value === 'border-box' || value === 'content-box') style.boxSizing = value
+            break
         case 'margin-top': style.marginTop = value === 'auto' ? -1 : parseSizeOrCell(value); break
         case 'margin-right': style.marginRight = value === 'auto' ? -1 : parseSizeOrCell(value); break
         case 'margin-bottom': style.marginBottom = value === 'auto' ? -1 : parseSizeOrCell(value); break
