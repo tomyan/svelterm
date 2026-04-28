@@ -1,4 +1,4 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, SvtRegionNode } from '../renderer/node.js'
 import { ResolvedStyle, type StyleMap } from '../css/compute.js'
 import { NodeMap } from '../utils/node-map.js'
 
@@ -241,14 +241,21 @@ function layoutElement(
     // Flex/grid children are sized by the flex/grid algorithm, so they shrink-wrap.
     const isBlock = (display === 'block' || display === 'flex' || display === 'grid' || display === 'table')
         && !isFlexOrGridChild
-    const autoWidth = isBlock
+    // Paint primitives (svt-region) have no meaningful content size — they
+    // exist to fill an allocated cell area. Default to the parent's available
+    // box on both axes when no explicit dimension was given, like an
+    // intrinsically sized replaced element rather than a content-sized div.
+    const isFillPrimitive = node instanceof SvtRegionNode
+    const autoWidth = isFillPrimitive || isBlock
         ? (availWidth - margin.left - margin.right)
         : content.width + inset.left + inset.right
     // Input/textarea have intrinsic minimum height of 1 row for the value text
     const intrinsicHeight = (node.tag === 'input' || node.tag === 'textarea')
         ? Math.max(content.height, 1)
         : content.height
-    const autoHeight = intrinsicHeight + inset.top + inset.bottom
+    const autoHeight = isFillPrimitive
+        ? (availHeight - margin.top - margin.bottom)
+        : intrinsicHeight + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 

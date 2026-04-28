@@ -55,32 +55,42 @@ export function run<Props extends Record<string, any>>(
     const debugPort = options?.debugPort ?? 9444
     let stylesheet = options?.css ? parseCSS(options.css) : null
 
-    // Console capture — always intercept to prevent stdout corruption.
-    // Route to onConsole callback if provided, otherwise suppress.
+    // Console capture — only intercept when our IO owns the JS runtime's
+    // stdout/stderr (ProcessIO). With InProcessIO (browser, tests) console
+    // writes don't corrupt anything, so leave them alone. When intercepting,
+    // route to onConsole if provided; otherwise throw — silent suppression
+    // hides log calls and lengthens the feedback loop.
     const onConsole = options?.onConsole
-    const originals = {
-        log: console.log.bind(console),
-        warn: console.warn.bind(console),
-        error: console.error.bind(console),
-        info: console.info.bind(console),
-        debug: console.debug.bind(console),
-    }
+    const ownsStdio = io instanceof ProcessIO
     const levels = ['log', 'warn', 'error', 'info', 'debug'] as const
-    for (const level of levels) {
-        ;(console as any)[level] = (...args: any[]) => {
-            if (onConsole) {
-                onConsole({
-                    level,
-                    args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
-                    timestamp: Date.now(),
-                })
-            }
-            // Suppress stdout — writing to stdout would corrupt the terminal
+    let restoreConsole = () => {}
+    if (ownsStdio) {
+        const originals = {
+            log: console.log.bind(console),
+            warn: console.warn.bind(console),
+            error: console.error.bind(console),
+            info: console.info.bind(console),
+            debug: console.debug.bind(console),
         }
-    }
-    const restoreConsole = () => {
         for (const level of levels) {
-            (console as any)[level] = originals[level]
+            ;(console as any)[level] = (...args: any[]) => {
+                if (onConsole) {
+                    onConsole({
+                        level,
+                        args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
+                        timestamp: Date.now(),
+                    })
+                    return
+                }
+                throw new Error(
+                    `console.${level} would corrupt the terminal — pass an onConsole option to run() to route log output, or remove the call`,
+                )
+            }
+        }
+        restoreConsole = () => {
+            for (const level of levels) {
+                (console as any)[level] = originals[level]
+            }
         }
     }
 

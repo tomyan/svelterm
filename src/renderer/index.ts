@@ -1,4 +1,4 @@
-import { createRenderer as svelteCreateRenderer, type Renderer } from 'svelte/renderer'
+import { createRenderer as svelteCreateRenderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode, SvtRegionNode } from './node.js'
 

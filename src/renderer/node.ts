@@ -244,6 +244,18 @@ export class SvtRegionNode extends TermNode {
         this.lastRows = rows
         fire(cols, rows)
     }
+
+    /**
+     * Mark the region as needing a repaint. Consumers call this when
+     * their cell source's output has changed (e.g. after their upstream
+     * Terminal has consumed new bytes from a stream). Schedules a paint
+     * via the render context and re-runs the paint pipeline.
+     */
+    markDirty(): void {
+        if (!this.ctx) return
+        this.ctx.queue.enqueuePaintOnly(this)
+        this.ctx.onScheduleRender?.()
+    }
 }
 
 function propagateCtx(node: TermNode, ctx: RenderContext): void {
