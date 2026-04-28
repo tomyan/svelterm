@@ -39,6 +39,13 @@ export interface RunOptions {
     debugPort?: number
     io?: TerminalIO
     onConsole?: (entry: ConsoleEntry) => void
+    /**
+     * Override the terminal's color scheme. When set, OSC11 polling is
+     * skipped and this value is used directly. Useful for embedded
+     * terminals (browser previews) where the OSC channel is meaningless
+     * and the host already knows the scheme.
+     */
+    colorScheme?: 'dark' | 'light'
 }
 
 /** @deprecated Use RunOptions */
@@ -99,8 +106,10 @@ export function run<Props extends Record<string, any>>(
     const root = new TermNode('element', 'root')
     root.ctx = ctx
 
-    // Color scheme detection — updated by polling
-    let detectedScheme: 'dark' | 'light' = 'dark'
+    // Color scheme detection — updated by polling unless the host
+    // overrode it via options.colorScheme.
+    const colorSchemeOverride = options?.colorScheme
+    let detectedScheme: 'dark' | 'light' = colorSchemeOverride ?? 'dark'
 
     // Wire schedule callback (defined below, hoisted via closure)
     ctx.onScheduleRender = () => scheduleRender()
@@ -380,7 +389,8 @@ export function run<Props extends Record<string, any>>(
 
     io.onResize(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
 
-    // Detect color scheme in background and re-render if different
+    // Detect color scheme in background and re-render if different.
+    // Skipped when the host pinned a scheme via options.colorScheme.
     let pollRunning = true
     const pollScheme = async () => {
         if (!pollRunning) return
@@ -400,7 +410,7 @@ export function run<Props extends Record<string, any>>(
         }
         if (pollRunning) setTimeout(pollScheme, 1000)
     }
-    pollScheme()
+    if (!colorSchemeOverride) pollScheme()
 
     const doCleanup = () => {
         pollRunning = false
