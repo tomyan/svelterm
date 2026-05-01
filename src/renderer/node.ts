@@ -216,10 +216,21 @@ export class TermNode {
  * paints, a `resize` event fires with `{ cols, rows }` so the consumer
  * can resize the upstream Terminal / stream to match.
  */
+export interface RegionCursor {
+    col: number
+    row: number
+    visible: boolean
+}
+
 export class SvtRegionNode extends TermNode {
     private cellSource: ((col: number, row: number) => Cell) | null = null
     private lastCols = -1
     private lastRows = -1
+    private cursor: RegionCursor | null = null
+    /** Last allocated screen origin. Set by paintRegion so the post-diff
+     *  cursor emitter can translate region-local coords to absolute. */
+    lastBoxX = 0
+    lastBoxY = 0
 
     constructor() {
         super('element', 'svt-region')
@@ -243,6 +254,20 @@ export class SvtRegionNode extends TermNode {
         this.lastCols = cols
         this.lastRows = rows
         fire(cols, rows)
+    }
+
+    /**
+     * Position (and show/hide) a cursor inside the region. Coordinates are
+     * region-local; the post-paint cursor emitter translates them to
+     * screen coordinates using the region's last allocated box. Pass
+     * `null` to suppress cursor emission for this region.
+     */
+    setCursor(cursor: RegionCursor | null): void {
+        this.cursor = cursor
+    }
+
+    getCursor(): RegionCursor | null {
+        return this.cursor
     }
 
     /**

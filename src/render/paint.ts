@@ -380,6 +380,8 @@ function paintRegion(
     node.notifyAllocatedSize(box.width, box.height, (cols, rows) => {
         dispatchEvent(node, 'resize', { cols, rows })
     })
+    node.lastBoxX = box.x
+    node.lastBoxY = box.y
     const cellSource = node.getCellSource()
     if (!cellSource) return
     for (let r = 0; r < box.height; r++) {

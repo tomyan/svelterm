@@ -56,6 +56,7 @@ export function bufferToStyledText(buffer: CellBuffer): string {
                 if (cell.italic) parts.push('italic')
                 if (cell.underline) parts.push('underline')
                 if (cell.dim) parts.push('dim')
+                if (cell.inverse) parts.push('inverse')
                 styles.push(`[${col}:${parts.join(',')}]`)
             }
         }
@@ -122,7 +123,7 @@ export function bufferToSvg(buffer: CellBuffer, options?: { cellWidth?: number; 
 function hasStyle(cell: Cell): boolean {
     return cell.fg !== 'default' || cell.bg !== 'default'
         || cell.bold || cell.italic || cell.underline
-        || cell.strikethrough || cell.dim
+        || cell.strikethrough || cell.dim || cell.inverse
 }
 
 function colorToHex(color: string): string {

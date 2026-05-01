@@ -1,5 +1,6 @@
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
+import { SvtRegionNode } from './renderer/node.js'
 import renderer from './renderer/default.js'
 import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
@@ -51,10 +52,25 @@ export interface RunOptions {
 /** @deprecated Use RunOptions */
 export type MountOptions = RunOptions
 
+export interface RunHandle {
+    /** Tear down the run — restore stdio, unmount components, stop pollers. */
+    cleanup: () => void
+    /**
+     * Update the active color scheme on a live run. Triggers a full repaint
+     * so default-colored cells render with the new defaults and CSS @media
+     * (color-scheme: ...) rules re-resolve. No-op if the scheme is unchanged.
+     *
+     * Calling this also stops any background OSC-11 polling — the caller is
+     * declaring they own the scheme, and we don't want the poller racing to
+     * overwrite it 1s later.
+     */
+    setColorScheme: (scheme: 'dark' | 'light') => void
+}
+
 export function run<Props extends Record<string, any>>(
     AppComponent: ComponentType<SvelteComponent<Props>> | Component<Props>,
     options?: RunOptions & ({} extends Props ? { props?: Props } : { props: Props }),
-): () => void {
+): RunHandle {
     const io = options?.io ?? new ProcessIO()
     const fullscreen = options?.fullscreen ?? true
     const mouseEnabled = options?.mouse ?? true
@@ -172,7 +188,7 @@ export function run<Props extends Record<string, any>>(
             clampScrollPositions(root, lastLayout, io)
         }
         paint(root, buffer, lastStyles, lastLayout)
-        const output = diffBuffers(prevBuffer, buffer)
+        const output = diffBuffers(prevBuffer, buffer) + emitRegionCursor(root)
         if (output.length > 0) writeOutput(output)
         prevBuffer = buffer
 
@@ -224,13 +240,13 @@ export function run<Props extends Record<string, any>>(
         if (noLayoutChanges && !hasScroll && dirtyPaintNodes.size > 0 && prevBuffer && lastStyles && lastLayout) {
             const buffer = prevBuffer.clone()
             paintNodes(dirtyPaintNodes, buffer, lastStyles, lastLayout, root)
-            const output = diffBuffers(prevBuffer, buffer)
+            const output = diffBuffers(prevBuffer, buffer) + emitRegionCursor(root)
             if (output.length > 0) writeOutput(output)
             prevBuffer = buffer
         } else {
             const buffer = new CellBuffer(size.width, size.height)
             paint(root, buffer, lastStyles, lastLayout)
-            const output = diffBuffers(prevBuffer, buffer)
+            const output = diffBuffers(prevBuffer, buffer) + emitRegionCursor(root)
             if (output.length > 0) writeOutput(output)
             prevBuffer = buffer
         }
@@ -431,7 +447,21 @@ export function run<Props extends Record<string, any>>(
         process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
     }
 
-    return doCleanup
+    const setColorScheme = (scheme: 'dark' | 'light') => {
+        // Host has spoken — silence the OSC-11 poller so it doesn't overwrite
+        // this value on its next 1s tick.
+        pollRunning = false
+        if (scheme === detectedScheme) return
+        detectedScheme = scheme
+        const size = io.getSize()
+        lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet,
+            { colorScheme: detectedScheme, displayMode: 'terminal', width: size.width, height: size.height }) : null
+        ctx.onResize()
+        prevBuffer = null
+        scheduleRender()
+    }
+
+    return { cleanup: doCleanup, setColorScheme }
 }
 
 const SCROLLBAR_VISIBLE_MS = 600
@@ -657,6 +687,31 @@ function openUrl(url: string): void {
         : process.platform === 'win32' ? 'start'
         : 'xdg-open'
     exec(`${cmd} ${JSON.stringify(url)}`)
+}
+
+/**
+ * After the cell-buffer diff has been emitted, the terminal cursor is
+ * left wherever the last cell got drawn. If any `<svt-region>` in the
+ * tree has registered a cursor (e.g. an embedded terminal mirroring its
+ * shell's prompt position), emit the ANSI to move + show it. With no
+ * region cursor, return empty string and let the cursor stay hidden
+ * (which is what enterFullscreen() set up).
+ */
+function emitRegionCursor(node: TermNode): string {
+    if (node instanceof SvtRegionNode) {
+        const cursor = node.getCursor()
+        if (cursor) {
+            const x = node.lastBoxX + cursor.col + 1
+            const y = node.lastBoxY + cursor.row + 1
+            const visibility = cursor.visible ? ansi.showCursor() : ansi.hideCursor()
+            return ansi.moveTo(x, y) + visibility
+        }
+    }
+    for (const child of node.children) {
+        const out = emitRegionCursor(child)
+        if (out) return out
+    }
+    return ''
 }
 
 function hasScrolledNode(node: TermNode): boolean {

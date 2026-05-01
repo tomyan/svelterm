@@ -7,13 +7,14 @@ export interface Cell {
     underline: boolean
     strikethrough: boolean
     dim: boolean
+    inverse: boolean
     hyperlink?: string
 }
 
 const EMPTY_CELL: Cell = {
     char: ' ', fg: 'default', bg: 'default',
     bold: false, italic: false, underline: false,
-    strikethrough: false, dim: false,
+    strikethrough: false, dim: false, inverse: false,
 }
 
 export class CellBuffer {
@@ -52,6 +53,7 @@ export class CellBuffer {
             underline: cell.underline ?? existing.underline,
             strikethrough: cell.strikethrough ?? existing.strikethrough,
             dim: cell.dim ?? existing.dim,
+            inverse: cell.inverse ?? existing.inverse,
             hyperlink: cell.hyperlink ?? existing.hyperlink,
         }
     }
@@ -67,6 +69,7 @@ export class CellBuffer {
                 underline: style?.underline,
                 strikethrough: style?.strikethrough,
                 dim: style?.dim,
+                inverse: style?.inverse,
             })
         }
     }
@@ -83,5 +86,6 @@ export function cellsEqual(a: Cell, b: Cell): boolean {
     return a.char === b.char && a.fg === b.fg && a.bg === b.bg
         && a.bold === b.bold && a.italic === b.italic
         && a.underline === b.underline && a.strikethrough === b.strikethrough
-        && a.dim === b.dim && a.hyperlink === b.hyperlink
+        && a.dim === b.dim && a.inverse === b.inverse
+        && a.hyperlink === b.hyperlink
 }

@@ -72,7 +72,7 @@ export function paintNodes(
             buffer.setCell(col, row, {
                 char: ' ', fg: 'default', bg: 'default',
                 bold: false, italic: false, underline: false,
-                strikethrough: false, dim: false,
+                strikethrough: false, dim: false, inverse: false,
             })
         }
     }

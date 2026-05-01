@@ -56,6 +56,10 @@ export function strikethrough(): string {
     return `${CSI}9m`
 }
 
+export function inverse(): string {
+    return `${CSI}7m`
+}
+
 export function fgColor(color: string): string {
     const code = ANSI_FG[color]
     if (code !== undefined) return `${CSI}${code}m`

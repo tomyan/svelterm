@@ -109,22 +109,22 @@ describe('CellBuffer', () => {
 
 describe('cellsEqual', () => {
     it('equal cells return true', () => {
-        const a = { char: 'X', fg: 'red', bg: 'default', bold: true, italic: false, underline: false, strikethrough: false, dim: false }
+        const a = { char: 'X', fg: 'red', bg: 'default', bold: true, italic: false, underline: false, strikethrough: false, dim: false, inverse: false }
         assert.ok(cellsEqual(a, { ...a }))
     })
 
     it('different char returns false', () => {
-        const base = { char: 'A', fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false }
+        const base = { char: 'A', fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false, inverse: false }
         assert.ok(!cellsEqual(base, { ...base, char: 'B' }))
     })
 
     it('different fg returns false', () => {
-        const base = { char: 'A', fg: 'red', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false }
+        const base = { char: 'A', fg: 'red', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false, inverse: false }
         assert.ok(!cellsEqual(base, { ...base, fg: 'blue' }))
     })
 
     it('different bold returns false', () => {
-        const base = { char: 'A', fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false }
+        const base = { char: 'A', fg: 'default', bg: 'default', bold: false, italic: false, underline: false, strikethrough: false, dim: false, inverse: false }
         assert.ok(!cellsEqual(base, { ...base, bold: true }))
     })
 })

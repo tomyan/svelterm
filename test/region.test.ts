@@ -14,7 +14,7 @@ function makeCell(overrides: Partial<Cell> = {}): Cell {
     return {
         char: 'X', fg: 'red', bg: 'default',
         bold: false, italic: false, underline: false,
-        strikethrough: false, dim: false,
+        strikethrough: false, dim: false, inverse: false,
         ...overrides,
     }
 }

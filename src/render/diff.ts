@@ -47,5 +47,6 @@ function buildStyleCode(cell: Cell): string {
     if (cell.italic) parts.push(ansi.italic())
     if (cell.underline) parts.push(ansi.underline())
     if (cell.strikethrough) parts.push(ansi.strikethrough())
+    if (cell.inverse) parts.push(ansi.inverse())
     return parts.join('')
 }
