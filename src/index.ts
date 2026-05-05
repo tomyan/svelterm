@@ -281,6 +281,11 @@ export function run<Props extends Record<string, any>>(
 
     io.enableRawMode()
     if (fullscreen) enterFullscreen(io)
+    // Cursor visibility is owned at the run-lifecycle level, not by
+    // enterFullscreen — non-fullscreen runs need it hidden too. The
+    // post-paint emitter takes over from here, showing the cursor only
+    // when something asks for it (focused input, region cursor).
+    io.write(ansi.hideCursor())
     // Write mode sequences directly — sync update wrapping can interfere
     io.write(ansi.enableBracketedPaste())
     if (mouseEnabled) io.write(ansi.enableMouse())
@@ -438,6 +443,9 @@ export function run<Props extends Record<string, any>>(
         if (mouseEnabled) io.write(ansi.disableMouse())
         io.write(ansi.disableBracketedPaste())
         if (fullscreen) exitFullscreen(io)
+        // Show cursor *after* exitFullscreen so it targets the main screen,
+        // not the alt screen we're leaving behind.
+        io.write(ansi.showCursor())
         io.disableRawMode()
         io.dispose()
     }
