@@ -8,10 +8,23 @@ let nextId = 1
 
 export type NodeType = 'element' | 'text' | 'comment' | 'fragment'
 
+export interface CursorScreenPos {
+    x: number
+    y: number
+    /** False when the cursor falls outside the node's content viewport
+     *  (scrolled off, clipped by an ancestor). The emitter hides the
+     *  cursor in that case. */
+    inViewport: boolean
+}
+
 export interface RenderCache {
     resolvedStyle: ResolvedStyle | null
     layoutBox: LayoutBox | null
     classAttr: string
+    /** Last known screen position of the node's text cursor. Set by
+     *  paint when the node owns a cursor (focused input/textarea);
+     *  consumed by the post-paint cursor emitter. */
+    cursorScreen: CursorScreenPos | null
 }
 
 export class TermNode {
@@ -31,7 +44,7 @@ export class TermNode {
     scrollbarVisibleUntil: number = 0
     hScrollbarVisibleUntil: number = 0
     textBuffer: TextBuffer | null = null
-    cache: RenderCache = { resolvedStyle: null, layoutBox: null, classAttr: '' }
+    cache: RenderCache = { resolvedStyle: null, layoutBox: null, classAttr: '', cursorScreen: null }
 
     /** DOM compatibility — Svelte's effects set nodeValue directly when renderer is not pushed */
     get nodeValue(): string | null {
@@ -178,6 +191,16 @@ export class TermNode {
         if (this.nodeType === 'text') return this.text ?? ''
         if (this.nodeType === 'comment') return ''
         return this.children.map(c => c.collectText()).join('')
+    }
+
+    /**
+     * Screen-space position of this node's text cursor, set by paint.
+     * Returns null unless the node currently owns a cursor (e.g. a
+     * focused input/textarea repainted this frame). Consumed by the
+     * post-paint cursor emitter.
+     */
+    getCursorScreenPos(): CursorScreenPos | null {
+        return this.cache.cursorScreen
     }
 
     invalidateStyle(): void {
