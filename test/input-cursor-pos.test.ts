@@ -121,6 +121,42 @@ describe('paintInput cursor position', () => {
         assert.equal(pos!.inViewport, false, 'cursor row falls outside ancestor clip')
     })
 
+    it('does not paint an inverse-styled cell at the cursor — real cursor is used now', () => {
+        // Given — focused input with cursor mid-text
+        const { render } = setupInput({
+            width: 20, height: 5,
+            css: 'input { width: 10cell; height: 1cell; }',
+            value: 'hello', cursor: 2, focused: true,
+        })
+
+        // When
+        const buffer = render()
+
+        // Then — the cell at the cursor column shows the underlying char
+        // with no inverse styling (no fg/bg swap)
+        const cursorCell = buffer.getCell(2, 0)!
+        assert.equal(cursorCell.char, 'l', 'cursor cell still shows the underlying char')
+        assert.notEqual(cursorCell.fg, 'black', 'cursor cell is not inverse-styled')
+        assert.notEqual(cursorCell.bg, 'white', 'cursor cell is not inverse-styled')
+    })
+
+    it('does not paint a cursor cell when cursor is past the last char', () => {
+        // Given — cursor at end of value, sitting in the rightmost content slot
+        const { render } = setupInput({
+            width: 20, height: 5,
+            css: 'input { width: 10cell; height: 1cell; }',
+            value: 'abc', cursor: 3, focused: true,
+        })
+
+        // When
+        const buffer = render()
+
+        // Then — column 3 is empty, not an inverse-styled space
+        const cell = buffer.getCell(3, 0)!
+        assert.equal(cell.char, ' ')
+        assert.notEqual(cell.bg, 'white', 'no inverse cursor block painted past end of value')
+    })
+
     it('honours scroll offset for cursors past the input width', () => {
         // Given — value longer than input width, cursor at end → input scrolls so
         // cursor sits at the rightmost content cell

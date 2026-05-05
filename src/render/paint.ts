@@ -338,23 +338,15 @@ function paintInput(
         }
     }
 
-    // Cursor: publish screen position for the post-paint emitter, plus
-    // paint the legacy inverse-cell cursor as a fallback. The painted-cell
-    // path will go away once the real-cursor emitter ships.
+    // Publish the text-cursor screen position so the post-paint emitter
+    // can drive the real terminal cursor. No cell is painted — the real
+    // cursor brings its own blink and shape.
     if (isFocused) {
         const cursorScreenX = contentX + (cursor - scrollOffset)
         const inViewport = cursorScreenX >= contentX
             && cursorScreenX <= contentX + contentW
             && (!clip || inClip(cursorScreenX, contentY, clip))
         node.cache.cursorScreen = { x: cursorScreenX, y: contentY, inViewport }
-        if (inViewport) {
-            const cursorChar = cursor < value.length ? value[cursor] : ' '
-            buffer.setCell(cursorScreenX, contentY, {
-                char: cursorChar,
-                fg: visuals.bg !== 'default' ? visuals.bg : 'black',
-                bg: visuals.fg !== 'default' ? visuals.fg : 'white',
-            })
-        }
     }
 }
 
