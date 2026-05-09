@@ -6,6 +6,7 @@ import { TermNode } from '../../src/renderer/node.js'
 import { CellBuffer } from '../../src/render/buffer.js'
 import { parseCSS } from '../../src/css/parser.js'
 import { resolveStyles } from '../../src/css/compute.js'
+import { DEFAULT_STYLESHEET } from '../../src/css/defaults.js'
 import { computeLayout } from '../../src/layout/engine.js'
 import { paint } from '../../src/render/paint.js'
 import { syncLayoutCache } from '../../src/layout/cache.js'
@@ -40,7 +41,7 @@ export function render(tree: TermNode, options: RenderOptions): RenderResult {
     const root = new TermNode('element', 'root')
     root.insertBefore(tree, null)
 
-    const stylesheet = parseCSS(options.css)
+    const stylesheet = parseCSS(DEFAULT_STYLESHEET + options.css)
     const styles = resolveStyles(root, stylesheet)
     const layout = computeLayout(root, styles, width, height)
     syncLayoutCache(root, layout)

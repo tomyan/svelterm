@@ -142,7 +142,7 @@ describe('integration: borders and visuals', () => {
         // When
         const { buffer } = render(tree, {
             css: `.container { width: 10cell; }
-                  hr { height: 1cell; width: 100%; }`,
+                  hr { height: 1cell; width: 100%; margin: 0; }`,
             width: 20, height: 3,
         })
 

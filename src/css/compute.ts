@@ -27,7 +27,12 @@ export interface ResolvedStyle {
     strikethrough: boolean
     dim: boolean
 
-    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid' | 'table' | 'table-row' | 'table-cell' | 'none' | 'contents'
+    display: 'block' | 'inline' | 'inline-block' | 'flex' | 'grid'
+        | 'table' | 'inline-table'
+        | 'table-row' | 'table-cell'
+        | 'table-row-group' | 'table-header-group' | 'table-footer-group'
+        | 'table-caption' | 'table-column-group' | 'table-column'
+        | 'none' | 'contents'
     flexDirection: 'row' | 'column' | 'row-reverse' | 'column-reverse'
     justifyContent: 'start' | 'end' | 'center' | 'space-between' | 'space-around' | 'space-evenly'
     alignItems: 'start' | 'end' | 'center' | 'stretch'
@@ -83,11 +88,22 @@ export interface ResolvedStyle {
     left: number | null
     zIndex: number
     visibility: 'visible' | 'hidden'
+    captionSide: 'top' | 'bottom'
+    tableLayout: 'auto' | 'fixed'
+    verticalAlign: 'top' | 'middle' | 'bottom' | 'baseline'
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small', 'sub', 'sup'])
 const TABLE_ELEMENTS: Record<string, ResolvedStyle['display']> = {
-    table: 'table', tr: 'table-row', td: 'table-cell', th: 'table-cell',
+    table: 'table',
+    tr: 'table-row',
+    td: 'table-cell', th: 'table-cell',
+    thead: 'table-header-group',
+    tbody: 'table-row-group',
+    tfoot: 'table-footer-group',
+    caption: 'table-caption',
+    colgroup: 'table-column-group',
+    col: 'table-column',
 }
 
 function defaultDisplay(tag?: string): ResolvedStyle['display'] {
@@ -126,6 +142,9 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         top: null, right: null, bottom: null, left: null,
         zIndex: 0,
         visibility: 'visible',
+        captionSide: 'top',
+        tableLayout: 'auto',
+        verticalAlign: 'top',
     }
 }
 
@@ -419,7 +438,14 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string,
             if (value.includes('line-through')) style.strikethrough = true
             break
         case 'display':
-            if (['block', 'inline', 'inline-block', 'flex', 'grid', 'table', 'table-row', 'table-cell', 'none'].includes(value)) {
+            if ([
+                'block', 'inline', 'inline-block', 'flex', 'grid',
+                'table', 'inline-table',
+                'table-row', 'table-cell',
+                'table-row-group', 'table-header-group', 'table-footer-group',
+                'table-caption', 'table-column-group', 'table-column',
+                'none', 'contents',
+            ].includes(value)) {
                 style.display = value as ResolvedStyle['display']
             }
             break
@@ -559,6 +585,13 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string,
         case 'left': style.left = parseCellValue(value); break
         case 'z-index': style.zIndex = parseInt(value) || 0; break
         case 'visibility': style.visibility = value === 'hidden' ? 'hidden' : 'visible'; break
+        case 'caption-side': style.captionSide = value === 'bottom' ? 'bottom' : 'top'; break
+        case 'table-layout': style.tableLayout = value === 'fixed' ? 'fixed' : 'auto'; break
+        case 'vertical-align':
+            if (value === 'top' || value === 'middle' || value === 'bottom' || value === 'baseline') {
+                style.verticalAlign = value
+            }
+            break
         case 'opacity':
             if (value === 'dim') { style.dim = true }
             else {

@@ -6,6 +6,7 @@ import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
 import { resolveStyles } from './css/compute.js'
 import { computeLayout } from './layout/engine.js'
+import { DEFAULT_STYLESHEET } from './css/defaults.js'
 import type { CSSStyleSheet } from './css/parser.js'
 
 export interface RenderResult {
@@ -32,7 +33,7 @@ export function renderHeadless<Props extends Record<string, any>>(
 
     const root = new TermNode('element', 'root')
 
-    const stylesheet = options.css ? parseCSS(options.css) : null
+    const stylesheet = parseCSS(DEFAULT_STYLESHEET + (options.css ?? ''))
 
     const { unmount } = renderer.render(
         AppComponent as any,
@@ -40,8 +41,8 @@ export function renderHeadless<Props extends Record<string, any>>(
     )
 
     const buffer = new CellBuffer(width, height)
-    const styles = stylesheet ? resolveStyles(root, stylesheet) : undefined
-    const layout = styles ? computeLayout(root, styles, width, height) : undefined
+    const styles = resolveStyles(root, stylesheet)
+    const layout = computeLayout(root, styles, width, height)
     paint(root, buffer, styles, layout)
 
     return { buffer, root, unmount }

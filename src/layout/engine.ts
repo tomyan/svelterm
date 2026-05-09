@@ -428,64 +428,314 @@ function layoutBlockFlow(
     return { width: maxWidth, height: cursorY - y }
 }
 
+interface TableRow { trNode: TermNode; cells: TermNode[] }
+
+function rawColspan(cell: TermNode): number {
+    const raw = cell.attributes.get('colspan')
+    if (!raw) return 1
+    const n = parseInt(raw)
+    // colspan=0 means "span remaining columns"; resolved against the table's
+    // numCols in buildTableGrid.
+    if (n === 0) return 0
+    return n > 0 ? n : 1
+}
+
+function cellRowspan(cell: TermNode): number {
+    const raw = cell.attributes.get('rowspan')
+    if (!raw) return 1
+    const n = parseInt(raw)
+    return n > 0 ? n : 1
+}
+
+interface TableGrid {
+    occupied: boolean[][]
+    numCols: number
+    span: Map<number, number>
+}
+
+function buildTableGrid(rows: TableRow[]): TableGrid {
+    // First pass: numCols treating colspan=0 as 1.
+    let numCols = 0
+    const provisional: boolean[][] = rows.map(() => [])
+    for (let r = 0; r < rows.length; r++) {
+        let col = 0
+        for (const cell of rows[r].cells) {
+            while (provisional[r][col]) col++
+            const cs = rawColspan(cell)
+            const span = cs === 0 ? 1 : cs
+            const rspan = cellRowspan(cell)
+            for (let dr = 1; dr < rspan && r + dr < rows.length; dr++) {
+                for (let dc = 0; dc < span; dc++) provisional[r + dr][col + dc] = true
+            }
+            col += span
+            if (col > numCols) numCols = col
+        }
+    }
+
+    // Second pass: rebuild grid with colspan=0 expanded to fill remaining columns.
+    const occupied: boolean[][] = rows.map(() => [])
+    const span = new Map<number, number>()
+    for (let r = 0; r < rows.length; r++) {
+        let col = 0
+        for (const cell of rows[r].cells) {
+            while (occupied[r][col]) col++
+            const cs = rawColspan(cell)
+            const resolved = cs === 0 ? Math.max(1, numCols - col) : cs
+            span.set(cell.id, resolved)
+            const rspan = cellRowspan(cell)
+            for (let dr = 1; dr < rspan && r + dr < rows.length; dr++) {
+                for (let dc = 0; dc < resolved; dc++) occupied[r + dr][col + dc] = true
+            }
+            col += resolved
+        }
+    }
+    return { occupied, numCols, span }
+}
+
+function cellColspan(grid: TableGrid, cell: TermNode): number {
+    return grid.span.get(cell.id) ?? 1
+}
+
+function rowsOfSection(section: TermNode, styles: Map<number, ResolvedStyle>): TableRow[] {
+    const rows: TableRow[] = []
+    for (const child of section.children) {
+        if (styles.get(child.id)?.display === 'table-row') {
+            const cells = child.children.filter(c => styles.get(c.id)?.display === 'table-cell')
+            rows.push({ trNode: child, cells })
+        }
+    }
+    return rows
+}
+
+function collectTableRows(node: TermNode, styles: Map<number, ResolvedStyle>): TableRow[] {
+    // Per CSS 2.2 §17.5.2: header → bodies (in source order) → footer.
+    // Bare <tr> children of <table> form an implicit body (mirrors the
+    // browser HTML parser's auto-tbody insertion).
+    const headerRows: TableRow[] = []
+    const bodyRows: TableRow[] = []
+    const footerRows: TableRow[] = []
+    for (const child of node.children) {
+        const display = styles.get(child.id)?.display
+        if (display === 'table-header-group') headerRows.push(...rowsOfSection(child, styles))
+        else if (display === 'table-footer-group') footerRows.push(...rowsOfSection(child, styles))
+        else if (display === 'table-row-group') bodyRows.push(...rowsOfSection(child, styles))
+        else if (display === 'table-row') {
+            const cells = child.children.filter(c => styles.get(c.id)?.display === 'table-cell')
+            bodyRows.push({ trNode: child, cells })
+        }
+    }
+    return [...headerRows, ...bodyRows, ...footerRows]
+}
+
+function findCaption(node: TermNode, styles: Map<number, ResolvedStyle>): TermNode | undefined {
+    return node.children.find(c => styles.get(c.id)?.display === 'table-caption')
+}
+
+function colSpanAttr(colNode: TermNode): number {
+    const raw = colNode.attributes.get('span')
+    if (!raw) return 1
+    const n = parseInt(raw)
+    return n > 0 ? n : 1
+}
+
+function explicitWidth(node: TermNode, styles: Map<number, ResolvedStyle>): number {
+    const w = styles.get(node.id)?.width
+    return typeof w === 'number' && w > 0 ? w : 0
+}
+
+function applyColHint(hints: number[], col: number, span: number, width: number): void {
+    if (width <= 0) return
+    for (let i = 0; i < span; i++) {
+        hints[col + i] = Math.max(hints[col + i] ?? 0, width)
+    }
+}
+
+function collectColHints(table: TermNode, styles: Map<number, ResolvedStyle>): number[] {
+    // Walks <col> and <colgroup> in document order; returns per-column width
+    // hints (sparse). <col span> covers multiple columns; a <colgroup> with no
+    // <col> children covers `span` columns itself.
+    const hints: number[] = []
+    let col = 0
+    for (const child of table.children) {
+        const display = styles.get(child.id)?.display
+        if (display === 'table-column') {
+            const span = colSpanAttr(child)
+            applyColHint(hints, col, span, explicitWidth(child, styles))
+            col += span
+        } else if (display === 'table-column-group') {
+            const colChildren = child.children.filter(c => styles.get(c.id)?.display === 'table-column')
+            if (colChildren.length === 0) {
+                const span = colSpanAttr(child)
+                applyColHint(hints, col, span, explicitWidth(child, styles))
+                col += span
+            } else {
+                for (const colNode of colChildren) {
+                    const span = colSpanAttr(colNode)
+                    applyColHint(hints, col, span, explicitWidth(colNode, styles))
+                    col += span
+                }
+            }
+        }
+    }
+    return hints
+}
+
+const TABLE_COL_GAP = 2
+
+function measureColumnWidths(
+    rows: TableRow[], grid: TableGrid,
+    styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    availW: number, availH: number,
+    mode: 'auto' | 'fixed' = 'auto',
+): number[] {
+    const colWidths: number[] = new Array(grid.numCols).fill(0)
+    // Only single-column cells contribute directly to column widths in this
+    // pass; colspan>1 cells are positioned later using the resolved widths.
+    // table-layout: fixed only consults the first row.
+    const lastRow = mode === 'fixed' ? Math.min(1, rows.length) : rows.length
+    for (let r = 0; r < lastRow; r++) {
+        let col = 0
+        for (const cell of rows[r].cells) {
+            while (grid.occupied[r][col]) col++
+            const span = cellColspan(grid, cell)
+            if (span === 1) {
+                const size = layoutNode(cell, styles, boxes, 0, 0, availW, availH)
+                colWidths[col] = Math.max(colWidths[col], size.width)
+            }
+            col += span
+        }
+    }
+    return colWidths
+}
+
+function placeCaption(
+    caption: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, tableWidth: number, availH: number,
+): number {
+    const size = layoutNode(caption, styles, boxes, x, y, tableWidth, availH)
+    const captionBox = boxes.get(caption.id)
+    if (captionBox) captionBox.width = tableWidth
+    return size.height
+}
+
+function spannedWidth(colWidths: number[], col: number, span: number): number {
+    let w = 0
+    for (let i = 0; i < span; i++) w += colWidths[col + i] ?? 0
+    return w + TABLE_COL_GAP * Math.max(0, span - 1)
+}
+
+interface PlacedCell { cell: TermNode; rowIdx: number; rspan: number; contentHeight: number }
+
+function shiftSubtreeY(node: TermNode, boxes: Map<number, LayoutBox>, dy: number): void {
+    for (const child of node.children) {
+        const box = boxes.get(child.id)
+        if (box) box.y += dy
+        shiftSubtreeY(child, boxes, dy)
+    }
+}
+
+function applyVerticalAlign(
+    cell: TermNode, totalHeight: number, contentHeight: number,
+    styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+): void {
+    const cellBox = boxes.get(cell.id)
+    if (cellBox) cellBox.height = totalHeight
+    const slack = totalHeight - contentHeight
+    if (slack <= 0) return
+    const va = styles.get(cell.id)?.verticalAlign ?? 'top'
+    if (va === 'top') return
+    const dy = va === 'middle' ? Math.floor(slack / 2) : slack
+    shiftSubtreeY(cell, boxes, dy)
+}
+
+function placeRows(
+    rows: TableRow[], grid: TableGrid,
+    styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, startY: number, colWidths: number[], tableWidth: number, availH: number,
+): number {
+    const rowHeights: number[] = []
+    const placed: PlacedCell[] = []
+
+    // Pass 1: lay out each cell, accumulate per-row height from non-rowspan cells.
+    let rowY = startY
+    for (let r = 0; r < rows.length; r++) {
+        const { trNode, cells } = rows[r]
+        let col = 0
+        let colX = x
+        let rowHeight = 0
+        for (const cell of cells) {
+            while (grid.occupied[r][col]) {
+                colX += colWidths[col] + TABLE_COL_GAP
+                col++
+            }
+            const span = cellColspan(grid, cell)
+            const rspan = cellRowspan(cell)
+            const cellWidth = spannedWidth(colWidths, col, span)
+            const size = layoutNode(cell, styles, boxes, colX, rowY, cellWidth, availH)
+            const cellBox = boxes.get(cell.id)
+            if (cellBox && cellBox.width < cellWidth) cellBox.width = cellWidth
+            if (rspan === 1) rowHeight = Math.max(rowHeight, size.height)
+            placed.push({ cell, rowIdx: r, rspan, contentHeight: size.height })
+            colX += cellWidth + TABLE_COL_GAP
+            col += span
+        }
+        const trMinHeight = styles.get(trNode.id)?.height
+        if (typeof trMinHeight === 'number' && trMinHeight > rowHeight) rowHeight = trMinHeight
+        rowHeights.push(rowHeight)
+        boxes.set(trNode.id, { x, y: rowY, width: tableWidth, height: rowHeight })
+        rowY += rowHeight
+    }
+
+    // Pass 2: stretch each cell to its row's total height and apply vertical-align.
+    for (const { cell, rowIdx, rspan, contentHeight } of placed) {
+        let totalH = 0
+        for (let r = 0; r < rspan && rowIdx + r < rows.length; r++) totalH += rowHeights[rowIdx + r]
+        applyVerticalAlign(cell, totalH, contentHeight, styles, boxes)
+    }
+
+    return rowY - startY
+}
+
 function layoutTable(
     node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, y: number, availW: number, availH: number,
 ): { width: number; height: number } {
-    // Collect rows and cells
-    const rows: TermNode[][] = []
-    for (const child of node.children) {
-        if (child.tag === 'tr') {
-            const cells = child.children.filter(c => c.tag === 'td' || c.tag === 'th')
-            rows.push(cells)
-        }
+    const rows = collectTableRows(node, styles)
+    const caption = findCaption(node, styles)
+    if (rows.length === 0 && !caption) return { width: 0, height: 0 }
+
+    const grid = buildTableGrid(rows)
+    const tableLayout = styles.get(node.id)?.tableLayout ?? 'auto'
+    const colWidths = measureColumnWidths(rows, grid, styles, boxes, availW, availH, tableLayout)
+    // <col>/<colgroup> widths act as a minimum (auto) or as the source of
+    // truth (fixed) for the column.
+    const colHints = collectColHints(node, styles)
+    for (let i = 0; i < colWidths.length; i++) {
+        if (colHints[i] !== undefined) colWidths[i] = Math.max(colWidths[i], colHints[i])
+    }
+    const colsWidth = colWidths.reduce((sum, w) => sum + w, 0)
+        + TABLE_COL_GAP * Math.max(0, colWidths.length - 1)
+
+    // Measure caption against availW so the table can grow to fit it.
+    let captionWidth = 0
+    if (caption) {
+        const size = layoutNode(caption, styles, boxes, 0, 0, availW, availH)
+        captionWidth = size.width
     }
 
-    if (rows.length === 0) return { width: 0, height: 0 }
+    const tableWidth = Math.max(colsWidth, captionWidth)
+    const captionSide = caption ? styles.get(caption.id)?.captionSide ?? 'top' : 'top'
 
-    const numCols = Math.max(...rows.map(r => r.length))
-    const colWidths: number[] = new Array(numCols).fill(0)
-
-    // First pass: measure all cells to find max column widths
-    for (const row of rows) {
-        for (let col = 0; col < row.length; col++) {
-            const cell = row[col]
-            const size = layoutNode(cell, styles, boxes, 0, 0, availW, availH)
-            colWidths[col] = Math.max(colWidths[col], size.width)
-        }
-    }
-
-    // Add 2 cells padding between columns
-    const colGap = 2
-
-    // Second pass: position cells with aligned columns
     let rowY = y
-    for (const row of rows) {
-        let colX = x
-        let rowHeight = 0
-        // Layout the tr element
-        const trNode = node.children.find(c => c.tag === 'tr' && c.children.includes(row[0]))
-
-        for (let col = 0; col < row.length; col++) {
-            const cell = row[col]
-            const size = layoutNode(cell, styles, boxes, colX, rowY, colWidths[col], availH)
-            // Table cells fill their column width
-            const cellBox = boxes.get(cell.id)
-            if (cellBox && cellBox.width < colWidths[col]) cellBox.width = colWidths[col]
-            rowHeight = Math.max(rowHeight, size.height)
-            colX += colWidths[col] + colGap
-        }
-
-        if (trNode) {
-            const trWidth = colWidths.reduce((sum, w) => sum + w, 0) + colGap * (numCols - 1)
-            boxes.set(trNode.id, { x, y: rowY, width: trWidth, height: rowHeight })
-        }
-
-        rowY += rowHeight
+    if (caption && captionSide === 'top') {
+        rowY += placeCaption(caption, styles, boxes, x, rowY, tableWidth, availH)
+    }
+    rowY += placeRows(rows, grid, styles, boxes, x, rowY, colWidths, tableWidth, availH)
+    if (caption && captionSide === 'bottom') {
+        rowY += placeCaption(caption, styles, boxes, x, rowY, tableWidth, availH)
     }
 
-    const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + colGap * Math.max(0, numCols - 1)
-    return { width: totalWidth, height: rowY - y }
+    return { width: tableWidth, height: rowY - y }
 }
 
 function layoutGrid(

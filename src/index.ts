@@ -5,6 +5,7 @@ import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
 import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
+import { DEFAULT_STYLESHEET } from './css/defaults.js'
 import { resolveStyles, filterByMedia, type ResolvedStyle } from './css/compute.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout, type LayoutBox } from './layout/engine.js'
@@ -76,7 +77,8 @@ export function run<Props extends Record<string, any>>(
     const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
-    let stylesheet = options?.css ? parseCSS(options.css) : null
+    const userCss = options?.css ?? ''
+    let stylesheet = parseCSS(DEFAULT_STYLESHEET + userCss)
 
     // Console capture — only intercept when our IO owns the JS runtime's
     // stdout/stderr (ProcessIO). With InProcessIO (browser, tests) console
@@ -401,11 +403,12 @@ export function run<Props extends Record<string, any>>(
         },
     )
 
-    // Collect CSS from injected <style> elements (css: 'injected' mode)
-    if (!stylesheet) {
+    // Collect CSS from injected <style> elements (css: 'injected' mode).
+    // Skipped when the host passed an explicit `css` option.
+    if (!userCss) {
         const injectedCss = collectInjectedCss(root)
         if (injectedCss) {
-            stylesheet = parseCSS(injectedCss)
+            stylesheet = parseCSS(DEFAULT_STYLESHEET + injectedCss)
         }
     }
 
