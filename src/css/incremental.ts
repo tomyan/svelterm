@@ -26,6 +26,7 @@ export function resolveStylesIncremental(
     dirtyNodes: Set<TermNode>,
     onResolve?: (nodeId: number) => void,
     onLayoutAffected?: (node: TermNode) => void,
+    scheme: 'dark' | 'light' = 'dark',
 ): Map<number, ResolvedStyle> {
     if (dirtyNodes.size === 0) return existingStyles
 
@@ -42,7 +43,7 @@ export function resolveStylesIncremental(
 
         // Re-resolve this node and all its descendants using the
         // same resolveNode function as full resolution
-        resolveNode(node, stylesheet, result, variables)
+        resolveNode(node, stylesheet, result, variables, scheme)
         onResolve?.(node.id)
 
         const newStyle = result.get(node.id)

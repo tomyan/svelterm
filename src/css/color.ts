@@ -2,11 +2,52 @@
  * CSS Color Level 4 parser and resolver.
  *
  * Supports: hex (#rgb, #rrggbb, #rrggbbaa), rgb(), hsl(), hwb(),
- * lab(), lch(), oklab(), oklch(), named colours, transparent.
+ * lab(), lch(), oklab(), oklch(), named colours, transparent,
+ * light-dark(a, b) (resolved against the active colorScheme).
  * Both legacy comma syntax and modern space + / alpha syntax.
  */
 
 // --- Public API ---
+
+/**
+ * Expand `light-dark(a, b)` to whichever side matches the active scheme.
+ * Recursive on the chosen side so `light-dark(light-dark(...), x)` works.
+ * Returns the input unchanged when no light-dark() call is present.
+ */
+export function expandLightDark(value: string, scheme: 'dark' | 'light' = 'dark'): string {
+    if (!value.includes('light-dark(')) return value
+    const start = value.indexOf('light-dark(')
+    const argsStart = start + 'light-dark('.length
+    // Find the matching closing paren (track nesting for nested colour funcs).
+    let depth = 1
+    let i = argsStart
+    while (i < value.length && depth > 0) {
+        const ch = value[i]
+        if (ch === '(') depth++
+        else if (ch === ')') depth--
+        if (depth === 0) break
+        i++
+    }
+    if (depth !== 0) return value // unbalanced — give up, let resolveColor fail loudly
+    const args = value.slice(argsStart, i)
+    // Split on the comma at depth 0 (commas inside nested parens aren't separators).
+    let split = -1
+    let d = 0
+    for (let j = 0; j < args.length; j++) {
+        const ch = args[j]
+        if (ch === '(') d++
+        else if (ch === ')') d--
+        else if (ch === ',' && d === 0) { split = j; break }
+    }
+    if (split < 0) return value
+    const lightArg = args.slice(0, split).trim()
+    const darkArg = args.slice(split + 1).trim()
+    const picked = scheme === 'light' ? lightArg : darkArg
+    const before = value.slice(0, start)
+    const after = value.slice(i + 1)
+    // Recurse so additional light-dark()s elsewhere in the string are also expanded.
+    return expandLightDark(before + picked + after, scheme)
+}
 
 export function resolveColor(value: string): string {
     const lower = value.toLowerCase().trim()
@@ -14,8 +55,9 @@ export function resolveColor(value: string): string {
     // ANSI named colors (exact match, highest priority for terminal rendering)
     if (lower in ANSI_COLORS) return ANSI_COLORS[lower]
 
-    // transparent
-    if (lower === 'transparent') return '#00000000'
+    // transparent — terminal output has no alpha layer, so the closest
+    // semantic match is "no colour set": let the parent's bg show through.
+    if (lower === 'transparent') return 'default'
 
     // Hex colors
     if (lower.startsWith('#')) {

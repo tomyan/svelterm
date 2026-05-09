@@ -193,8 +193,9 @@ describe('angle units', () => {
 
 describe('transparent', () => {
 
-    it('resolves to transparent black', () => {
-        assert.equal(resolveColor('transparent'), '#00000000')
+    it('resolves to default so the parent background shows through', () => {
+        // Terminal output has no alpha layer; "no colour" matches default.
+        assert.equal(resolveColor('transparent'), 'default')
     })
 })
 

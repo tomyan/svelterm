@@ -4,7 +4,7 @@ import { NodeMap } from '../utils/node-map.js'
 export type StyleMap = NodeMap<ResolvedStyle>
 import { CSSStyleSheet } from './parser.js'
 import { matchesSelector } from './selector.js'
-import { resolveColor } from './color.js'
+import { resolveColor, expandLightDark } from './color.js'
 import { parseCellValue, parseSizeValue, parseJustify, parseAlign, parsePadding } from './values.js'
 import { collectVariables, resolveVar } from './variables.js'
 import { computeSpecificity, compareSpecificity } from './specificity.js'
@@ -141,11 +141,13 @@ export function resolveStyles(
     // Filter by media if context provided; always filter @supports
     const filtered = media ? filterByMedia(stylesheet, media) : filterSupports(stylesheet)
 
+    const scheme = media?.colorScheme ?? 'dark'
+
     if (!hasContainerRules) {
         // Simple path: no container queries
         const variables = collectVariables(root, filtered)
         const styles = new NodeMap<ResolvedStyle>()
-        resolveNode(root, filtered, styles, variables)
+        resolveNode(root, filtered, styles, variables, scheme)
         return styles
     }
 
@@ -154,7 +156,7 @@ export function resolveStyles(
     const withoutContainer = filterContainerRules(filtered, false)
     const variables1 = collectVariables(root, withoutContainer)
     const styles1 = new NodeMap<ResolvedStyle>()
-    resolveNode(root, withoutContainer, styles1, variables1)
+    resolveNode(root, withoutContainer, styles1, variables1, scheme)
 
     // Compute layout to get container dimensions
     const layout = computeLayout(root, styles1, availWidth ?? media?.width ?? 80, availHeight ?? media?.height ?? 24)
@@ -174,7 +176,7 @@ export function resolveStyles(
     }
     const variables2 = collectVariables(root, withMatchingContainers)
     const styles2 = new NodeMap<ResolvedStyle>()
-    resolveNode(root, withMatchingContainers, styles2, variables2)
+    resolveNode(root, withMatchingContainers, styles2, variables2, scheme)
     return styles2
 }
 
@@ -280,17 +282,18 @@ export function resolveNode(
     node: TermNode, stylesheet: CSSStyleSheet,
     styles: Map<number, ResolvedStyle>,
     variables: Map<number, Map<string, string>>,
+    scheme: 'dark' | 'light' = 'dark',
 ): void {
     if (node.nodeType === 'element') {
         const vars = variables.get(node.id) ?? new Map()
         const parentStyle = node.parent ? styles.get(node.parent.id) : undefined
-        const resolved = computeStyle(node, stylesheet, vars, parentStyle)
+        const resolved = computeStyle(node, stylesheet, vars, parentStyle, scheme)
         styles.set(node.id, resolved)
         node.cache.resolvedStyle = resolved
         node.cache.classAttr = node.attributes.get('class') ?? ''
     }
     for (const child of node.children) {
-        resolveNode(child, stylesheet, styles, variables)
+        resolveNode(child, stylesheet, styles, variables, scheme)
     }
 }
 
@@ -301,7 +304,7 @@ interface ScoredDeclaration {
     order: number
 }
 
-function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>, parentStyle?: ResolvedStyle): ResolvedStyle {
+function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>, parentStyle?: ResolvedStyle, scheme: 'dark' | 'light' = 'dark'): ResolvedStyle {
     const style = defaultStyle(node.tag)
 
     // Collect all matching declarations with specificity
@@ -343,7 +346,7 @@ function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<strin
                 applyInitial(style, decl.property, node.tag)
             }
         } else {
-            applyDeclaration(style, decl.property, decl.value)
+            applyDeclaration(style, decl.property, decl.value, scheme)
         }
     }
 
@@ -351,7 +354,7 @@ function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<strin
     const inline = node.attributes?.get('style')
     if (inline) {
         for (const decl of parseInlineStyle(inline)) {
-            applyDeclaration(style, decl.property, resolveVar(decl.value, vars))
+            applyDeclaration(style, decl.property, resolveVar(decl.value, vars), scheme)
         }
     }
 
@@ -401,11 +404,14 @@ function applyInitial(style: ResolvedStyle, property: string, tag?: string): voi
     }
 }
 
-function applyDeclaration(style: ResolvedStyle, property: string, value: string): void {
+function applyDeclaration(style: ResolvedStyle, property: string, value: string, scheme: 'dark' | 'light' = 'dark'): void {
+    // light-dark(a, b) is valid wherever a colour is — expand once at the
+    // top so the property-specific branches don't each have to know about it.
+    const v = value.includes('light-dark(') ? expandLightDark(value, scheme) : value
     switch (property) {
-        case 'color': style.fg = resolveColor(value); break
+        case 'color': style.fg = resolveColor(v); break
         case 'background-color':
-        case 'background': style.bg = resolveColor(value); break
+        case 'background': style.bg = resolveColor(v); break
         case 'font-weight': style.bold = value === 'bold' || parseInt(value) >= 700; break
         case 'font-style': style.italic = value === 'italic'; break
         case 'text-decoration':
@@ -514,7 +520,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string)
             if (BORDER_STYLES.has(value)) style.borderStyle = value as ResolvedStyle['borderStyle']
             break
         case 'border-color':
-            style.borderColor = value === 'currentColor' ? style.fg : resolveColor(value)
+            style.borderColor = value === 'currentColor' ? style.fg : resolveColor(v)
             break
         case 'border-corner':
             if (value === 'h' || value === 'v' || value === 'none') style.borderCorner = value

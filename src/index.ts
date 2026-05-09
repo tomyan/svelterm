@@ -173,7 +173,9 @@ export function run<Props extends Record<string, any>>(
         const buffer = new CellBuffer(size.width, size.height)
         const media = { colorScheme: detectedScheme, displayMode: 'terminal' as const, width: size.width, height: size.height }
         lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet, media) : null
-        lastStyles = lastFilteredStylesheet ? resolveStyles(root, lastFilteredStylesheet) : undefined
+        // Passing `media` here threads colorScheme into computeStyle so
+        // light-dark() resolves against the active scheme.
+        lastStyles = lastFilteredStylesheet ? resolveStyles(root, lastFilteredStylesheet, media) : undefined
         // Ensure root style has terminal dimensions for percentage resolution
         if (lastStyles) {
             const rootStyle = lastStyles.get(root.id)
@@ -212,6 +214,7 @@ export function run<Props extends Record<string, any>>(
                 root, lastFilteredStylesheet, lastStyles, snap.styleResolve,
                 undefined,
                 (node) => { layoutSubtree.add(node) },
+                detectedScheme,
             )
         }
 
