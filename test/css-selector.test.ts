@@ -30,14 +30,14 @@ describe('parseSelector', () => {
     it('parses pseudo-class', () => {
         const sel = parseSelector('.btn:focus')
         assert.deepEqual(sel.classes, ['btn'])
-        assert.equal(sel.pseudo, 'focus')
+        assert.deepEqual(sel.pseudos, [{ name: 'focus', arg: undefined }])
     })
 
     it('parses tag+class+pseudo', () => {
         const sel = parseSelector('button.primary:focus')
         assert.equal(sel.tag, 'button')
         assert.deepEqual(sel.classes, ['primary'])
-        assert.equal(sel.pseudo, 'focus')
+        assert.deepEqual(sel.pseudos, [{ name: 'focus', arg: undefined }])
     })
 })
 

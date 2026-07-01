@@ -30,8 +30,8 @@ export function computeSpecificity(selector: string): [number, number, number] {
             pos = skipName(selector, pos)
             const name = selector.substring(nameStart, pos)
 
-            if (name === 'not' && pos < selector.length && selector[pos] === '(') {
-                // :not() specificity = specificity of its argument
+            if ((name === 'not' || name === 'is' || name === 'where') && pos < selector.length && selector[pos] === '(') {
+                // :not()/:is() specificity = most specific argument; :where() = zero
                 pos++
                 const argStart = pos
                 let depth = 1
@@ -42,8 +42,10 @@ export function computeSpecificity(selector: string): [number, number, number] {
                 }
                 const arg = selector.substring(argStart, pos)
                 pos++ // skip )
-                const argSpec = computeSpecificity(arg)
-                ids += argSpec[0]; classes += argSpec[1]; elements += argSpec[2]
+                if (name !== 'where') {
+                    const argSpec = mostSpecificArgument(arg)
+                    ids += argSpec[0]; classes += argSpec[1]; elements += argSpec[2]
+                }
             } else if (pos < selector.length && selector[pos] === '(') {
                 classes++ // other functional pseudo-class
                 pos = skipUntil(selector, pos, ')') + 1
@@ -59,6 +61,15 @@ export function computeSpecificity(selector: string): [number, number, number] {
     }
 
     return [ids, classes, elements]
+}
+
+function mostSpecificArgument(list: string): [number, number, number] {
+    let best: [number, number, number] = [0, 0, 0]
+    for (const item of list.split(',')) {
+        const spec = computeSpecificity(item.trim())
+        if (compareSpecificity(spec, best) > 0) best = spec
+    }
+    return best
 }
 
 function skipName(selector: string, pos: number): number {

@@ -4,10 +4,14 @@ export interface ParsedSelector {
     tag?: string
     id?: string
     classes: string[]
-    pseudo?: string
-    pseudoArg?: string        // argument for functional pseudo-classes like :not(.foo)
+    pseudos: PseudoSelector[]
     attributes: AttrSelector[]
     universal?: boolean
+}
+
+interface PseudoSelector {
+    name: string
+    arg?: string              // argument for functional pseudo-classes like :not(.foo)
 }
 
 interface AttrSelector {
@@ -21,7 +25,7 @@ interface SelectorPart {
 }
 
 export function parseSelector(selector: string): ParsedSelector {
-    const result: ParsedSelector = { classes: [], attributes: [] }
+    const result: ParsedSelector = { classes: [], pseudos: [], attributes: [] }
     let pos = 0
 
     // Universal selector
@@ -59,7 +63,8 @@ export function parseSelector(selector: string): ParsedSelector {
             while (pos < selector.length && /[a-zA-Z0-9_-]/.test(selector[pos])) pos++
             const name = selector.substring(start, pos)
 
-            // Functional pseudo-class: :not(...), :nth-child(...)
+            // Functional pseudo-class: :not(...), :where(...), :is(...)
+            let arg: string | undefined
             if (pos < selector.length && selector[pos] === '(') {
                 pos++
                 const argStart = pos
@@ -69,11 +74,11 @@ export function parseSelector(selector: string): ParsedSelector {
                     else if (selector[pos] === ')') depth--
                     if (depth > 0) pos++
                 }
-                result.pseudoArg = selector.substring(argStart, pos).trim()
+                arg = selector.substring(argStart, pos).trim()
                 pos++ // skip closing )
             }
 
-            result.pseudo = name
+            result.pseudos.push({ name, arg })
         } else {
             pos++
         }
@@ -254,8 +259,8 @@ function matchesParsed(node: TermNode, parsed: ParsedSelector): boolean {
         if (attr.value !== undefined && node.attributes.get(attr.name) !== attr.value) return false
     }
 
-    if (parsed.pseudo) {
-        if (!matchesPseudo(node, parsed.pseudo, parsed.pseudoArg)) return false
+    for (const pseudo of parsed.pseudos) {
+        if (!matchesPseudo(node, pseudo.name, pseudo.arg)) return false
     }
 
     return true
@@ -271,8 +276,17 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
         case 'not':
             if (!arg) return false
             return !matchesParsed(node, parseSelector(arg))
+        case 'where':
+        case 'is':
+            if (!arg) return false
+            return matchesSelectorList(node, arg)
         default: return false
     }
+}
+
+/** Match a comma-separated list of compound selectors (the argument of :where()/:is()). */
+function matchesSelectorList(node: TermNode, list: string): boolean {
+    return list.split(',').some(item => matchesParsed(node, parseSelector(item.trim())))
 }
 
 function isFirstChild(node: TermNode): boolean {
