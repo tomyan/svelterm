@@ -49,6 +49,38 @@ function autoMinMainSize(
     return borderMain + 1
 }
 
+/** Table-internal display values that need an anonymous table wrapper when
+ * they appear in normal block flow (§17.2.1). */
+function isTableInternal(node: TermNode, styles: Map<number, ResolvedStyle>): boolean {
+    if (node.nodeType !== 'element') return false
+    const display = styles.get(node.id)?.display
+    return display === 'table-row' || display === 'table-cell'
+        || display === 'table-row-group' || display === 'table-header-group'
+        || display === 'table-footer-group'
+}
+
+/** Inter-element whitespace and comments don't break a run of consecutive
+ * table-internal siblings. */
+function absorbsIntoTableRun(node: TermNode, styles: Map<number, ResolvedStyle>): boolean {
+    if (isTableInternal(node, styles)) return true
+    if (node.nodeType === 'comment') return true
+    return node.nodeType === 'text' && (node.text ?? '').trim() === ''
+}
+
+/** Collect the run of consecutive table-internal siblings starting at
+ * `start`, returning the run and the index of its last absorbed child. */
+function gatherTableRun(
+    children: TermNode[], start: number, styles: Map<number, ResolvedStyle>,
+): { run: TermNode[]; end: number } {
+    const run: TermNode[] = []
+    let i = start
+    while (i < children.length && absorbsIntoTableRun(children[i], styles)) {
+        if (isTableInternal(children[i], styles)) run.push(children[i])
+        i++
+    }
+    return { run, end: i - 1 }
+}
+
 /** Flatten display:contents elements, promoting their children. */
 function flattenContents(children: TermNode[], styles: Map<number, ResolvedStyle>): TermNode[] {
     const result: TermNode[] = []
@@ -231,7 +263,7 @@ function layoutElement(
             style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
             style?.flexWrap ?? 'nowrap',
         )
-    } else if (display === 'table') {
+    } else if (display === 'table' || display === 'inline-table') {
         content = layoutTable(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
     } else if (display === 'grid' && style) {
         content = layoutGrid(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH, style)
@@ -376,13 +408,34 @@ function layoutBlockFlow(
 
     const flatChildren = flattenContents(children, styles)
 
-    for (const child of flatChildren) {
+    for (let i = 0; i < flatChildren.length; i++) {
+        const child = flatChildren[i]
         if (child.nodeType === 'comment') continue
         const s = styles.get(child.id)
         if (s?.display === 'none') continue
         if (s?.position === 'absolute' || s?.position === 'fixed') continue
 
-        const isInline = child.nodeType === 'text' || s?.display === 'inline' || s?.display === 'inline-block'
+        // Stray table-internal content (a <tr>/<td>/row-group outside a
+        // table) wraps in an anonymous table together with its consecutive
+        // table-internal siblings (§17.2.1).
+        if (isTableInternal(child, styles)) {
+            const { run, end } = gatherTableRun(flatChildren, i, styles)
+            i = end
+            if (cursorX > x) {
+                cursorY += lineHeight
+                cursorX = x
+                lineHeight = 0
+            }
+            const size = layoutTableChildren(run, undefined, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
+            cursorY += size.height
+            maxWidth = Math.max(maxWidth, size.width)
+            prevBlockMarginBottom = 0
+            prevBlockStyle = undefined
+            continue
+        }
+
+        const isInline = child.nodeType === 'text' || s?.display === 'inline'
+            || s?.display === 'inline-block' || s?.display === 'inline-table'
 
         if (isInline) {
             // Flow horizontally
@@ -428,7 +481,8 @@ function layoutBlockFlow(
     return { width: maxWidth, height: cursorY - y }
 }
 
-interface TableRow { trNode: TermNode; cells: TermNode[] }
+/** A table row; trNode is null for anonymous rows generated around stray cells (§17.2.1). */
+interface TableRow { trNode: TermNode | null; cells: TermNode[] }
 
 function rawColspan(cell: TermNode): number {
     const raw = cell.attributes.get('colspan')
@@ -496,39 +550,92 @@ function cellColspan(grid: TableGrid, cell: TermNode): number {
     return grid.span.get(cell.id) ?? 1
 }
 
-function rowsOfSection(section: TermNode, styles: Map<number, ResolvedStyle>): TableRow[] {
+/** True for content that acts as a table cell inside a row: real cells, plus
+ * stray text / elements that get an anonymous cell box per §17.2.1. */
+function isCellContent(node: TermNode, styles: Map<number, ResolvedStyle>): boolean {
+    if (node.nodeType === 'text') return (node.text ?? '').trim() !== ''
+    if (node.nodeType !== 'element') return false
+    const display = styles.get(node.id)?.display
+    return display !== 'none' && !isRowLevelDisplay(display)
+}
+
+function isRowLevelDisplay(display: string | undefined): boolean {
+    return display === 'table-row'
+        || display === 'table-row-group' || display === 'table-header-group'
+        || display === 'table-footer-group'
+        || display === 'table-caption' || display === 'table-column'
+        || display === 'table-column-group'
+}
+
+function cellsOfRow(trNode: TermNode, styles: Map<number, ResolvedStyle>): TermNode[] {
+    return trNode.children.filter(c => isCellContent(c, styles))
+}
+
+/**
+ * Group the children of a table or row-group into rows. Explicit table-rows
+ * keep their cells; a run of consecutive stray cell-content children forms
+ * one anonymous row (§17.2.1). Simplification vs the spec: each stray child
+ * is its own anonymous cell rather than coalescing consecutive inline
+ * content into one.
+ */
+function groupIntoRows(children: TermNode[], styles: Map<number, ResolvedStyle>): TableRow[] {
     const rows: TableRow[] = []
-    for (const child of section.children) {
-        if (styles.get(child.id)?.display === 'table-row') {
-            const cells = child.children.filter(c => styles.get(c.id)?.display === 'table-cell')
-            rows.push({ trNode: child, cells })
+    let anonymous: TermNode[] = []
+    const flushAnonymous = () => {
+        if (anonymous.length > 0) {
+            rows.push({ trNode: null, cells: anonymous })
+            anonymous = []
         }
     }
+    for (const child of children) {
+        if (child.nodeType === 'element' && styles.get(child.id)?.display === 'table-row') {
+            flushAnonymous()
+            rows.push({ trNode: child, cells: cellsOfRow(child, styles) })
+        } else if (isCellContent(child, styles)) {
+            anonymous.push(child)
+        }
+    }
+    flushAnonymous()
     return rows
 }
 
-function collectTableRows(node: TermNode, styles: Map<number, ResolvedStyle>): TableRow[] {
+function collectTableRows(children: TermNode[], styles: Map<number, ResolvedStyle>): TableRow[] {
     // Per CSS 2.2 §17.5.2: header → bodies (in source order) → footer.
-    // Bare <tr> children of <table> form an implicit body (mirrors the
-    // browser HTML parser's auto-tbody insertion).
+    // Bare <tr> (or stray cell content) children of <table> form an implicit
+    // body, mirroring the browser HTML parser's auto-tbody insertion.
     const headerRows: TableRow[] = []
     const bodyRows: TableRow[] = []
     const footerRows: TableRow[] = []
-    for (const child of node.children) {
-        const display = styles.get(child.id)?.display
-        if (display === 'table-header-group') headerRows.push(...rowsOfSection(child, styles))
-        else if (display === 'table-footer-group') footerRows.push(...rowsOfSection(child, styles))
-        else if (display === 'table-row-group') bodyRows.push(...rowsOfSection(child, styles))
-        else if (display === 'table-row') {
-            const cells = child.children.filter(c => styles.get(c.id)?.display === 'table-cell')
-            bodyRows.push({ trNode: child, cells })
+    let strayRun: TermNode[] = []
+    const flushStray = () => {
+        if (strayRun.length > 0) {
+            bodyRows.push(...groupIntoRows(strayRun, styles))
+            strayRun = []
         }
     }
+    for (const child of children) {
+        const display = child.nodeType === 'element' ? styles.get(child.id)?.display : undefined
+        if (display === 'table-header-group') {
+            flushStray()
+            headerRows.push(...groupIntoRows(child.children, styles))
+        } else if (display === 'table-footer-group') {
+            flushStray()
+            footerRows.push(...groupIntoRows(child.children, styles))
+        } else if (display === 'table-row-group') {
+            flushStray()
+            bodyRows.push(...groupIntoRows(child.children, styles))
+        } else {
+            // table-rows and stray cell content accumulate; captions/columns
+            // are filtered out inside groupIntoRows.
+            strayRun.push(child)
+        }
+    }
+    flushStray()
     return [...headerRows, ...bodyRows, ...footerRows]
 }
 
-function findCaption(node: TermNode, styles: Map<number, ResolvedStyle>): TermNode | undefined {
-    return node.children.find(c => styles.get(c.id)?.display === 'table-caption')
+function findCaption(children: TermNode[], styles: Map<number, ResolvedStyle>): TermNode | undefined {
+    return children.find(c => styles.get(c.id)?.display === 'table-caption')
 }
 
 function colSpanAttr(colNode: TermNode): number {
@@ -550,13 +657,13 @@ function applyColHint(hints: number[], col: number, span: number, width: number)
     }
 }
 
-function collectColHints(table: TermNode, styles: Map<number, ResolvedStyle>): number[] {
+function collectColHints(children: TermNode[], styles: Map<number, ResolvedStyle>): number[] {
     // Walks <col> and <colgroup> in document order; returns per-column width
     // hints (sparse). <col span> covers multiple columns; a <colgroup> with no
     // <col> children covers `span` columns itself.
     const hints: number[] = []
     let col = 0
-    for (const child of table.children) {
+    for (const child of children) {
         const display = styles.get(child.id)?.display
         if (display === 'table-column') {
             const span = colSpanAttr(child)
@@ -713,10 +820,10 @@ function placeRows(
             colX += cellWidth + gaps.col
             col += span
         }
-        const trMinHeight = styles.get(trNode.id)?.height
+        const trMinHeight = trNode ? styles.get(trNode.id)?.height : undefined
         if (typeof trMinHeight === 'number' && trMinHeight > rowHeight) rowHeight = trMinHeight
         rowHeights.push(rowHeight)
-        boxes.set(trNode.id, { x, y: rowY, width: tableWidth, height: rowHeight })
+        if (trNode) boxes.set(trNode.id, { x, y: rowY, width: tableWidth, height: rowHeight })
         rowY += rowHeight + gaps.row
     }
 
@@ -739,17 +846,30 @@ function layoutTable(
     node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, y: number, availW: number, availH: number,
 ): { width: number; height: number } {
-    const rows = collectTableRows(node, styles)
-    const caption = findCaption(node, styles)
+    return layoutTableChildren(node.children, styles.get(node.id), styles, boxes, x, y, availW, availH)
+}
+
+/**
+ * Table layout over a list of children. Called with a table element's
+ * children and style, or — for anonymous tables wrapped around stray
+ * table-internal content (§17.2.1) — with the run of stray siblings and no
+ * style (anonymous tables get initial values, e.g. border-spacing 0).
+ */
+function layoutTableChildren(
+    children: TermNode[], tableStyle: ResolvedStyle | undefined,
+    styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
+    x: number, y: number, availW: number, availH: number,
+): { width: number; height: number } {
+    const rows = collectTableRows(children, styles)
+    const caption = findCaption(children, styles)
     if (rows.length === 0 && !caption) return { width: 0, height: 0 }
 
     const grid = buildTableGrid(rows)
-    const tableStyle = styles.get(node.id)
     const gaps = tableGaps(tableStyle, rows, styles)
     const colWidths = measureColumnWidths(rows, grid, styles, boxes, availW, availH, tableStyle?.tableLayout ?? 'auto')
     // <col>/<colgroup> widths act as a minimum (auto) or as the source of
     // truth (fixed) for the column.
-    const colHints = collectColHints(node, styles)
+    const colHints = collectColHints(children, styles)
     for (let i = 0; i < colWidths.length; i++) {
         if (colHints[i] !== undefined) colWidths[i] = Math.max(colWidths[i], colHints[i])
     }
