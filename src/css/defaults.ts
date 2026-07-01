@@ -28,6 +28,7 @@ samp { color: cyan; }
 var { font-style: italic; }
 dt { font-weight: bold; }
 dd { margin-left: 2cell; }
+table { border-spacing: 2cell 0; }
 th { font-weight: bold; text-align: center; }
 caption { text-align: center; }
 figure { margin-left: 2cell; margin-right: 2cell; margin-top: 1cell; margin-bottom: 1cell; }

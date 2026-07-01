@@ -65,7 +65,7 @@ export interface ResolvedStyle {
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
-    borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy'
+    borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy' | 'ascii'
         | 'eighth-cell-inner' | 'eighth-cell-outer'
         | 'half-cell-inner' | 'half-cell-outer'
         | 'full-cell'
@@ -91,6 +91,10 @@ export interface ResolvedStyle {
     captionSide: 'top' | 'bottom'
     tableLayout: 'auto' | 'fixed'
     verticalAlign: 'top' | 'middle' | 'bottom' | 'baseline'
+    borderCollapse: 'separate' | 'collapse'
+    borderSpacingH: number
+    borderSpacingV: number
+    emptyCells: 'show' | 'hide'
 }
 
 const INLINE_ELEMENTS = new Set(['span', 'a', 'strong', 'em', 'b', 'i', 'u', 'code', 'small', 'sub', 'sup'])
@@ -145,6 +149,10 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         captionSide: 'top',
         tableLayout: 'auto',
         verticalAlign: 'top',
+        borderCollapse: 'separate',
+        borderSpacingH: 0,
+        borderSpacingV: 0,
+        emptyCells: 'show',
     }
 }
 
@@ -587,6 +595,15 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string,
         case 'visibility': style.visibility = value === 'hidden' ? 'hidden' : 'visible'; break
         case 'caption-side': style.captionSide = value === 'bottom' ? 'bottom' : 'top'; break
         case 'table-layout': style.tableLayout = value === 'fixed' ? 'fixed' : 'auto'; break
+        case 'border-collapse': style.borderCollapse = value === 'collapse' ? 'collapse' : 'separate'; break
+        case 'empty-cells': style.emptyCells = value === 'hide' ? 'hide' : 'show'; break
+        case 'border-spacing': {
+            // One value applies to both axes; two values are horizontal then vertical.
+            const parts = value.split(/\s+/).map(parseCellValue)
+            style.borderSpacingH = parts[0] ?? 0
+            style.borderSpacingV = (parts.length > 1 ? parts[1] : parts[0]) ?? 0
+            break
+        }
         case 'vertical-align':
             if (value === 'top' || value === 'middle' || value === 'bottom' || value === 'baseline') {
                 style.verticalAlign = value
@@ -603,7 +620,7 @@ function applyDeclaration(style: ResolvedStyle, property: string, value: string,
 }
 
 const BORDER_STYLES = new Set([
-    'none', 'single', 'double', 'rounded', 'heavy',
+    'none', 'single', 'double', 'rounded', 'heavy', 'ascii',
     'eighth-cell-inner', 'eighth-cell-outer',
     'half-cell-inner', 'half-cell-outer',
     'full-cell',

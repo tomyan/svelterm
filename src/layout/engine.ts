@@ -580,7 +580,40 @@ function collectColHints(table: TermNode, styles: Map<number, ResolvedStyle>): n
     return hints
 }
 
-const TABLE_COL_GAP = 2
+interface TableGaps { col: number; row: number }
+
+/**
+ * Horizontal/vertical gap between table tracks. The separate model uses
+ * border-spacing; the collapsed model overlaps tracks by one cell where
+ * adjacent border strokes would otherwise double up, so they coincide and
+ * merge into shared grid lines. A track boundary only collapses when cells
+ * are bordered on both of its sides (e.g. left+right for columns) — one-sided
+ * borders such as row separators already draw a single line and need no overlap.
+ */
+function tableGaps(
+    tableStyle: ResolvedStyle | undefined, rows: TableRow[],
+    styles: Map<number, ResolvedStyle>,
+): TableGaps {
+    if (tableStyle?.borderCollapse === 'collapse') {
+        return {
+            col: allCellsBordered(rows, styles, 'borderLeft', 'borderRight') ? -1 : 0,
+            row: allCellsBordered(rows, styles, 'borderTop', 'borderBottom') ? -1 : 0,
+        }
+    }
+    return { col: tableStyle?.borderSpacingH ?? 0, row: tableStyle?.borderSpacingV ?? 0 }
+}
+
+type BorderSide = 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft'
+
+function allCellsBordered(
+    rows: TableRow[], styles: Map<number, ResolvedStyle>, ...sides: BorderSide[]
+): boolean {
+    return rows.every(row => row.cells.every(cell => {
+        const style = styles.get(cell.id)
+        return style !== undefined && style.borderStyle !== 'none'
+            && sides.every(side => style[side])
+    }))
+}
 
 function measureColumnWidths(
     rows: TableRow[], grid: TableGrid,
@@ -618,10 +651,10 @@ function placeCaption(
     return size.height
 }
 
-function spannedWidth(colWidths: number[], col: number, span: number): number {
+function spannedWidth(colWidths: number[], col: number, span: number, colGap: number): number {
     let w = 0
     for (let i = 0; i < span; i++) w += colWidths[col + i] ?? 0
-    return w + TABLE_COL_GAP * Math.max(0, span - 1)
+    return w + colGap * Math.max(0, span - 1)
 }
 
 interface PlacedCell { cell: TermNode; rowIdx: number; rspan: number; contentHeight: number }
@@ -652,6 +685,7 @@ function placeRows(
     rows: TableRow[], grid: TableGrid,
     styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, startY: number, colWidths: number[], tableWidth: number, availH: number,
+    gaps: TableGaps,
 ): number {
     const rowHeights: number[] = []
     const placed: PlacedCell[] = []
@@ -665,35 +699,40 @@ function placeRows(
         let rowHeight = 0
         for (const cell of cells) {
             while (grid.occupied[r][col]) {
-                colX += colWidths[col] + TABLE_COL_GAP
+                colX += colWidths[col] + gaps.col
                 col++
             }
             const span = cellColspan(grid, cell)
             const rspan = cellRowspan(cell)
-            const cellWidth = spannedWidth(colWidths, col, span)
+            const cellWidth = spannedWidth(colWidths, col, span, gaps.col)
             const size = layoutNode(cell, styles, boxes, colX, rowY, cellWidth, availH)
             const cellBox = boxes.get(cell.id)
             if (cellBox && cellBox.width < cellWidth) cellBox.width = cellWidth
             if (rspan === 1) rowHeight = Math.max(rowHeight, size.height)
             placed.push({ cell, rowIdx: r, rspan, contentHeight: size.height })
-            colX += cellWidth + TABLE_COL_GAP
+            colX += cellWidth + gaps.col
             col += span
         }
         const trMinHeight = styles.get(trNode.id)?.height
         if (typeof trMinHeight === 'number' && trMinHeight > rowHeight) rowHeight = trMinHeight
         rowHeights.push(rowHeight)
         boxes.set(trNode.id, { x, y: rowY, width: tableWidth, height: rowHeight })
-        rowY += rowHeight
+        rowY += rowHeight + gaps.row
     }
 
     // Pass 2: stretch each cell to its row's total height and apply vertical-align.
     for (const { cell, rowIdx, rspan, contentHeight } of placed) {
         let totalH = 0
-        for (let r = 0; r < rspan && rowIdx + r < rows.length; r++) totalH += rowHeights[rowIdx + r]
+        let spanRows = 0
+        for (let r = 0; r < rspan && rowIdx + r < rows.length; r++) {
+            totalH += rowHeights[rowIdx + r]
+            spanRows++
+        }
+        totalH += gaps.row * Math.max(0, spanRows - 1)
         applyVerticalAlign(cell, totalH, contentHeight, styles, boxes)
     }
 
-    return rowY - startY
+    return rowY - startY - (rows.length > 0 ? gaps.row : 0)
 }
 
 function layoutTable(
@@ -705,8 +744,9 @@ function layoutTable(
     if (rows.length === 0 && !caption) return { width: 0, height: 0 }
 
     const grid = buildTableGrid(rows)
-    const tableLayout = styles.get(node.id)?.tableLayout ?? 'auto'
-    const colWidths = measureColumnWidths(rows, grid, styles, boxes, availW, availH, tableLayout)
+    const tableStyle = styles.get(node.id)
+    const gaps = tableGaps(tableStyle, rows, styles)
+    const colWidths = measureColumnWidths(rows, grid, styles, boxes, availW, availH, tableStyle?.tableLayout ?? 'auto')
     // <col>/<colgroup> widths act as a minimum (auto) or as the source of
     // truth (fixed) for the column.
     const colHints = collectColHints(node, styles)
@@ -714,7 +754,7 @@ function layoutTable(
         if (colHints[i] !== undefined) colWidths[i] = Math.max(colWidths[i], colHints[i])
     }
     const colsWidth = colWidths.reduce((sum, w) => sum + w, 0)
-        + TABLE_COL_GAP * Math.max(0, colWidths.length - 1)
+        + gaps.col * Math.max(0, colWidths.length - 1)
 
     // Measure caption against availW so the table can grow to fit it.
     let captionWidth = 0
@@ -730,7 +770,7 @@ function layoutTable(
     if (caption && captionSide === 'top') {
         rowY += placeCaption(caption, styles, boxes, x, rowY, tableWidth, availH)
     }
-    rowY += placeRows(rows, grid, styles, boxes, x, rowY, colWidths, tableWidth, availH)
+    rowY += placeRows(rows, grid, styles, boxes, x, rowY, colWidths, tableWidth, availH, gaps)
     if (caption && captionSide === 'bottom') {
         rowY += placeCaption(caption, styles, boxes, x, rowY, tableWidth, availH)
     }

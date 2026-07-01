@@ -21,56 +21,62 @@ const BORDER_SETS: Record<string, BorderChars> = {
     double:  { topLeft: '╔', topRight: '╗', bottomLeft: '╚', bottomRight: '╝', horizontal: '═', vertical: '║', teeLeft: '╠', teeRight: '╣', teeTop: '╦', teeBottom: '╩', cross: '╬' },
     rounded: { topLeft: '╭', topRight: '╮', bottomLeft: '╰', bottomRight: '╯', horizontal: '─', vertical: '│', teeLeft: '├', teeRight: '┤', teeTop: '┬', teeBottom: '┴', cross: '┼' },
     heavy:   { topLeft: '┏', topRight: '┓', bottomLeft: '┗', bottomRight: '┛', horizontal: '━', vertical: '┃', teeLeft: '┣', teeRight: '┫', teeTop: '┳', teeBottom: '┻', cross: '╋' },
+    ascii:   { topLeft: '+', topRight: '+', bottomLeft: '+', bottomRight: '+', horizontal: '-', vertical: '|', teeLeft: '+', teeRight: '+', teeTop: '+', teeBottom: '+', cross: '+' },
 }
 
-/** Sets of border characters for collapse detection */
-const BOTTOM_LEFT_CORNERS = new Set(Object.values(BORDER_SETS).map(s => s.bottomLeft))
-const BOTTOM_RIGHT_CORNERS = new Set(Object.values(BORDER_SETS).map(s => s.bottomRight))
-const TOP_LEFT_CORNERS = new Set(Object.values(BORDER_SETS).map(s => s.topLeft))
-const TOP_RIGHT_CORNERS = new Set(Object.values(BORDER_SETS).map(s => s.topRight))
-const TEE_BOTTOM_CHARS = new Set(Object.values(BORDER_SETS).map(s => s.teeBottom))
-const TEE_TOP_CHARS = new Set(Object.values(BORDER_SETS).map(s => s.teeTop))
-const TEE_LEFT_CHARS = new Set(Object.values(BORDER_SETS).map(s => s.teeLeft))
-const TEE_RIGHT_CHARS = new Set(Object.values(BORDER_SETS).map(s => s.teeRight))
-const CROSS_CHARS = new Set(Object.values(BORDER_SETS).map(s => s.cross))
+/**
+ * Direction masks for box-drawing glyph merging. Each glyph is the set of
+ * directions its strokes point in; overlapping glyphs merge by unioning
+ * their masks (e.g. ┐ over └ → all four directions → ┼).
+ */
+const UP = 1, RIGHT = 2, DOWN = 4, LEFT = 8
+
+const GLYPH_MASKS: Record<string, number> = {}
+for (const s of Object.values(BORDER_SETS)) {
+    GLYPH_MASKS[s.topLeft] = RIGHT | DOWN
+    GLYPH_MASKS[s.topRight] = LEFT | DOWN
+    GLYPH_MASKS[s.bottomLeft] = UP | RIGHT
+    GLYPH_MASKS[s.bottomRight] = UP | LEFT
+    GLYPH_MASKS[s.horizontal] = LEFT | RIGHT
+    GLYPH_MASKS[s.vertical] = UP | DOWN
+    GLYPH_MASKS[s.teeLeft] = UP | DOWN | RIGHT
+    GLYPH_MASKS[s.teeRight] = UP | DOWN | LEFT
+    GLYPH_MASKS[s.teeTop] = LEFT | RIGHT | DOWN
+    GLYPH_MASKS[s.teeBottom] = LEFT | RIGHT | UP
+    GLYPH_MASKS[s.cross] = UP | RIGHT | DOWN | LEFT
+}
+
+function glyphForMask(chars: BorderChars, mask: number): string | undefined {
+    switch (mask) {
+        case RIGHT | DOWN: return chars.topLeft
+        case LEFT | DOWN: return chars.topRight
+        case UP | RIGHT: return chars.bottomLeft
+        case UP | LEFT: return chars.bottomRight
+        case LEFT | RIGHT: return chars.horizontal
+        case UP | DOWN: return chars.vertical
+        case UP | DOWN | RIGHT: return chars.teeLeft
+        case UP | DOWN | LEFT: return chars.teeRight
+        case LEFT | RIGHT | DOWN: return chars.teeTop
+        case LEFT | RIGHT | UP: return chars.teeBottom
+        case UP | RIGHT | DOWN | LEFT: return chars.cross
+        default: return undefined
+    }
+}
 
 /**
- * Merge a corner character with whatever is already in the buffer cell.
- * If the existing character is an opposite corner, produce a T-junction.
- * If it's already a T-junction (from a previous merge), produce a cross.
+ * Merge a border glyph with whatever box-drawing character is already in the
+ * buffer cell, producing T-junctions and crosses where strokes meet. The new
+ * glyph's family (single/double/...) wins for the merged character.
  */
-function mergeCorner(
+function mergeGlyph(
     buffer: CellBuffer, cx: number, cy: number,
-    defaultChar: string, chars: BorderChars,
-    corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight',
+    newMask: number, chars: BorderChars,
 ): string {
+    const fallback = glyphForMask(chars, newMask) ?? chars.cross
     const existing = buffer.getCell(cx, cy)?.char
-    if (!existing) return defaultChar
-    // An existing cross already connects all four directions — preserve it
-    if (CROSS_CHARS.has(existing)) return chars.cross
-
-    switch (corner) {
-        case 'topLeft':
-            if (BOTTOM_LEFT_CORNERS.has(existing) || TEE_LEFT_CHARS.has(existing)) return chars.teeLeft
-            if (TOP_RIGHT_CORNERS.has(existing) || TEE_TOP_CHARS.has(existing)) return chars.teeTop
-            if (BOTTOM_RIGHT_CORNERS.has(existing) || TEE_RIGHT_CHARS.has(existing) || TEE_BOTTOM_CHARS.has(existing)) return chars.cross
-            return defaultChar
-        case 'topRight':
-            if (BOTTOM_RIGHT_CORNERS.has(existing) || TEE_RIGHT_CHARS.has(existing)) return chars.teeRight
-            if (TOP_LEFT_CORNERS.has(existing) || TEE_TOP_CHARS.has(existing)) return chars.teeTop
-            if (BOTTOM_LEFT_CORNERS.has(existing) || TEE_LEFT_CHARS.has(existing) || TEE_BOTTOM_CHARS.has(existing)) return chars.cross
-            return defaultChar
-        case 'bottomLeft':
-            if (TOP_LEFT_CORNERS.has(existing) || TEE_LEFT_CHARS.has(existing)) return chars.teeLeft
-            if (BOTTOM_RIGHT_CORNERS.has(existing) || TEE_BOTTOM_CHARS.has(existing)) return chars.teeBottom
-            if (TOP_RIGHT_CORNERS.has(existing) || TEE_RIGHT_CHARS.has(existing) || TEE_TOP_CHARS.has(existing)) return chars.cross
-            return defaultChar
-        case 'bottomRight':
-            if (TOP_RIGHT_CORNERS.has(existing) || TEE_RIGHT_CHARS.has(existing)) return chars.teeRight
-            if (BOTTOM_LEFT_CORNERS.has(existing) || TEE_BOTTOM_CHARS.has(existing)) return chars.teeBottom
-            if (TOP_LEFT_CORNERS.has(existing) || TEE_LEFT_CHARS.has(existing) || TEE_TOP_CHARS.has(existing)) return chars.cross
-            return defaultChar
-    }
+    const existingMask = existing !== undefined ? GLYPH_MASKS[existing] : undefined
+    if (existingMask === undefined) return fallback
+    return glyphForMask(chars, existingMask | newMask) ?? fallback
 }
 
 interface BlockEdges {
@@ -144,20 +150,16 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
 
     // Corners — merge into T-junctions or crosses when overlapping a sibling's border
     if (top && left) {
-        const char = mergeCorner(buffer, x, y, chars.topLeft, chars, 'topLeft')
-        buffer.setCell(x, y, { char, fg })
+        buffer.setCell(x, y, { char: mergeGlyph(buffer, x, y, RIGHT | DOWN, chars), fg })
     }
     if (top && right) {
-        const char = mergeCorner(buffer, x + width - 1, y, chars.topRight, chars, 'topRight')
-        buffer.setCell(x + width - 1, y, { char, fg })
+        buffer.setCell(x + width - 1, y, { char: mergeGlyph(buffer, x + width - 1, y, LEFT | DOWN, chars), fg })
     }
     if (bottom && left) {
-        const char = mergeCorner(buffer, x, y + height - 1, chars.bottomLeft, chars, 'bottomLeft')
-        buffer.setCell(x, y + height - 1, { char, fg })
+        buffer.setCell(x, y + height - 1, { char: mergeGlyph(buffer, x, y + height - 1, UP | RIGHT, chars), fg })
     }
     if (bottom && right) {
-        const char = mergeCorner(buffer, x + width - 1, y + height - 1, chars.bottomRight, chars, 'bottomRight')
-        buffer.setCell(x + width - 1, y + height - 1, { char, fg })
+        buffer.setCell(x + width - 1, y + height - 1, { char: mergeGlyph(buffer, x + width - 1, y + height - 1, UP | LEFT, chars), fg })
     }
 
     // Top edge
@@ -165,7 +167,7 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
         const startCol = left ? x + 1 : x
         const endCol = right ? x + width - 1 : x + width
         for (let col = startCol; col < endCol; col++) {
-            buffer.setCell(col, y, { char: chars.horizontal, fg })
+            buffer.setCell(col, y, { char: mergeGlyph(buffer, col, y, LEFT | RIGHT, chars), fg })
         }
     }
 
@@ -174,7 +176,7 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
         const startCol = left ? x + 1 : x
         const endCol = right ? x + width - 1 : x + width
         for (let col = startCol; col < endCol; col++) {
-            buffer.setCell(col, y + height - 1, { char: chars.horizontal, fg })
+            buffer.setCell(col, y + height - 1, { char: mergeGlyph(buffer, col, y + height - 1, LEFT | RIGHT, chars), fg })
         }
     }
 
@@ -183,7 +185,7 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
         const startRow = top ? y + 1 : y
         const endRow = bottom ? y + height - 1 : y + height
         for (let row = startRow; row < endRow; row++) {
-            buffer.setCell(x, row, { char: chars.vertical, fg })
+            buffer.setCell(x, row, { char: mergeGlyph(buffer, x, row, UP | DOWN, chars), fg })
         }
     }
 
@@ -192,7 +194,7 @@ export function renderBorder(buffer: CellBuffer, box: LayoutBox, style: Resolved
         const startRow = top ? y + 1 : y
         const endRow = bottom ? y + height - 1 : y + height
         for (let row = startRow; row < endRow; row++) {
-            buffer.setCell(x + width - 1, row, { char: chars.vertical, fg })
+            buffer.setCell(x + width - 1, row, { char: mergeGlyph(buffer, x + width - 1, row, UP | DOWN, chars), fg })
         }
     }
 }

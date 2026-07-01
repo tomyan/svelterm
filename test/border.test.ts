@@ -160,6 +160,20 @@ describe('border rendering', () => {
             assert.equal(buffer.getCell(0, 1)?.char, '┃')
         })
 
+        it('ascii border uses +-|', () => {
+            const buffer = renderWithCSS('.box{border:ascii;width:5cell;height:3cell}', (root) => {
+                const box = new TermNode('element', 'div')
+                box.attributes.set('class', 'box')
+                root.insertBefore(box, null)
+            })
+            assert.equal(buffer.getCell(0, 0)?.char, '+')
+            assert.equal(buffer.getCell(4, 0)?.char, '+')
+            assert.equal(buffer.getCell(0, 2)?.char, '+')
+            assert.equal(buffer.getCell(4, 2)?.char, '+')
+            assert.equal(buffer.getCell(2, 0)?.char, '-')
+            assert.equal(buffer.getCell(0, 1)?.char, '|')
+        })
+
         it('borderLeft only renders left vertical edge', () => {
             const buffer = renderWithCSS('.box{border-style:single;border-left:true;width:5cell;height:3cell}', (root) => {
                 const box = new TermNode('element', 'div')

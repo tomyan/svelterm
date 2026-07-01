@@ -83,9 +83,13 @@ function paintNode(
     }
 
     if (node.nodeType === 'element' && box && !isHidden) {
-        fillBackground(buffer, box, visuals, clip, ownStyle)
-        if (ownStyle && ownStyle.borderStyle !== 'none') {
-            renderBorder(buffer, box, ownStyle)
+        const hideEmptyCell = ownStyle?.emptyCells === 'hide'
+            && ownStyle.display === 'table-cell' && isEmptyCell(node)
+        if (!hideEmptyCell) {
+            fillBackground(buffer, box, visuals, clip, ownStyle)
+            if (ownStyle && ownStyle.borderStyle !== 'none') {
+                renderBorder(buffer, box, ownStyle)
+            }
         }
         if (node.tag === 'hr') {
             paintHorizontalRule(buffer, box, visuals, clip)
@@ -163,6 +167,12 @@ function paintNode(
             }
         }
     }
+}
+
+/** A table cell is empty (for empty-cells: hide) if it has no element children and no visible text. */
+function isEmptyCell(node: TermNode): boolean {
+    return node.children.every(child =>
+        child.nodeType === 'text' && (child.textContent ?? '').trim() === '')
 }
 
 function boxesOverlap(a: LayoutBox, b: ClipRect): boolean {
