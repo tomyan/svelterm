@@ -280,8 +280,39 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
         case 'is':
             if (!arg) return false
             return matchesSelectorList(node, arg)
+        case 'nth-child':
+            if (!arg) return false
+            return matchesNthChild(node, arg)
         default: return false
     }
+}
+
+function matchesNthChild(node: TermNode, arg: string): boolean {
+    if (!node.parent) return false
+    const siblings = node.parent.children.filter(c => c.nodeType === 'element')
+    const index = siblings.indexOf(node) + 1
+    if (index === 0) return false
+    const formula = parseNth(arg)
+    if (!formula) return false
+    const { a, b } = formula
+    // index = a*n + b for some integer n >= 0
+    if (a === 0) return index === b
+    const n = (index - b) / a
+    return n >= 0 && Number.isInteger(n)
+}
+
+/** Parse an An+B expression ("odd", "even", "3", "2n", "2n+1", "-n+3"). */
+function parseNth(arg: string): { a: number; b: number } | null {
+    const s = arg.trim().toLowerCase()
+    if (s === 'odd') return { a: 2, b: 1 }
+    if (s === 'even') return { a: 2, b: 0 }
+    const match = /^([+-]?\d*)n\s*(?:([+-])\s*(\d+))?$|^([+-]?\d+)$/.exec(s)
+    if (!match) return null
+    if (match[4] !== undefined) return { a: 0, b: parseInt(match[4]) }
+    const aText = match[1]
+    const a = aText === '' || aText === '+' ? 1 : aText === '-' ? -1 : parseInt(aText)
+    const b = match[2] ? (match[2] === '-' ? -1 : 1) * parseInt(match[3]) : 0
+    return { a, b }
 }
 
 /** Match a comma-separated list of compound selectors (the argument of :where()/:is()). */
