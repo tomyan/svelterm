@@ -96,3 +96,50 @@ describe(':nth-child() pseudo-class', () => {
         assert.deepEqual(computeSpecificity('tr:nth-child(2n)'), [0, 1, 1])
     })
 })
+
+describe(':nth-last-child() pseudo-class', () => {
+
+    it('counts from the end', () => {
+        // Given
+        const rows = makeChildren('tbody', ['tr', 'tr', 'tr'])
+
+        // Then
+        assert.ok(matchesSelector(rows[2], 'tr:nth-last-child(1)'))
+        assert.ok(matchesSelector(rows[1], 'tr:nth-last-child(2)'))
+        assert.ok(!matchesSelector(rows[0], 'tr:nth-last-child(1)'))
+    })
+
+    it('supports odd from the end', () => {
+        // Given
+        const rows = makeChildren('tbody', ['tr', 'tr', 'tr', 'tr'])
+
+        // Then: odd from the end = 4th and 2nd
+        assert.ok(matchesSelector(rows[3], 'tr:nth-last-child(odd)'))
+        assert.ok(!matchesSelector(rows[2], 'tr:nth-last-child(odd)'))
+        assert.ok(matchesSelector(rows[1], 'tr:nth-last-child(odd)'))
+    })
+})
+
+describe(':nth-of-type() pseudo-classes', () => {
+
+    it('nth-of-type counts only same-tag siblings', () => {
+        // Given: h1, p, p, p — the second <p> is nth-of-type(2)
+        const children = makeChildren('div', ['h1', 'p', 'p', 'p'])
+
+        // Then
+        assert.ok(matchesSelector(children[1], 'p:nth-of-type(1)'))
+        assert.ok(matchesSelector(children[2], 'p:nth-of-type(2)'))
+        assert.ok(!matchesSelector(children[2], 'p:nth-of-type(1)'))
+        assert.ok(matchesSelector(children[0], 'h1:nth-of-type(1)'))
+    })
+
+    it('nth-last-of-type counts same-tag siblings from the end', () => {
+        // Given
+        const children = makeChildren('div', ['p', 'p', 'span'])
+
+        // Then: the second <p> is the last of its type
+        assert.ok(matchesSelector(children[1], 'p:nth-last-of-type(1)'))
+        assert.ok(matchesSelector(children[0], 'p:nth-last-of-type(2)'))
+        assert.ok(matchesSelector(children[2], 'span:nth-last-of-type(1)'))
+    })
+})

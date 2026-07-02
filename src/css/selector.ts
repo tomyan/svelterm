@@ -281,17 +281,27 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
             if (!arg) return false
             return matchesSelectorList(node, arg)
         case 'nth-child':
-            if (!arg) return false
-            return matchesNthChild(node, arg)
+            return matchesNth(node, arg, { fromEnd: false, sameType: false })
+        case 'nth-last-child':
+            return matchesNth(node, arg, { fromEnd: true, sameType: false })
+        case 'nth-of-type':
+            return matchesNth(node, arg, { fromEnd: false, sameType: true })
+        case 'nth-last-of-type':
+            return matchesNth(node, arg, { fromEnd: true, sameType: true })
         default: return false
     }
 }
 
-function matchesNthChild(node: TermNode, arg: string): boolean {
-    if (!node.parent) return false
-    const siblings = node.parent.children.filter(c => c.nodeType === 'element')
-    const index = siblings.indexOf(node) + 1
-    if (index === 0) return false
+function matchesNth(
+    node: TermNode, arg: string | undefined,
+    opts: { fromEnd: boolean; sameType: boolean },
+): boolean {
+    if (!arg || !node.parent) return false
+    const siblings = node.parent.children.filter(c =>
+        c.nodeType === 'element' && (!opts.sameType || c.tag === node.tag))
+    const position = siblings.indexOf(node)
+    if (position < 0) return false
+    const index = opts.fromEnd ? siblings.length - position : position + 1
     const formula = parseNth(arg)
     if (!formula) return false
     const { a, b } = formula
