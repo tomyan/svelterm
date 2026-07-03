@@ -1,6 +1,8 @@
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
 import { hasBooleanAttribute } from './renderer/node.js'
+import { AnimationClock } from './render/animation-clock.js'
+import { getKeyframes } from './css/animation.js'
 import renderer from './renderer/default.js'
 import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
@@ -141,6 +143,16 @@ export function run<Props extends Record<string, any>>(
     let renderScheduled = false
     let initialRegistrationDone = false
 
+    // CSS animations — reapply the current keyframe and repaint while live
+    const animationClock = new AnimationClock()
+    animationClock.onFrame = () => {
+        if (!lastStyles) return
+        const dirty = animationClock.apply(lastStyles)
+        if (dirty.length === 0) return
+        for (const node of dirty) ctx.queue.enqueuePaintOnly(node)
+        scheduleRender()
+    }
+
     const scheduleRender = () => {
         if (renderScheduled) return
         renderScheduled = true
@@ -187,6 +199,10 @@ export function run<Props extends Record<string, any>>(
                 rootStyle.height = size.height
             }
         }
+        if (lastStyles && lastFilteredStylesheet) {
+            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.apply(lastStyles)
+        }
         lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
         if (lastLayout) {
             syncLayoutCache(root, lastLayout)
@@ -219,6 +235,10 @@ export function run<Props extends Record<string, any>>(
                 (node) => { layoutSubtree.add(node) },
                 detectedScheme,
             )
+            // Newly mounted or restyled nodes may start/stop animations,
+            // and re-resolution resets styles to their base keyframe.
+            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.apply(lastStyles)
         }
 
         // Step 2: Incremental layout
@@ -443,6 +463,7 @@ export function run<Props extends Record<string, any>>(
 
     const doCleanup = () => {
         pollRunning = false
+        animationClock.stop()
         router.stop()
         consoleDomain?.stop()
         debugServer?.stop()
