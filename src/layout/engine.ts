@@ -1,4 +1,4 @@
-import { TermNode, SvtRegionNode } from '../renderer/node.js'
+import { TermNode, SvtRegionNode, childrenWithPseudos } from '../renderer/node.js'
 import { ResolvedStyle, type StyleMap } from '../css/compute.js'
 import { NodeMap } from '../utils/node-map.js'
 
@@ -182,7 +182,7 @@ function layoutElement(
 
     // display: contents — element is invisible to layout, children promoted
     if (style?.display === 'contents') {
-        return layoutBlockFlow(node.children, styles, boxes, x, y, availWidth, availHeight)
+        return layoutBlockFlow(childrenWithPseudos(node), styles, boxes, x, y, availWidth, availHeight)
     }
 
     // Absolute positioning: use top/left offsets relative to parent, don't consume space in flow
@@ -258,7 +258,7 @@ function layoutElement(
 
     if (display === 'flex') {
         content = positionChildren(
-            node.children, styles, boxes,
+            childrenWithPseudos(node), styles, boxes,
             boxX + inset.left, boxY + inset.top, innerW, innerH,
             style?.flexDirection ?? 'column', style?.gap ?? 0,
             style?.justifyContent ?? 'start', style?.alignItems ?? 'start',
@@ -270,7 +270,7 @@ function layoutElement(
         content = layoutGrid(node, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH, style)
     } else {
         // block or inline — use block flow (inline children flow horizontally within)
-        content = layoutBlockFlow(node.children, styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
+        content = layoutBlockFlow(childrenWithPseudos(node), styles, boxes, boxX + inset.left, boxY + inset.top, innerW, innerH)
     }
 
     // Block elements fill parent width; inline/inline-block shrink-wrap to content.
@@ -319,7 +319,7 @@ function layoutAbsolute(
     const innerH = (nodeHeight ?? availHeight) - inset.top - inset.bottom
 
     const content = positionChildren(
-        node.children, styles, boxes,
+        childrenWithPseudos(node), styles, boxes,
         x + inset.left, y + inset.top, innerW, innerH,
         style.flexDirection ?? 'column', style.gap ?? 0,
         style.justifyContent ?? 'start', style.alignItems ?? 'start',
@@ -903,7 +903,7 @@ function layoutGrid(
     node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, y: number, availW: number, availH: number, style: ResolvedStyle,
 ): { width: number; height: number } {
-    const children = node.children.filter(c => c.nodeType === 'element' && styles.get(c.id)?.display !== 'none')
+    const children = childrenWithPseudos(node).filter(c => c.nodeType === 'element' && styles.get(c.id)?.display !== 'none')
     if (children.length === 0) return { width: 0, height: 0 }
 
     const colWidths = parseGridTemplate(style.gridTemplateColumns ?? '', availW)

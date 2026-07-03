@@ -1,4 +1,4 @@
-import { TermNode, SvtRegionNode } from '../renderer/node.js'
+import { TermNode, SvtRegionNode, childrenWithPseudos } from '../renderer/node.js'
 import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
@@ -123,7 +123,7 @@ function paintNode(
         }
     }
 
-    for (const child of node.children) {
+    for (const child of childrenWithPseudos(node)) {
         paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
     }
 

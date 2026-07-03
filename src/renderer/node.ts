@@ -37,6 +37,14 @@ export class TermNode {
 
     parent: TermNode | null = null
     children: TermNode[] = []
+    /**
+     * Synthetic ::before/::after boxes. Renderer-owned: kept out of
+     * `children` so selectors (:empty, :nth-*), focus walks and Svelte's
+     * anchor bookkeeping never see them; layout and paint include them
+     * via childrenWithPseudos().
+     */
+    pseudoBefore: TermNode | null = null
+    pseudoAfter: TermNode | null = null
     attributes: Map<string, string> = new Map()
     listeners: Map<string, Set<(...args: any[]) => void>> = new Map()
     scrollTop: number = 0
@@ -224,6 +232,16 @@ export class TermNode {
             child.cleanup()
         }
     }
+}
+
+/** The children layout and paint should flow: ::before, real children, ::after. */
+export function childrenWithPseudos(node: TermNode): TermNode[] {
+    if (!node.pseudoBefore && !node.pseudoAfter) return node.children
+    const flowed: TermNode[] = []
+    if (node.pseudoBefore) flowed.push(node.pseudoBefore)
+    flowed.push(...node.children)
+    if (node.pseudoAfter) flowed.push(node.pseudoAfter)
+    return flowed
 }
 
 /**

@@ -1,5 +1,6 @@
 import { TermNode } from '../renderer/node.js'
 import { NodeMap } from '../utils/node-map.js'
+import { resolvePseudoElements } from './pseudo-elements.js'
 
 export type StyleMap = NodeMap<ResolvedStyle>
 import { CSSStyleSheet } from './parser.js'
@@ -318,6 +319,7 @@ export function resolveNode(
         styles.set(node.id, resolved)
         node.cache.resolvedStyle = resolved
         node.cache.classAttr = node.attributes.get('class') ?? ''
+        resolvePseudoElements(node, stylesheet, styles, vars, scheme)
     }
     for (const child of node.children) {
         resolveNode(child, stylesheet, styles, variables, scheme)
@@ -431,7 +433,7 @@ function applyInitial(style: ResolvedStyle, property: string, tag?: string): voi
     }
 }
 
-function applyDeclaration(style: ResolvedStyle, property: string, value: string, scheme: 'dark' | 'light' = 'dark'): void {
+export function applyDeclaration(style: ResolvedStyle, property: string, value: string, scheme: 'dark' | 'light' = 'dark'): void {
     // light-dark(a, b) is valid wherever a colour is — expand once at the
     // top so the property-specific branches don't each have to know about it.
     const v = value.includes('light-dark(') ? expandLightDark(value, scheme) : value

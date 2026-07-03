@@ -139,6 +139,19 @@ function attrValueMatches(actual: string, op: AttrOp, operand: string): boolean 
     }
 }
 
+export type PseudoElement = 'before' | 'after'
+
+/**
+ * Split a trailing ::before/::after (or legacy single-colon form) off a
+ * selector. Selectors with a pseudo-element style a synthetic box, never
+ * the host element itself.
+ */
+export function splitPseudoElement(selector: string): { base: string; pseudoElement: PseudoElement | null } {
+    const match = /^(.*?)::?(before|after)$/.exec(selector.trim())
+    if (!match) return { base: selector, pseudoElement: null }
+    return { base: match[1], pseudoElement: match[2] as PseudoElement }
+}
+
 export function matchesSelector(node: TermNode, selector: string): boolean {
     if (node.nodeType !== 'element') return false
 
