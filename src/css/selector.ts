@@ -14,9 +14,12 @@ interface PseudoSelector {
     arg?: string              // argument for functional pseudo-classes like :not(.foo)
 }
 
+type AttrOp = '=' | '^=' | '$=' | '*=' | '~=' | '|='
+
 interface AttrSelector {
     name: string
-    value?: string            // if present, match exact value
+    op?: AttrOp               // set when a value comparison is present
+    value?: string
 }
 
 interface SelectorPart {
@@ -89,12 +92,20 @@ export function parseSelector(selector: string): ParsedSelector {
 
 function parseAttrSelector(selector: string, pos: number): { selector: AttrSelector; end: number } {
     const nameStart = pos
-    while (pos < selector.length && selector[pos] !== '=' && selector[pos] !== ']') pos++
+    while (pos < selector.length && !'^$*~|=]'.includes(selector[pos])) pos++
     const name = selector.substring(nameStart, pos).trim()
 
-    if (pos < selector.length && selector[pos] === '=') {
-        pos++ // skip =
-        let value = ''
+    let op: AttrOp | undefined
+    if ('^$*~|'.includes(selector[pos]) && selector[pos + 1] === '=') {
+        op = (selector[pos] + '=') as AttrOp
+        pos += 2
+    } else if (selector[pos] === '=') {
+        op = '='
+        pos++
+    }
+
+    if (op) {
+        let value: string
         if (pos < selector.length && (selector[pos] === '"' || selector[pos] === "'")) {
             const quote = selector[pos]
             pos++
@@ -102,15 +113,30 @@ function parseAttrSelector(selector: string, pos: number): { selector: AttrSelec
             while (pos < selector.length && selector[pos] !== quote) pos++
             value = selector.substring(valStart, pos)
             pos++ // skip closing quote
+        } else {
+            const valStart = pos
+            while (pos < selector.length && selector[pos] !== ']') pos++
+            value = selector.substring(valStart, pos).trim()
         }
         while (pos < selector.length && selector[pos] !== ']') pos++
         pos++ // skip ]
-        return { selector: { name, value }, end: pos }
+        return { selector: { name, op, value }, end: pos }
     }
 
     while (pos < selector.length && selector[pos] !== ']') pos++
     pos++ // skip ]
     return { selector: { name }, end: pos }
+}
+
+function attrValueMatches(actual: string, op: AttrOp, operand: string): boolean {
+    switch (op) {
+        case '=': return actual === operand
+        case '^=': return operand !== '' && actual.startsWith(operand)
+        case '$=': return operand !== '' && actual.endsWith(operand)
+        case '*=': return operand !== '' && actual.includes(operand)
+        case '~=': return operand !== '' && actual.split(/\s+/).includes(operand)
+        case '|=': return actual === operand || actual.startsWith(operand + '-')
+    }
 }
 
 export function matchesSelector(node: TermNode, selector: string): boolean {
@@ -255,8 +281,9 @@ function matchesParsed(node: TermNode, parsed: ParsedSelector): boolean {
     }
 
     for (const attr of parsed.attributes) {
-        if (!node.attributes.has(attr.name)) return false
-        if (attr.value !== undefined && node.attributes.get(attr.name) !== attr.value) return false
+        const actual = node.attributes.get(attr.name)
+        if (actual === undefined) return false
+        if (attr.op !== undefined && !attrValueMatches(actual, attr.op, attr.value ?? '')) return false
     }
 
     for (const pseudo of parsed.pseudos) {
