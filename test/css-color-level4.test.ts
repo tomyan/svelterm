@@ -19,7 +19,7 @@ describe('modern rgb() syntax', () => {
     })
 
     it('percentage values', () => {
-        assert.equal(resolveColor('rgb(100% 0% 0%)'), 'red')
+        assert.equal(resolveColor('rgb(100% 0% 0%)'), '#ff0000')
     })
 
     it('legacy comma syntax still works', () => {
@@ -31,20 +31,20 @@ describe('modern hsl() syntax', () => {
 
     it('space-separated hsl', () => {
         // hsl(0 100% 50%) = pure red
-        assert.equal(resolveColor('hsl(0 100% 50%)'), 'red')
+        assert.equal(resolveColor('hsl(0 100% 50%)'), '#ff0000')
     })
 
     it('space-separated with / alpha', () => {
-        assert.equal(resolveColor('hsl(0 100% 50% / 0.5)'), 'red')
+        assert.equal(resolveColor('hsl(0 100% 50% / 0.5)'), '#ff0000')
     })
 
     it('legacy comma syntax still works', () => {
-        assert.equal(resolveColor('hsl(0, 100%, 50%)'), 'red')
+        assert.equal(resolveColor('hsl(0, 100%, 50%)'), '#ff0000')
     })
 
     it('hue wraps around 360', () => {
         // hsl(360 100% 50%) = same as hsl(0 100% 50%) = red
-        assert.equal(resolveColor('hsl(360 100% 50%)'), 'red')
+        assert.equal(resolveColor('hsl(360 100% 50%)'), '#ff0000')
     })
 })
 
@@ -59,11 +59,11 @@ describe('hex with alpha', () => {
     })
 
     it('#rrggbb still works', () => {
-        assert.equal(resolveColor('#ff0000'), 'red')
+        assert.equal(resolveColor('#ff0000'), '#ff0000')
     })
 
     it('#rgb shorthand still works', () => {
-        assert.equal(resolveColor('#f00'), 'red')
+        assert.equal(resolveColor('#f00'), '#ff0000')
     })
 })
 
@@ -71,17 +71,17 @@ describe('hwb()', () => {
 
     it('pure red', () => {
         // hwb(0 0% 0%) = pure hue at 0 degrees = red
-        assert.equal(resolveColor('hwb(0 0% 0%)'), 'red')
+        assert.equal(resolveColor('hwb(0 0% 0%)'), '#ff0000')
     })
 
     it('white', () => {
         // hwb(0 100% 0%) = fully white
-        assert.equal(resolveColor('hwb(0 100% 0%)'), 'white')
+        assert.equal(resolveColor('hwb(0 100% 0%)'), '#ffffff')
     })
 
     it('black', () => {
         // hwb(0 0% 100%) = fully black
-        assert.equal(resolveColor('hwb(0 0% 100%)'), 'black')
+        assert.equal(resolveColor('hwb(0 0% 100%)'), '#000000')
     })
 
     it('mid grey when w + b = 100%', () => {
@@ -94,15 +94,15 @@ describe('hwb()', () => {
 describe('oklch()', () => {
 
     it('black', () => {
-        assert.equal(resolveColor('oklch(0 0 0)'), 'black')
+        assert.equal(resolveColor('oklch(0 0 0)'), '#000000')
     })
 
     it('white', () => {
-        assert.equal(resolveColor('oklch(1 0 0)'), 'white')
+        assert.equal(resolveColor('oklch(1 0 0)'), '#ffffff')
     })
 
     it('percentage lightness', () => {
-        assert.equal(resolveColor('oklch(0% 0 0)'), 'black')
+        assert.equal(resolveColor('oklch(0% 0 0)'), '#000000')
     })
 
     it('produces valid hex for a colour', () => {
@@ -124,11 +124,11 @@ describe('oklch()', () => {
 describe('oklab()', () => {
 
     it('black', () => {
-        assert.equal(resolveColor('oklab(0 0 0)'), 'black')
+        assert.equal(resolveColor('oklab(0 0 0)'), '#000000')
     })
 
     it('white', () => {
-        assert.equal(resolveColor('oklab(1 0 0)'), 'white')
+        assert.equal(resolveColor('oklab(1 0 0)'), '#ffffff')
     })
 
     it('produces valid hex', () => {
@@ -140,7 +140,7 @@ describe('oklab()', () => {
 describe('lab()', () => {
 
     it('black', () => {
-        assert.equal(resolveColor('lab(0 0 0)'), 'black')
+        assert.equal(resolveColor('lab(0 0 0)'), '#000000')
     })
 
     it('white', () => {
@@ -158,7 +158,7 @@ describe('lab()', () => {
 describe('lch()', () => {
 
     it('black', () => {
-        assert.equal(resolveColor('lch(0 0 0)'), 'black')
+        assert.equal(resolveColor('lch(0 0 0)'), '#000000')
     })
 
     it('produces valid hex for chromatic colour', () => {
@@ -170,12 +170,12 @@ describe('lch()', () => {
 describe('angle units', () => {
 
     it('deg suffix', () => {
-        assert.equal(resolveColor('hsl(0deg 100% 50%)'), 'red')
+        assert.equal(resolveColor('hsl(0deg 100% 50%)'), '#ff0000')
     })
 
     it('turn unit', () => {
         // 0.5turn = 180 degrees = cyan
-        assert.equal(resolveColor('hsl(0.5turn 100% 50%)'), 'cyan')
+        assert.equal(resolveColor('hsl(0.5turn 100% 50%)'), '#00ffff')
     })
 
     it('rad unit', () => {
@@ -187,7 +187,7 @@ describe('angle units', () => {
 
     it('grad unit', () => {
         // 200grad = 180 degrees = cyan
-        assert.equal(resolveColor('hsl(200grad 100% 50%)'), 'cyan')
+        assert.equal(resolveColor('hsl(200grad 100% 50%)'), '#00ffff')
     })
 })
 

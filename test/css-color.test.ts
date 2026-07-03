@@ -11,17 +11,17 @@ describe('resolveColor', () => {
         it('is case-insensitive for mixed case', () => assert.equal(resolveColor('Cyan'), 'cyan'))
     })
 
-    describe('hex colors matching ANSI exactly', () => {
-        it('resolves #0ff to cyan', () => assert.equal(resolveColor('#0ff'), 'cyan'))
-        it('resolves #00ffff to cyan', () => assert.equal(resolveColor('#00ffff'), 'cyan'))
-        it('resolves #ff0 to yellow', () => assert.equal(resolveColor('#ff0'), 'yellow'))
-        it('resolves #ffff00 to yellow', () => assert.equal(resolveColor('#ffff00'), 'yellow'))
-        it('resolves #f00 to red', () => assert.equal(resolveColor('#f00'), 'red'))
-        it('resolves #00f to blue', () => assert.equal(resolveColor('#00f'), 'blue'))
-        it('resolves #0f0 to green', () => assert.equal(resolveColor('#0f0'), 'green'))
-        it('resolves #f0f to magenta', () => assert.equal(resolveColor('#f0f'), 'magenta'))
-        it('resolves #fff to white', () => assert.equal(resolveColor('#fff'), 'white'))
-        it('resolves #000 to black', () => assert.equal(resolveColor('#000'), 'black'))
+    describe('exact-primary hexes stay truecolor (keywords are themeable, hex is exact)', () => {
+        it('keeps #00ffff as truecolor, not cyan', () => assert.equal(resolveColor('#00ffff'), '#00ffff'))
+        it('expands #0ff to #00ffff, not cyan', () => assert.equal(resolveColor('#0ff'), '#00ffff'))
+        it('keeps #ffff00 as truecolor, not ANSI yellow', () => assert.equal(resolveColor('#ffff00'), '#ffff00'))
+        it('keeps #ff0000 as truecolor, not ANSI red', () => assert.equal(resolveColor('#ff0000'), '#ff0000'))
+        it('expands #f00 to #ff0000, not red', () => assert.equal(resolveColor('#f00'), '#ff0000'))
+        it('keeps #0000ff as truecolor', () => assert.equal(resolveColor('#00f'), '#0000ff'))
+        it('keeps #00ff00 as truecolor', () => assert.equal(resolveColor('#0f0'), '#00ff00'))
+        it('keeps #ff00ff as truecolor', () => assert.equal(resolveColor('#f0f'), '#ff00ff'))
+        it('keeps #ffffff as truecolor', () => assert.equal(resolveColor('#fff'), '#ffffff'))
+        it('keeps #000000 as truecolor', () => assert.equal(resolveColor('#000'), '#000000'))
     })
 
     describe('hex colors not matching ANSI (truecolor passthrough)', () => {
@@ -55,8 +55,8 @@ describe('resolveColor', () => {
             assert.equal(resolveColor('chartreuse'), '#7fff00')
         })
 
-        it('rgb() now resolves correctly', () => {
-            assert.equal(resolveColor('rgb(255, 0, 0)'), 'red')
+        it('rgb() resolves to exact truecolor', () => {
+            assert.equal(resolveColor('rgb(255, 0, 0)'), '#ff0000')
         })
     })
 })

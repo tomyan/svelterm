@@ -63,7 +63,7 @@ describe('truecolor end-to-end', () => {
         assert.equal(buffer.getCell(0, 0)?.fg, '#ff8800')
     })
 
-    it('ANSI-exact hex still uses named color', () => {
+    it('ANSI-exact hex stays truecolor — keywords are themeable, hex is exact', () => {
         const { buffer } = renderAndDiff('.t{color:#0ff}', (root) => {
             const span = new TermNode('element', 'span')
             span.attributes.set('class', 't')
@@ -71,7 +71,8 @@ describe('truecolor end-to-end', () => {
             span.insertBefore(text, null)
             root.insertBefore(span, null)
         })
-        // #0ff = cyan, should resolve to named ANSI for efficiency
-        assert.equal(buffer.getCell(0, 0)?.fg, 'cyan')
+        // #0ff equals ANSI cyan, but an explicit hex must not be remapped to
+        // the terminal palette — the author asked for this exact colour.
+        assert.equal(buffer.getCell(0, 0)?.fg, '#00ffff')
     })
 })

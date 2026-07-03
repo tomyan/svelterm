@@ -4,7 +4,7 @@ import { resolveColor } from '../src/css/color.js'
 
 describe('rgb() color function', () => {
     it('resolves rgb(255, 0, 0) to #ff0000', () => {
-        assert.equal(resolveColor('rgb(255, 0, 0)'), 'red')
+        assert.equal(resolveColor('rgb(255, 0, 0)'), '#ff0000')
     })
 
     it('resolves rgb(0, 128, 255) to hex', () => {
@@ -12,27 +12,27 @@ describe('rgb() color function', () => {
     })
 
     it('resolves rgb with no spaces', () => {
-        assert.equal(resolveColor('rgb(255,255,0)'), 'yellow')
+        assert.equal(resolveColor('rgb(255,255,0)'), '#ffff00')
     })
 })
 
 describe('rgba() color function', () => {
     it('resolves rgba ignoring alpha', () => {
-        assert.equal(resolveColor('rgba(0, 255, 0, 0.5)'), 'green')
+        assert.equal(resolveColor('rgba(0, 255, 0, 0.5)'), '#00ff00')
     })
 })
 
 describe('hsl() color function', () => {
-    it('resolves hsl(0, 100%, 50%) to red', () => {
-        assert.equal(resolveColor('hsl(0, 100%, 50%)'), 'red')
+    it('resolves hsl(0, 100%, 50%) to #ff0000', () => {
+        assert.equal(resolveColor('hsl(0, 100%, 50%)'), '#ff0000')
     })
 
-    it('resolves hsl(120, 100%, 50%) to green', () => {
-        assert.equal(resolveColor('hsl(120, 100%, 50%)'), 'green')
+    it('resolves hsl(120, 100%, 50%) to #00ff00', () => {
+        assert.equal(resolveColor('hsl(120, 100%, 50%)'), '#00ff00')
     })
 
-    it('resolves hsl(240, 100%, 50%) to blue', () => {
-        assert.equal(resolveColor('hsl(240, 100%, 50%)'), 'blue')
+    it('resolves hsl(240, 100%, 50%) to #0000ff', () => {
+        assert.equal(resolveColor('hsl(240, 100%, 50%)'), '#0000ff')
     })
 })
 
