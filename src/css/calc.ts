@@ -1,3 +1,5 @@
+import { parseCellLength } from './values.js'
+
 /**
  * Evaluate CSS math functions: calc(), min(), max(), clamp().
  * Returns the computed cell value, or null if the input is not a math function.
@@ -105,9 +107,8 @@ function resolveValue(value: string, available: number): number {
     if (trimmed.endsWith('%')) {
         return available * parseFloat(trimmed) / 100
     }
-    if (trimmed.endsWith('cell')) {
-        return parseFloat(trimmed)
-    }
+    const cellLength = parseCellLength(trimmed)
+    if (cellLength !== null) return cellLength
     // Bare number (for multipliers like * 2)
     const num = parseFloat(trimmed)
     return isNaN(num) ? 0 : num

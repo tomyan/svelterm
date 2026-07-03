@@ -1,18 +1,27 @@
 import type { ResolvedStyle } from './compute.js'
 
+/** A number with the cell unit or its browser-CSS alias ch (one character width). */
+const CELL_LENGTH = /^([+-]?(?:\d+\.?\d*|\.\d+))(cell|ch)$/
+
+/**
+ * Parse a length in cells, returning the unrounded number, or null when the
+ * value is not a cell/ch length (keywords like `stretch` end in "ch" too).
+ */
+export function parseCellLength(value: string): number | null {
+    const match = CELL_LENGTH.exec(value.trim())
+    return match ? parseFloat(match[1]) : null
+}
+
 /**
  * Parse a cell value from CSS. Accepts:
- * - `5cell` → 5
+ * - `5cell` / `5ch` → 5
  * - `0` → 0 (unitless zero is valid CSS)
  * - Returns 0 for unrecognised values (browser-only units like px, em, rem)
  */
 export function parseCellValue(value: string): number {
     if (value === '0') return 0
-    if (value.endsWith('cell')) {
-        const num = parseFloat(value)
-        return isNaN(num) ? 0 : Math.round(num)
-    }
-    return 0
+    const length = parseCellLength(value)
+    return length === null ? 0 : Math.round(length)
 }
 
 export function parseSizeValue(value: string): number | string | null {

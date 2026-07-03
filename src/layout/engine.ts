@@ -6,6 +6,7 @@ export type LayoutMap = NodeMap<LayoutBox>
 import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
 import { resolveSize, constrain } from './size.js'
+import { parseCellLength } from '../css/values.js'
 
 /**
  * Check if two adjacent siblings both have borders on their shared edge.
@@ -1057,8 +1058,9 @@ function resolveTrackSizes(parts: string[], availSize: number): number[] {
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i]
-        if (part.endsWith('cell')) {
-            const w = Math.round(parseFloat(part))
+        const cellLength = parseCellLength(part)
+        if (cellLength !== null) {
+            const w = Math.round(cellLength)
             sizes.push(w)
             fixedTotal += w
         } else if (part.endsWith('%')) {
