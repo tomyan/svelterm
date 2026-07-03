@@ -300,6 +300,15 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
         case 'hover': return node.attributes.get('data-hovered') === 'true'
         case 'first-child': return isFirstChild(node)
         case 'last-child': return isLastChild(node)
+        case 'only-child': return isFirstChild(node) && isLastChild(node)
+        case 'empty': return hasNoRenderedChildren(node)
+        case 'first-of-type':
+            return matchesNth(node, '1', { fromEnd: false, sameType: true })
+        case 'last-of-type':
+            return matchesNth(node, '1', { fromEnd: true, sameType: true })
+        case 'only-of-type':
+            return matchesNth(node, '1', { fromEnd: false, sameType: true })
+                && matchesNth(node, '1', { fromEnd: true, sameType: true })
         case 'not':
             if (!arg) return false
             return !matchesParsed(node, parseSelector(arg))
@@ -355,6 +364,12 @@ function parseNth(arg: string): { a: number; b: number } | null {
 /** Match a comma-separated list of compound selectors (the argument of :where()/:is()). */
 function matchesSelectorList(node: TermNode, list: string): boolean {
     return list.split(',').some(item => matchesParsed(node, parseSelector(item.trim())))
+}
+
+/** :empty — comments and zero-length text nodes are ignored, as in browsers. */
+function hasNoRenderedChildren(node: TermNode): boolean {
+    return node.children.every(child =>
+        child.nodeType === 'comment' || (child.nodeType === 'text' && !child.text))
 }
 
 function isFirstChild(node: TermNode): boolean {
