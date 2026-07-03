@@ -69,6 +69,28 @@ describe('cross-axis sizing', () => {
         assert.ok(boxes.get(item!.id)!.width <= 20)
     })
 
+    it('stretch does not override an explicit cross-axis width (§8.3)', () => {
+        let item: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexCol({ alignItems: 'stretch' }) as any)
+            item = addChild(root, styles, { width: 18 })
+            addText(item, 'X')
+        }, 91)
+
+        assert.equal(boxes.get(item!.id)!.width, 18)
+    })
+
+    it('stretch does not override an explicit cross-axis height in a row (§8.3)', () => {
+        let item: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ height: 10, alignItems: 'stretch' }) as any)
+            item = addChild(root, styles, { height: 3 })
+            addText(item, 'X')
+        }, 40)
+
+        assert.equal(boxes.get(item!.id)!.height, 3)
+    })
+
     it('align-items:center positions on cross axis midpoint', () => {
         let item: TermNode
         const boxes = makeTree((root, styles) => {

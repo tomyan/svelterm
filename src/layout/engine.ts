@@ -1374,7 +1374,12 @@ function positionChildren(
         const selfAlign: ResolvedStyle['alignItems'] = childStyle?.alignSelf !== 'auto'
             ? (childStyle?.alignSelf as ResolvedStyle['alignItems']) ?? align
             : align
-        const isStretch = selfAlign === 'stretch'
+        // Stretch only applies to items whose cross-axis size is auto (§8.3);
+        // an explicit width/height wins and the item aligns to the line start.
+        const crossSizeIsAuto = baseDir === 'row'
+            ? childStyle?.height == null
+            : childStyle?.width == null
+        const isStretch = selfAlign === 'stretch' && crossSizeIsAuto
         const crossOffset = isStretch ? 0 : computeCrossOffset(selfAlign, crossAvail, crossSize)
 
         const finalCx = baseDir === 'row' ? innerX + mainPos : innerX + crossOffset

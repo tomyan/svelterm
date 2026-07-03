@@ -318,12 +318,13 @@ describe('flex-wrap line handling', () => {
     })
 
     it('stretch in wrap applies to line height, not container height', () => {
-        // Given: wrapping row with a tall item on line 1, short items on line 2
-        // Per spec §9.4: items stretch to their LINE's cross size, not the container
+        // Given: wrapping row with a tall item on line 1, short items on line 2.
+        // Per spec §9.4: items stretch to their LINE's cross size, not the
+        // container. short1 has auto height (only auto-sized items stretch, §8.3).
         let short1: TermNode, tall: TermNode, short2: TermNode
         const boxes = makeTree((root, styles) => {
             styles.set(root.id, flexRow({ flexWrap: 'wrap', maxWidth: 30, gap: 1, alignItems: 'stretch' }) as any)
-            short1 = addChild(root, styles, { width: 10, height: 1 })
+            short1 = addChild(root, styles, { width: 10 })
             addText(short1, 'S')
             tall = addChild(root, styles, { width: 10, height: 5 })
             addText(tall, 'T')
