@@ -3,8 +3,8 @@ import { AnimationRunner } from '../css/animation-runner.js'
 import type { KeyframeStop } from '../css/parser.js'
 import type { ResolvedStyle } from '../css/compute.js'
 
-/** Repaint cadence while animations run — keyframes are discrete, so 10fps is ample. */
-const FRAME_INTERVAL_MS = 100
+/** Repaint cadence while animations run — colours interpolate, so ~30fps. */
+const FRAME_INTERVAL_MS = 33
 
 interface ActiveAnimation {
     node: TermNode
