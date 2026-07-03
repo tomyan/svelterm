@@ -926,7 +926,7 @@ function layoutGrid(
     }
 
     // Pass 1: assign each child to a row/col and compute content-based row heights
-    interface GridPlacement { child: TermNode; col: number; span: number; row: number }
+    interface GridPlacement { child: TermNode; col: number; span: number; row: number; rowSpan: number }
     const placements: GridPlacement[] = []
     const computedRowHeights: number[] = []
     let col = 0
@@ -945,32 +945,37 @@ function layoutGrid(
         if (colStart > col) col = colStart
         if (col + actualSpan > numCols) { col = 0; rowIdx++ }
 
-        const colW = columnSpanWidth(colWidths, col, actualSpan, hGap)
+        const row = childStyle?.gridRowStart != null ? childStyle.gridRowStart - 1 : rowIdx
+        const rowSpan = childStyle?.gridRowEnd != null
+            ? Math.max(1, childStyle.gridRowEnd - 1 - row)
+            : (childStyle?.gridRowSpan ?? 1)
+
+        const colW = trackSpanSize(colWidths, col, actualSpan, hGap)
         // Measure content height with unconstrained available height
         const size = layoutNode(child, styles, boxes, 0, 0, colW, availH)
 
-        placements.push({ child, col, span: actualSpan, row: rowIdx })
-        if (!computedRowHeights[rowIdx]) computedRowHeights[rowIdx] = 0
-        computedRowHeights[rowIdx] = Math.max(computedRowHeights[rowIdx], size.height)
+        placements.push({ child, col, span: actualSpan, row, rowSpan })
+        // Spanning content doesn't stretch individual tracks (matches columns)
+        if (rowSpan === 1) {
+            computedRowHeights[row] = Math.max(computedRowHeights[row] ?? 0, size.height)
+        }
         col += actualSpan
     }
 
-    // Pass 2: layout each child at its final position with the correct row height
-    let rowY = y
+    // Resolve final row track heights: template first, content otherwise
+    const totalRows = placements.reduce((max, p) => Math.max(max, p.row + p.rowSpan), 0)
+    const trackHeights: number[] = []
+    for (let r = 0; r < totalRows; r++) {
+        trackHeights[r] = rowHeights[r] ?? computedRowHeights[r] ?? 0
+    }
+
+    // Pass 2: layout each child at its final position
     let maxWidth = 0
-    let prevRow = 0
-
-    for (const { child, col, span, row } of placements) {
-        // Advance rowY for new rows
-        while (prevRow < row) {
-            const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
-            rowY += rh + vGap
-            prevRow++
-        }
-
-        const colX = x + columnOffset(colWidths, col, hGap)
-        const colW = columnSpanWidth(colWidths, col, span, hGap)
-        const rh = rowHeights[row] ?? computedRowHeights[row] ?? 0
+    for (const { child, col, span, row, rowSpan } of placements) {
+        const colX = x + trackOffset(colWidths, col, hGap)
+        const colW = trackSpanSize(colWidths, col, span, hGap)
+        const rowY = y + trackOffset(trackHeights, row, vGap)
+        const rh = trackSpanSize(trackHeights, row, rowSpan, vGap)
 
         layoutNode(child, styles, boxes, colX, rowY, colW, rh)
 
@@ -983,18 +988,8 @@ function layoutGrid(
         maxWidth = Math.max(maxWidth, colX - x + colW)
     }
 
-    // Advance past the last row
-    while (prevRow <= rowIdx) {
-        if (prevRow === rowIdx) {
-            const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
-            return { width: maxWidth, height: (rowY - y) + rh }
-        }
-        const rh = rowHeights[prevRow] ?? computedRowHeights[prevRow] ?? 0
-        rowY += rh + vGap
-        prevRow++
-    }
-
-    return { width: maxWidth, height: rowY - y }
+    const totalHeight = totalRows === 0 ? 0 : trackOffset(trackHeights, totalRows, vGap) - vGap
+    return { width: maxWidth, height: totalHeight }
 }
 
 /** Resolve the start column for a grid item (0-indexed) */
@@ -1011,23 +1006,23 @@ function resolveGridColumnEnd(style: ResolvedStyle | undefined, start: number, s
     return start + span
 }
 
-/** Calculate pixel offset to the start of a column */
-function columnOffset(colWidths: number[], col: number, gap: number): number {
+/** Offset to the start of a grid track (works for either axis) */
+function trackOffset(trackSizes: number[], track: number, gap: number): number {
     let offset = 0
-    for (let i = 0; i < col; i++) {
-        offset += colWidths[i] + gap
+    for (let i = 0; i < track; i++) {
+        offset += (trackSizes[i] ?? 0) + gap
     }
     return offset
 }
 
-/** Calculate total width spanning multiple columns including gaps between them */
-function columnSpanWidth(colWidths: number[], startCol: number, span: number, gap: number): number {
-    let width = 0
-    for (let i = startCol; i < startCol + span && i < colWidths.length; i++) {
-        if (i > startCol) width += gap
-        width += colWidths[i]
+/** Total size spanning multiple grid tracks including gaps between them */
+function trackSpanSize(trackSizes: number[], startTrack: number, span: number, gap: number): number {
+    let size = 0
+    for (let i = startTrack; i < startTrack + span && i < trackSizes.length; i++) {
+        if (i > startTrack) size += gap
+        size += trackSizes[i]
     }
-    return width
+    return size
 }
 
 function parseGridTemplate(template: string, availSize: number): number[] {
@@ -1035,8 +1030,25 @@ function parseGridTemplate(template: string, availSize: number): number[] {
 
     // Expand repeat() before splitting
     const expanded = expandRepeat(template)
-    const parts = expanded.trim().split(/\s+/)
-    return resolveTrackSizes(parts, availSize)
+    return resolveTrackSizes(splitTracks(expanded), availSize)
+}
+
+/** Split a track list on whitespace, keeping function arguments (minmax(a, b)) together */
+function splitTracks(input: string): string[] {
+    const tracks: string[] = []
+    let current = ''
+    let depth = 0
+    for (const ch of input.trim()) {
+        if (ch === '(') depth++
+        if (ch === ')') depth--
+        if (/\s/.test(ch) && depth === 0) {
+            if (current) { tracks.push(current); current = '' }
+        } else {
+            current += ch
+        }
+    }
+    if (current) tracks.push(current)
+    return tracks
 }
 
 /** Expand repeat(N, tracks...) into flat track list */
@@ -1053,39 +1065,55 @@ function expandRepeat(template: string): string {
 
 function resolveTrackSizes(parts: string[], availSize: number): number[] {
     const sizes: number[] = []
-    const frParts: { index: number; fr: number }[] = []
+    const frParts: { index: number; fr: number; min: number }[] = []
     let fixedTotal = 0
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i]
-        const cellLength = parseCellLength(part)
-        if (cellLength !== null) {
-            const w = Math.round(cellLength)
-            sizes.push(w)
-            fixedTotal += w
-        } else if (part.endsWith('%')) {
-            const w = Math.floor(availSize * parseFloat(part) / 100)
-            sizes.push(w)
-            fixedTotal += w
+        const minmax = /^minmax\(([^,]+),(.+)\)$/.exec(part)
+        if (minmax) {
+            const min = resolveTrackLength(minmax[1].trim(), availSize) ?? 0
+            const maxRaw = minmax[2].trim()
+            if (maxRaw.endsWith('fr')) {
+                sizes.push(0) // placeholder
+                frParts.push({ index: i, fr: parseFloat(maxRaw), min })
+            } else {
+                const w = Math.max(min, resolveTrackLength(maxRaw, availSize) ?? 0)
+                sizes.push(w)
+                fixedTotal += w
+            }
+            continue
+        }
+        const fixed = resolveTrackLength(part, availSize)
+        if (fixed !== null) {
+            sizes.push(fixed)
+            fixedTotal += fixed
         } else if (part.endsWith('fr')) {
-            const fr = parseFloat(part)
             sizes.push(0) // placeholder
-            frParts.push({ index: i, fr })
+            frParts.push({ index: i, fr: parseFloat(part), min: 0 })
         } else {
             sizes.push(0)
         }
     }
 
-    // Distribute remaining space to fr units
+    // Distribute remaining space to fr units, honouring minmax() minimums
     if (frParts.length > 0) {
         const totalFr = frParts.reduce((sum, p) => sum + p.fr, 0)
         const remaining = Math.max(0, availSize - fixedTotal)
-        for (const { index, fr } of frParts) {
-            sizes[index] = Math.floor(remaining * fr / totalFr)
+        for (const { index, fr, min } of frParts) {
+            sizes[index] = Math.max(min, Math.floor(remaining * fr / totalFr))
         }
     }
 
     return sizes
+}
+
+/** A fixed track length in cells (cell/ch or %), or null for fr/auto/keywords */
+function resolveTrackLength(part: string, availSize: number): number | null {
+    const cellLength = parseCellLength(part)
+    if (cellLength !== null) return Math.round(cellLength)
+    if (part.endsWith('%')) return Math.floor(availSize * parseFloat(part) / 100)
+    return null
 }
 
 function positionChildren(

@@ -63,6 +63,9 @@ export interface ResolvedStyle {
     gridColumnStart: number | null
     gridColumnEnd: number | null
     gridColumnSpan: number | null
+    gridRowStart: number | null
+    gridRowEnd: number | null
+    gridRowSpan: number | null
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
@@ -134,6 +137,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         flexGrow: 0, flexShrink: 1, flexBasis: 'auto', flexWrap: 'nowrap', order: 0,
         gridTemplateColumns: null, gridTemplateRows: null,
         gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
+        gridRowStart: null, gridRowEnd: null, gridRowSpan: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
@@ -542,7 +546,20 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
         case 'order': style.order = parseInt(value) || 0; break
         case 'grid-template-columns': style.gridTemplateColumns = value; break
         case 'grid-template-rows': style.gridTemplateRows = value; break
-        case 'grid-column': parseGridColumn(style, value); break
+        case 'grid-column': {
+            const line = parseGridLine(value)
+            style.gridColumnStart = line.start
+            style.gridColumnEnd = line.end
+            if (line.span !== null) style.gridColumnSpan = line.span
+            break
+        }
+        case 'grid-row': {
+            const line = parseGridLine(value)
+            style.gridRowStart = line.start
+            style.gridRowEnd = line.end
+            if (line.span !== null) style.gridRowSpan = line.span
+            break
+        }
         case 'animation': parseAnimationShorthand(style, value); break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
@@ -652,19 +669,17 @@ function parseSizeOrCell(value: string): number | string {
     return parseCellValue(value)
 }
 
-/** Parse grid-column: span N | start / end | start */
-function parseGridColumn(style: ResolvedStyle, value: string): void {
+/** Parse a grid line value (grid-column/grid-row): span N | start / end | start */
+function parseGridLine(value: string): { start: number | null; end: number | null; span: number | null } {
     const trimmed = value.trim()
     if (trimmed.startsWith('span')) {
-        style.gridColumnSpan = parseInt(trimmed.replace('span', '').trim()) || 1
-        return
+        return { start: null, end: null, span: parseInt(trimmed.replace('span', '').trim()) || 1 }
     }
     const parts = trimmed.split('/').map(s => s.trim())
-    if (parts.length === 2) {
-        style.gridColumnStart = parseIntOrNull(parts[0])
-        style.gridColumnEnd = parseIntOrNull(parts[1])
-    } else {
-        style.gridColumnStart = parseIntOrNull(parts[0])
+    return {
+        start: parseIntOrNull(parts[0]),
+        end: parts.length === 2 ? parseIntOrNull(parts[1]) : null,
+        span: null,
     }
 }
 
