@@ -61,7 +61,7 @@ describe('AnimationClock', () => {
 
         // Then
         assert.equal(styles.get(el.id)?.fg, 'red')
-        assert.deepEqual(dirty.map(node => node.id), [el.id])
+        assert.deepEqual(dirty.map(entry => entry.node.id), [el.id])
     })
 
     it('advances to the next keyframe as time passes', () => {
@@ -112,6 +112,34 @@ describe('AnimationClock', () => {
 
         // Then
         assert.equal(clock.activeCount, 0)
+    })
+
+    it('reports which animated nodes need layout, not just paint', () => {
+        // Given
+        const css = `
+        @keyframes grow { 0% { width: 2cell; } 100% { width: 10cell; } }
+        .pulse { animation: pulse 1s infinite; }
+        .grow { animation: grow 1s infinite; }
+        @keyframes pulse { 0% { color: red; } 50% { color: blue; } }
+        `
+        const root = new TermNode('element', 'root')
+        const pulsing = new TermNode('element', 'div')
+        pulsing.attributes.set('class', 'pulse')
+        const growing = new TermNode('element', 'div')
+        growing.attributes.set('class', 'grow')
+        root.insertBefore(pulsing, null)
+        root.insertBefore(growing, null)
+        const sheet = parseCSS(css)
+        const styles = resolveStyles(root, sheet)
+        const clock = new AnimationClock(() => 0)
+
+        // When
+        clock.sync(root, styles, getKeyframes(sheet))
+        clock.stop()
+
+        // Then
+        assert.equal(clock.touchesLayout(pulsing), false)
+        assert.equal(clock.touchesLayout(growing), true)
     })
 
     it('drops elements that no longer animate after a re-sync', () => {

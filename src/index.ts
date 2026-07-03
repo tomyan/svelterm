@@ -149,7 +149,10 @@ export function run<Props extends Record<string, any>>(
         if (!lastStyles) return
         const dirty = animationClock.apply(lastStyles)
         if (dirty.length === 0) return
-        for (const node of dirty) ctx.queue.enqueuePaintOnly(node)
+        for (const { node, touchesLayout } of dirty) {
+            if (touchesLayout) ctx.queue.enqueueLayoutBubble(node)
+            else ctx.queue.enqueuePaintOnly(node)
+        }
         scheduleRender()
     }
 

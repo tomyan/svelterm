@@ -1,7 +1,15 @@
 import type { KeyframeStop, CSSDeclaration } from './parser.js'
-import type { ResolvedStyle } from './compute.js'
+import { applyDeclaration, type ResolvedStyle } from './compute.js'
 import { resolveColor } from './color.js'
-import { lerpColor } from './interpolate.js'
+import { lerpColor, lerpNumber } from './interpolate.js'
+import { parseCellLength } from './values.js'
+
+/** Properties whose animation only needs repaint; anything else re-layouts. */
+const PAINT_ONLY_PROPERTIES = new Set([
+    'color', 'background', 'background-color',
+    'font-weight', 'font-style', 'text-decoration',
+    'opacity', 'visibility',
+])
 
 /**
  * Runs a CSS animation by applying keyframe properties at the current
@@ -13,11 +21,15 @@ export class AnimationRunner {
     private keyframes: KeyframeStop[]
     private duration: number
     private iterations: number
+    /** True when any keyframe animates a property that affects layout. */
+    readonly touchesLayout: boolean
 
     constructor(keyframes: KeyframeStop[], durationMs: number, iterations: number) {
         this.keyframes = keyframes.sort((a, b) => a.offset - b.offset)
         this.duration = durationMs
         this.iterations = iterations
+        this.touchesLayout = this.keyframes.some(stop =>
+            stop.declarations.some(decl => !PAINT_ONLY_PROPERTIES.has(decl.property)))
     }
 
     /** Apply the animation's state at the given elapsed time to a style */
@@ -73,13 +85,7 @@ export class AnimationRunner {
 }
 
 function applyAnimatedProperty(style: ResolvedStyle, decl: CSSDeclaration): void {
-    switch (decl.property) {
-        case 'color': style.fg = resolveColor(decl.value); break
-        case 'background-color': case 'background': style.bg = resolveColor(decl.value); break
-        case 'font-weight': style.bold = decl.value === 'bold' || parseInt(decl.value) >= 700; break
-        case 'font-style': style.italic = decl.value === 'italic'; break
-        case 'opacity': style.dim = decl.value === 'dim' || (parseFloat(decl.value) < 1); break
-    }
+    applyDeclaration(style, decl.property, decl.value)
 }
 
 function applyInterpolatedProperty(
@@ -96,7 +102,16 @@ function applyInterpolatedProperty(
             if (mixed !== null) { style.bg = mixed; return }
             break
         }
+        default: {
+            // Single cell/ch lengths interpolate; everything else is discrete
+            const a = parseCellLength(from.value)
+            const b = parseCellLength(to.value)
+            if (a !== null && b !== null) {
+                applyDeclaration(style, to.property, `${lerpNumber(a, b, t)}cell`)
+                return
+            }
+        }
     }
-    // Non-interpolable (booleans, default colours): discrete at the midpoint
+    // Non-interpolable (booleans, keywords, default colours): discrete at the midpoint
     applyAnimatedProperty(style, t >= 0.5 ? to : from)
 }

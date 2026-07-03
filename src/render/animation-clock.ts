@@ -31,6 +31,11 @@ export class AnimationClock {
         return this.active.size
     }
 
+    /** Whether this node's animation needs re-layout each frame (vs repaint only). */
+    touchesLayout(node: TermNode): boolean {
+        return this.active.get(node.id)?.runner.touchesLayout ?? false
+    }
+
     /** Reconcile active animations with the tree's current resolved styles. */
     sync(root: TermNode, styles: Map<number, ResolvedStyle>, keyframes: Map<string, KeyframeStop[]>): void {
         const seen = new Set<number>()
@@ -42,18 +47,19 @@ export class AnimationClock {
     }
 
     /**
-     * Apply the current keyframe of each animation onto the styles map.
-     * Returns the nodes touched; finished animations hold their final
-     * keyframe and are pruned.
+     * Apply the current animation state of each animation onto the styles
+     * map. Returns the nodes touched, each flagged with whether it needs
+     * re-layout; finished animations hold their final keyframe and are
+     * pruned.
      */
-    apply(styles: Map<number, ResolvedStyle>): TermNode[] {
-        const dirty: TermNode[] = []
+    apply(styles: Map<number, ResolvedStyle>): { node: TermNode; touchesLayout: boolean }[] {
+        const dirty: { node: TermNode; touchesLayout: boolean }[] = []
         for (const [id, anim] of this.active) {
             const style = styles.get(id)
             if (!style) continue
             const elapsed = this.now() - anim.start
             anim.runner.apply(style, elapsed)
-            dirty.push(anim.node)
+            dirty.push({ node: anim.node, touchesLayout: anim.runner.touchesLayout })
             if (anim.runner.isFinished(elapsed)) this.active.delete(id)
         }
         this.updateTimer()

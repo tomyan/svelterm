@@ -92,6 +92,52 @@ describe('AnimationRunner', () => {
         assert.equal(style.bold, true)
     })
 
+    it('interpolates cell lengths between keyframes', () => {
+        const stops: KeyframeStop[] = [
+            { offset: 0, declarations: [{ property: 'width', value: '0cell' }] },
+            { offset: 1, declarations: [{ property: 'width', value: '10cell' }] },
+        ]
+        const runner = new AnimationRunner(stops, 1000, 1)
+        const style = defaultStyle('div')
+        runner.apply(style, 500)
+        assert.equal(style.width, 5)
+    })
+
+    it('interpolates padding declared in ch units', () => {
+        const stops: KeyframeStop[] = [
+            { offset: 0, declarations: [{ property: 'padding-left', value: '0ch' }] },
+            { offset: 1, declarations: [{ property: 'padding-left', value: '4ch' }] },
+        ]
+        const runner = new AnimationRunner(stops, 1000, 1)
+        const style = defaultStyle('div')
+        runner.apply(style, 750)
+        assert.equal(style.paddingLeft, 3)
+    })
+
+    it('switches non-numeric properties like display at the midpoint', () => {
+        const stops: KeyframeStop[] = [
+            { offset: 0, declarations: [{ property: 'display', value: 'block' }] },
+            { offset: 1, declarations: [{ property: 'display', value: 'none' }] },
+        ]
+        const runner = new AnimationRunner(stops, 1000, 1)
+        const style = defaultStyle('div')
+        runner.apply(style, 400)
+        assert.equal(style.display, 'block')
+        runner.apply(style, 600)
+        assert.equal(style.display, 'none')
+    })
+
+    it('reports whether it touches layout', () => {
+        const colorOnly = new AnimationRunner(keyframes, 1000, 1)
+        assert.equal(colorOnly.touchesLayout, false)
+
+        const sizing = new AnimationRunner([
+            { offset: 0, declarations: [{ property: 'width', value: '0cell' }] },
+            { offset: 1, declarations: [{ property: 'width', value: '10cell' }] },
+        ], 1000, 1)
+        assert.equal(sizing.touchesLayout, true)
+    })
+
     it('infinite iteration loops', () => {
         const runner = new AnimationRunner(keyframes, 1000, Infinity)
         const style = defaultStyle('div')
