@@ -227,6 +227,16 @@ export class TermNode {
 }
 
 /**
+ * HTML boolean attribute semantics, with one renderer-specific twist:
+ * Svelte passes attribute values through `String(value)`, so a literal
+ * "false" means the author set `disabled={false}` and expects it off.
+ */
+export function hasBooleanAttribute(node: TermNode, name: string): boolean {
+    const value = node.attributes.get(name)
+    return value !== undefined && value !== 'false'
+}
+
+/**
  * A layout-participating region whose contents are filled by an external
  * source. The consumer (typically `EmbeddedTerminal`) registers a
  * cell-source function via `setCellSource`, and the paint phase calls

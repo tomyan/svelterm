@@ -1,4 +1,4 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, hasBooleanAttribute } from '../renderer/node.js'
 
 export class FocusManager {
     private elements: TermNode[] = []
@@ -38,19 +38,16 @@ export class FocusManager {
     }
 
     focusNext(): void {
-        if (this.elements.length === 0) return
-        this.setFocusIndex((this.focusIndex + 1) % this.elements.length)
+        this.focusFirstEnabledFrom(this.focusIndex, +1)
     }
 
     focusPrevious(): void {
-        if (this.elements.length === 0) return
-        const next = this.focusIndex <= 0
-            ? this.elements.length - 1
-            : this.focusIndex - 1
-        this.setFocusIndex(next)
+        const start = this.focusIndex === -1 ? this.elements.length : this.focusIndex
+        this.focusFirstEnabledFrom(start, -1)
     }
 
     focusByNode(node: TermNode): void {
+        if (hasBooleanAttribute(node, 'disabled')) return
         const idx = this.elements.indexOf(node)
         if (idx !== -1) this.setFocusIndex(idx)
     }
@@ -58,6 +55,18 @@ export class FocusManager {
     clearFocus(): void {
         if (this.focused) this.clearFocusAttribute(this.focused)
         this.focusIndex = -1
+    }
+
+    /** Step through the ring from `start` until an enabled element is found. */
+    private focusFirstEnabledFrom(start: number, step: 1 | -1): void {
+        const count = this.elements.length
+        for (let offset = 1; offset <= count; offset++) {
+            const index = ((start + step * offset) % count + count) % count
+            if (!hasBooleanAttribute(this.elements[index], 'disabled')) {
+                this.setFocusIndex(index)
+                return
+            }
+        }
     }
 
     private setFocusIndex(index: number): void {

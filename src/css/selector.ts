@@ -1,4 +1,4 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, hasBooleanAttribute } from '../renderer/node.js'
 
 export interface ParsedSelector {
     tag?: string
@@ -309,6 +309,11 @@ function matchesPseudo(node: TermNode, pseudo: string, arg?: string): boolean {
         case 'only-of-type':
             return matchesNth(node, '1', { fromEnd: false, sameType: true })
                 && matchesNth(node, '1', { fromEnd: true, sameType: true })
+        case 'checked': return hasBooleanAttribute(node, 'checked')
+        case 'disabled':
+            return isFormControl(node) && hasBooleanAttribute(node, 'disabled')
+        case 'enabled':
+            return isFormControl(node) && !hasBooleanAttribute(node, 'disabled')
         case 'not':
             if (!arg) return false
             return !matchesParsed(node, parseSelector(arg))
@@ -364,6 +369,15 @@ function parseNth(arg: string): { a: number; b: number } | null {
 /** Match a comma-separated list of compound selectors (the argument of :where()/:is()). */
 function matchesSelectorList(node: TermNode, list: string): boolean {
     return list.split(',').some(item => matchesParsed(node, parseSelector(item.trim())))
+}
+
+/** Tags that participate in :enabled/:disabled matching, as in browsers. */
+const FORM_CONTROL_TAGS = new Set([
+    'input', 'button', 'select', 'textarea', 'option', 'optgroup', 'fieldset',
+])
+
+function isFormControl(node: TermNode): boolean {
+    return FORM_CONTROL_TAGS.has(node.tag ?? '')
 }
 
 /** :empty — comments and zero-length text nodes are ignored, as in browsers. */

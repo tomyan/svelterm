@@ -1,5 +1,6 @@
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
+import { hasBooleanAttribute } from './renderer/node.js'
 import renderer from './renderer/default.js'
 import { CellBuffer } from './render/buffer.js'
 import { diffBuffers } from './render/diff.js'
@@ -309,6 +310,7 @@ export function run<Props extends Record<string, any>>(
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
         if (key.key === 'Enter' && focusManager.focused) {
             const target = focusManager.focused
+            if (hasBooleanAttribute(target, 'disabled')) return
             const event = dispatchEvent(target, 'click')
             // Default action: open links in browser (unless preventDefault was called)
             if (!event.defaultPrevented && target.tag === 'a') {
@@ -512,7 +514,8 @@ function handleMouse(
     if (mouse.button === 'left') {
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {
-            // Focus clicked element if it's focusable
+            // Disabled interactive elements swallow the click, as in browsers
+            if (FOCUSABLE_TAGS.has(target.tag ?? '') && hasBooleanAttribute(target, 'disabled')) return
             if (FOCUSABLE_TAGS.has(target.tag ?? '')) {
                 focusManager.focusByNode(target)
             }
