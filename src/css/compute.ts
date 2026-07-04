@@ -69,6 +69,8 @@ export interface ResolvedStyle {
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
+    transitionProperty: string | null
+    transitionDuration: number
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy' | 'ascii'
         | 'eighth-cell-inner' | 'eighth-cell-outer'
         | 'half-cell-inner' | 'half-cell-outer'
@@ -139,6 +141,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
         gridRowStart: null, gridRowEnd: null, gridRowSpan: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
+        transitionProperty: null, transitionDuration: 0,
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         boxSizing: 'border-box',
@@ -561,6 +564,11 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             break
         }
         case 'animation': parseAnimationShorthand(style, value); break
+        case 'transition': parseTransitionShorthand(style, value); break
+        case 'transition-property':
+            style.transitionProperty = value === 'none' ? null : value
+            break
+        case 'transition-duration': style.transitionDuration = parseDuration(value); break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
         case 'animation-iteration-count':
@@ -705,6 +713,33 @@ function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
             style.animationName = part
         }
     }
+}
+
+const TRANSITION_TIMING_KEYWORDS = new Set([
+    'ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'step-start', 'step-end',
+])
+
+/** Parse `transition: <property> <duration> [...]`, comma-separated groups. */
+function parseTransitionShorthand(style: ResolvedStyle, value: string): void {
+    const trimmed = value.trim()
+    if (trimmed === 'none') {
+        style.transitionProperty = null
+        style.transitionDuration = 0
+        return
+    }
+    const properties: string[] = []
+    let duration = 0
+    for (const group of trimmed.split(',')) {
+        for (const token of group.trim().split(/\s+/)) {
+            if (/^\d*\.?\d+(ms|s)$/.test(token)) {
+                if (duration === 0) duration = parseDuration(token)
+            } else if (token && !TRANSITION_TIMING_KEYWORDS.has(token) && !token.startsWith('cubic-bezier')) {
+                properties.push(token)
+            }
+        }
+    }
+    style.transitionProperty = properties.length > 0 ? properties.join(',') : 'all'
+    style.transitionDuration = duration
 }
 
 function parseDuration(value: string): number {

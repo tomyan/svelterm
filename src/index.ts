@@ -204,6 +204,7 @@ export function run<Props extends Record<string, any>>(
         }
         if (lastStyles && lastFilteredStylesheet) {
             animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.syncTransitions(root, lastStyles)
             animationClock.apply(lastStyles)
         }
         lastLayout = lastStyles ? computeLayout(root, lastStyles, size.width, size.height) : undefined
@@ -232,15 +233,17 @@ export function run<Props extends Record<string, any>>(
 
         // Step 1: Incremental style resolution
         if (snap.styleResolve.size > 0 && lastStyles && lastFilteredStylesheet) {
+            const resolvedIds = new Set<number>()
             lastStyles = resolveStylesIncremental(
                 root, lastFilteredStylesheet, lastStyles, snap.styleResolve,
-                undefined,
+                (nodeId) => { resolvedIds.add(nodeId) },
                 (node) => { layoutSubtree.add(node) },
                 detectedScheme,
             )
             // Newly mounted or restyled nodes may start/stop animations,
             // and re-resolution resets styles to their base keyframe.
             animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.syncTransitions(root, lastStyles, resolvedIds)
             animationClock.apply(lastStyles)
         }
 
