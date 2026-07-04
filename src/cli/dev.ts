@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * svelterm dev — connects to a Vite dev server and runs the
  * terminal app. The server compiles modules, this process
@@ -14,21 +12,12 @@ import { ModuleRunner, createWebSocketModuleRunnerTransport } from 'vite/module-
 import { WebSocket } from 'ws'
 import http from 'http'
 
-const args = process.argv.slice(2)
-const command = args[0]
-
-if (command !== 'dev') {
-    console.error('Usage: svelterm dev <url>')
-    process.exit(1)
-}
-
-const url = args[1]
-if (!url) {
-    console.error('Usage: svelterm dev http://localhost:5173')
-    process.exit(1)
-}
-
-async function main() {
+export async function runDev(argv: string[]): Promise<void> {
+    const url = argv[0]
+    if (!url) {
+        console.error('Usage: svelterm dev http://localhost:5173')
+        process.exit(1)
+    }
     const parsedUrl = new URL(url)
     const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`
 
@@ -140,6 +129,9 @@ async function main() {
         ws.close()
         process.exit(0)
     })
+
+    // Keep the process alive on the WebSocket + terminal input.
+    await new Promise<void>((resolve) => ws.on('close', resolve))
 }
 
 function fetchJson(url: string): Promise<any> {
@@ -165,7 +157,3 @@ function fetchText(url: string): Promise<string | null> {
     })
 }
 
-main().catch((err) => {
-    console.error('Fatal:', err)
-    process.exit(1)
-})

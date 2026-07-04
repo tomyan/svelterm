@@ -61,7 +61,11 @@ export function environments() {
             },
             resolve: {
                 conditions: ['svelte', 'node'],
-                noExternal: ['svelte'],
+                // Everything svelte-adjacent must flow through the module
+                // runner — a natively-imported copy of svelte or the
+                // renderer would be a second instance with its own state,
+                // and mount would silently build an empty tree.
+                noExternal: ['svelte', '@svelterm/core'],
             },
         },
     }
@@ -77,6 +81,31 @@ export function terminalServer(config: SveltermConfig = {}): any[] {
     let WS: any
 
     return [{
+        // Compile .svelte for the terminal environment ourselves —
+        // vite-plugin-svelte is not environment-aware (it emits an empty
+        // stub for non-client environments), and terminal-only projects
+        // shouldn't need the environment-aware plugin fork.
+        name: 'svelterm:terminal-svelte',
+        enforce: 'pre',
+        async transform(code: string, id: string) {
+            if (!id.endsWith('.svelte')) return null
+            const environment = (this as any).environment
+            if (environment?.name !== 'terminal') return null
+            const { compile } = await import('svelte/compiler')
+            const compiled = compile(code, {
+                generate: 'client',
+                css: 'external',
+                filename: id,
+                experimental: { customRenderer: rendererModule },
+            } as any)
+            const css = compiled.css?.code
+            const registration = css
+                ? `\nimport { registerComponentCss as __svelterm_registerCss } from '@svelterm/core/app'`
+                    + `\n__svelterm_registerCss(${JSON.stringify(css)})\n`
+                : ''
+            return { code: compiled.js.code + registration, map: null }
+        },
+    }, {
         name: 'svelterm:server',
         apply: 'serve',
         async configResolved() {

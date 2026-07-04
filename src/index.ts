@@ -77,6 +77,19 @@ export interface RunHandle {
     setColorScheme: (scheme: 'dark' | 'light') => void
 }
 
+/** Deduped so HMR re-evaluation doesn't accumulate copies. */
+const registeredComponentCss = new Set<string>()
+
+/**
+ * Register a component's extracted CSS before run() is called. Bundled
+ * builds (`svelterm build`) and the dev-mode transform append a
+ * registration call to each compiled component so it carries its styles;
+ * run() falls back to the registry when no `css` option is given.
+ */
+export function registerComponentCss(css: string): void {
+    if (css) registeredComponentCss.add(css)
+}
+
 export function run<Props extends Record<string, any>>(
     AppComponent: ComponentType<SvelteComponent<Props>> | Component<Props>,
     options?: RunOptions & ({} extends Props ? { props?: Props } : { props: Props }),
@@ -86,7 +99,7 @@ export function run<Props extends Record<string, any>>(
     const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
-    const userCss = options?.css ?? ''
+    const userCss = options?.css ?? [...registeredComponentCss].join('\n')
     let stylesheet = parseCSS(DEFAULT_STYLESHEET + userCss)
 
     // Console capture — only intercept when our IO owns the JS runtime's
