@@ -282,11 +282,15 @@ function layoutElement(
     // box on both axes when no explicit dimension was given, like an
     // intrinsically sized replaced element rather than a content-sized div.
     const isFillPrimitive = node instanceof SvtRegionNode
-    const autoWidth = isFillPrimitive || isBlock
+    let autoWidth = isFillPrimitive || isBlock
         ? (availWidth - margin.left - margin.right)
         : content.width + inset.left + inset.right
-    // Input/textarea have intrinsic minimum height of 1 row for the value text
-    const intrinsicHeight = (node.tag === 'input' || node.tag === 'textarea')
+    // A select shrink-wraps to its longest option label plus the " ▾" indicator
+    if (node.tag === 'select') {
+        autoWidth = Math.max(autoWidth, longestOptionLength(node) + 2 + inset.left + inset.right)
+    }
+    // Input/textarea/select have intrinsic minimum height of 1 row
+    const intrinsicHeight = (node.tag === 'input' || node.tag === 'textarea' || node.tag === 'select')
         ? Math.max(content.height, 1)
         : content.height
     const autoHeight = isFillPrimitive
@@ -298,6 +302,19 @@ function layoutElement(
     boxes.set(node.id, { x: boxX, y: boxY, width: finalWidth, height: finalHeight })
     // Return outer size including margin
     return { width: finalWidth + margin.left + margin.right, height: finalHeight + margin.top + margin.bottom }
+}
+
+function longestOptionLength(select: TermNode): number {
+    let longest = 0
+    const walk = (node: TermNode) => {
+        for (const child of node.children) {
+            if (child.nodeType !== 'element') continue
+            if (child.tag === 'option') longest = Math.max(longest, child.textContent.trim().length)
+            else if (child.tag === 'optgroup') walk(child)
+        }
+    }
+    walk(select)
+    return longest
 }
 
 function layoutAbsolute(

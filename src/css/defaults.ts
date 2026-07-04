@@ -27,6 +27,8 @@ progress, meter { display: inline-block; width: 20cell; height: 1cell; }
 input[type="checkbox"], input[type="radio"] { display: inline-block; width: 3cell; height: 1cell; }
 details:not([open]) > :not(summary) { display: none; }
 summary { padding-left: 2cell; }
+select { display: inline-block; height: 1cell; }
+select option, select optgroup { display: none; }
 abbr { text-decoration: underline; }
 samp { color: cyan; }
 var { font-style: italic; }

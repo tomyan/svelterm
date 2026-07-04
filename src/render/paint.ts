@@ -6,6 +6,7 @@ import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
+import { selectOptions, selectedIndex } from '../input/select.js'
 
 interface InheritedVisuals {
     fg: string
@@ -98,6 +99,10 @@ function paintNode(
         if (node.tag === 'progress' || node.tag === 'meter') {
             paintValueBar(node, buffer, box, visuals, clip)
             return // fallback content is not rendered, as in browsers
+        }
+        if (node.tag === 'select') {
+            paintSelect(node, buffer, box, visuals, clip)
+            return // options render through the select's own label
         }
         if (node.tag === 'li') {
             paintListMarker(node, buffer, box, visuals, clip)
@@ -289,6 +294,23 @@ function paintListMarker(
         if (cx < 0) continue
         if (clip && !inClip(cx, box.y, clip)) continue
         buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
+    }
+}
+
+/** The selected option's label with a cycle indicator: "label ▾". */
+function paintSelect(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const option = selectOptions(node)[selectedIndex(node)]
+    const text = `${option ? option.textContent.trim() : ''} ▾`
+    for (let i = 0; i < Math.min(text.length, box.width); i++) {
+        const col = box.x + i
+        if (clip && !inClip(col, box.y, clip)) continue
+        buffer.setCell(col, box.y, {
+            char: text[i], fg: visuals.fg, bg: visuals.bg,
+            bold: visuals.bold, dim: visuals.dim,
+        })
     }
 }
 

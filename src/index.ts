@@ -24,6 +24,7 @@ import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { isCheckableInput, toggleCheckable } from './input/checkable.js'
 import { toggleDetails } from './input/details.js'
+import { cycleSelect } from './input/select.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import type { CSSStyleSheet } from './css/parser.js'
@@ -346,6 +347,7 @@ export function run<Props extends Record<string, any>>(
                 if (href) openUrl(href)
             }
             if (!event.defaultPrevented && target.tag === 'summary') toggleDetails(target)
+            if (!event.defaultPrevented && target.tag === 'select') cycleSelect(target, 1)
             scheduleRender()
             return
         }
@@ -355,6 +357,12 @@ export function run<Props extends Record<string, any>>(
             toggleCheckable(focusManager.focused)
             scheduleRender()
             return
+        }
+
+        // A focused select cycles its options (popup-less interaction)
+        if (focusManager.focused?.tag === 'select') {
+            if (key.key === 'ArrowUp') { cycleSelect(focusManager.focused, -1); scheduleRender(); return }
+            if (key.key === 'ArrowDown' || key.key === ' ') { cycleSelect(focusManager.focused, 1); scheduleRender(); return }
         }
 
         // Text input for focused input/textarea
@@ -563,6 +571,7 @@ function handleMouse(
                 if (href) openUrl(href)
             }
             if (!event.defaultPrevented && target.tag === 'summary') toggleDetails(target)
+            if (!event.defaultPrevented && target.tag === 'select') cycleSelect(target, 1)
             scheduleRender()
         }
     } else if (mouse.button === 'scrollLeft' || mouse.button === 'scrollRight') {
