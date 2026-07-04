@@ -174,8 +174,9 @@ adaptations. Lengths are cells (`cell`/`ch`, `%`, or `calc()`).
 | [Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/position) | `position: static/absolute/fixed` with `top/right/bottom/left`, `z-index`. `position: relative` establishes context but offsets are **not** applied |
 | [Tables](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_table) | `border-collapse`, `border-spacing`, `caption-side`, `table-layout`, `empty-cells`, `vertical-align` (`baseline` ≈ `top`) |
 | Borders | `border`/`border-style`/`border-color`/`border-corner` + per-side toggles (terminal values above) |
-| [Animation](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_animations) | `animation` shorthand, `animation-name/-duration/-iteration-count` (incl. `infinite`), `@keyframes` (from/to/percentages) |
-| [Transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transitions) | `transition` shorthand, `transition-property` (list or `all`), `transition-duration` |
+| [Animation](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_animations) | `animation` shorthand, `animation-name/-duration/-iteration-count` (incl. `infinite`)/`-timing-function`, `@keyframes` (from/to/percentages, values resolve `var()`/`light-dark()`) |
+| [Transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transitions) | `transition` shorthand, `transition-property` (list or `all`), `transition-duration`, `transition-timing-function` |
+| [Easing](https://developer.mozilla.org/en-US/docs/Web/CSS/easing-function) | `linear`, `ease` (default), `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier()`, `steps()`, `step-start`, `step-end` |
 
 ### Animation & transition semantics on the grid
 
@@ -183,10 +184,12 @@ Colours interpolate in RGB at ~30fps; single cell/ch lengths interpolate
 to whole cells (movement steps cell by cell); every other supported
 property applies discretely, switching at the segment midpoint (the CSS
 rule for non-interpolable values). Layout-affecting animations re-flow
-each frame. Deviations: no easing curves (linear only), one duration for
-all listed transition properties, interrupted transitions restart from the
-previous target value, and keyframe declarations do not resolve `var()`/
-`light-dark()` — use literal colours inside `@keyframes`.
+each frame. Easing applies per keyframe segment; non-interpolable values
+switch when eased progress crosses the midpoint. Deviations: one duration
+and one timing function for all listed transition properties, interrupted
+transitions restart from the previous target value, keyframe
+`var()`/`light-dark()` resolves once at animation start, and per-keyframe
+`animation-timing-function` overrides are ignored.
 
 ## Values, functions and at-rules
 
@@ -218,4 +221,4 @@ for the browser-side styling and a terminal-native equivalent if needed.
 `line-height`, `letter-spacing`, `word-spacing` · `border-radius` (use
 `border: rounded`), `box-shadow`, `outline`, `filter`, `backdrop-filter` ·
 `transform` and friends · `background-image`, gradients · `float` ·
-`@font-face`, `@page` · easing keywords in animations/transitions.
+`@font-face`, `@page`.

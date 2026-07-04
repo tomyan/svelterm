@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Align bg with glyph position</title>
+    <style>
+        body { background: black; padding: 40px; font-family: monospace; font-size: 200px; line-height: 1; color: white; }
+        h2 { font-size: 14px; font-family: sans-serif; margin: 30px 0 5px; color: white; }
+    </style>
+</head>
+<body>
+
+<h2>baseline: bg starts at span top (glyph offset down)</h2>
+<div><span style="color: red; background: blue; border: 1px solid yellow">│▐</span></div>
+
+<h2>A: padding-top pushes bg down to glyph start</h2>
+<div><span style="color: red; background: blue; border: 1px solid yellow; padding-top: 0.16em; box-sizing: border-box">│▐</span></div>
+
+<h2>B: transform glyph up so it starts at span top</h2>
+<div><span style="color: red; background: blue; border: 1px solid yellow; display: inline-block; transform: translateY(-0.16em); vertical-align: top">│▐</span></div>
+
+</body>
+</html>

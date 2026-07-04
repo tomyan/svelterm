@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.0 — 2026-07-04
+
+Motion completeness: easing everywhere, and keyframes that understand
+your theme.
+
+### Added
+
+- **Easing functions** — `animation-timing-function` and
+  `transition-timing-function` (longhands and inside the shorthands)
+  support `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`,
+  `cubic-bezier()`, `steps(n[, start|end])`, `step-start` and `step-end`.
+  Easing applies per keyframe segment; non-interpolable values switch when
+  eased progress crosses the midpoint, as in CSS.
+- **Keyframe `var()` / `light-dark()`** — keyframe declarations resolve
+  custom properties and colour-scheme pairs against the animated element
+  when the animation starts.
+
+### Changed
+
+- Timing functions default to `ease` per spec (previously everything
+  interpolated linearly). Declare `linear` explicitly to keep the old
+  behaviour.
+
 ## 0.2.0 — 2026-07-04
 
 The browser-compatibility release: any HTML/CSS feature with a sensible

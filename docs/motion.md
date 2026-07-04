@@ -9,15 +9,31 @@ geometry steps cell by cell; everything else switches discretely.
 [`@keyframes`](https://developer.mozilla.org/en-US/docs/Web/CSS/@keyframes)
 with `from`/`to` or percentage stops, driven by the `animation` shorthand
 or `animation-name` / `animation-duration` / `animation-iteration-count`
-(including `infinite`):
+(including `infinite`) / `animation-timing-function`:
 
 ```css
 @keyframes pulse {
     0%  { color: #ef4444; }
     50% { color: #7f1d1d; }
 }
-.recording { animation: pulse 1s infinite; }
+.recording { animation: pulse 1s ease-in-out infinite; }
 ```
+
+Keyframe values resolve
+[`var()`](https://developer.mozilla.org/en-US/docs/Web/CSS/var) and
+[`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark)
+against the animated element when the animation starts.
+
+## Easing
+
+[`animation-timing-function`](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function)
+and
+[`transition-timing-function`](https://developer.mozilla.org/en-US/docs/Web/CSS/transition-timing-function)
+support `linear`, `ease` (the default, as in browsers), `ease-in`,
+`ease-out`, `ease-in-out`, `cubic-bezier(x1, y1, x2, y2)`,
+`steps(n[, start | end])`, `step-start` and `step-end`. As in CSS, the
+easing shapes progress within each keyframe segment, and non-interpolable
+values switch when *eased* progress crosses the midpoint.
 
 ## What interpolates
 
@@ -52,16 +68,17 @@ style never transitions.
 
 ## Deviations from browsers
 
-- **No easing curves** — interpolation is linear; easing keywords parse
-  and are ignored.
-- One duration applies to all listed transition properties (the first
-  duration wins).
+- One duration and one timing function apply to all listed transition
+  properties (per-property lists aren't split).
 - An interrupted transition restarts from its previous target value, not
   the current blended value.
 - `opacity` can't fade (dim is binary) — animate colour toward the
   background instead.
-- Keyframe declarations do **not** resolve `var()` or `light-dark()` —
-  use literal colours inside `@keyframes` that read on both schemes.
+- Keyframe `var()`/`light-dark()` resolution happens once when the
+  animation starts; changing a custom property doesn't retarget a
+  running animation.
+- Per-keyframe `animation-timing-function` overrides are ignored — the
+  element's timing function applies to every segment.
 
 ## Reduced motion
 
