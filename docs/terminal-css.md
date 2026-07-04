@@ -122,6 +122,13 @@ and `line-through` map to terminal attributes. `text-transform`,
 standard. Font *choice* and *size* are the terminal emulator's business —
 `font-family`, `font-size`, `line-height` are ignored.
 
+Text is measured in **grapheme clusters and cell widths**: CJK and
+fullwidth characters occupy two cells, emoji (including ZWJ sequences)
+two, combining marks zero — so `1ch`-based layouts, wrapping, truncation
+and borders stay aligned with non-Latin content. Caveat: emoji width
+ultimately depends on the terminal's font; svelterm follows the modern
+two-cell convention.
+
 ## `<svt-ansi>`
 
 Raw ANSI passthrough for pre-styled output — `git diff`, `ls --color`,

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.0 — 2026-07-04
+
+Unicode correctness: non-Latin text stops breaking layout.
+
+### Fixed
+
+- **Cell widths** — text measurement previously assumed one JavaScript
+  character = one terminal cell, so CJK, fullwidth forms, and emoji
+  misaligned borders, wrapping, and diffs. Layout, paint, truncation,
+  and the inline renderer now work in grapheme clusters with East Asian
+  Width cell widths; wide glyphs own a continuation cell that diff
+  emission skips.
+- **Input editing** — cursor movement, backspace, and delete operate on
+  grapheme boundaries (arrow keys no longer split surrogate pairs or ZWJ
+  emoji); the terminal cursor position accounts for wide glyphs.
+
 ## 0.10.0 — 2026-07-04
 
 Colour blending: real alpha compositing on the cell grid.
