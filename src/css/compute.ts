@@ -71,8 +71,10 @@ export interface ResolvedStyle {
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
+    animationTimingFunction: string
     transitionProperty: string | null
     transitionDuration: number
+    transitionTimingFunction: string
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy' | 'ascii'
         | 'eighth-cell-inner' | 'eighth-cell-outer'
         | 'half-cell-inner' | 'half-cell-outer'
@@ -144,7 +146,9 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         gridRowStart: null, gridRowEnd: null, gridRowSpan: null,
         gridTemplateAreas: null, gridArea: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
+        animationTimingFunction: 'ease',
         transitionProperty: null, transitionDuration: 0,
+        transitionTimingFunction: 'ease',
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         boxSizing: 'border-box',
@@ -576,8 +580,10 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             style.transitionProperty = value === 'none' ? null : value
             break
         case 'transition-duration': style.transitionDuration = parseDuration(value); break
+        case 'transition-timing-function': style.transitionTimingFunction = value; break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
+        case 'animation-timing-function': style.animationTimingFunction = value; break
         case 'animation-iteration-count':
             style.animationIterationCount = value === 'infinite' ? Infinity : (parseInt(value) || 1)
             break
@@ -721,28 +727,44 @@ function parseIntOrNull(s: string): number | null {
     return isNaN(n) ? null : n
 }
 
+const TIMING_KEYWORDS = new Set([
+    'ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'step-start', 'step-end',
+])
+
+const EASING_FUNCTION_PATTERN = /(?:cubic-bezier|steps)\([^)]*\)/
+
+/**
+ * Pull an easing function token (`cubic-bezier(...)`/`steps(...)`) out of a
+ * shorthand value so the remainder can be split on whitespace and commas
+ * without breaking inside the function's arguments.
+ */
+function extractEasingFunction(value: string): { easing: string | null; rest: string } {
+    const match = EASING_FUNCTION_PATTERN.exec(value)
+    if (!match) return { easing: null, rest: value }
+    return { easing: match[0], rest: value.replace(match[0], ' ') }
+}
+
 function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
     if (value === 'none') {
         style.animationName = null
         return
     }
-    const parts = value.split(/\s+/)
-    for (const part of parts) {
-        if (part.endsWith('s') && !part.endsWith('ss')) {
+    const { easing, rest } = extractEasingFunction(value)
+    if (easing) style.animationTimingFunction = easing
+    for (const part of rest.split(/\s+/)) {
+        if (TIMING_KEYWORDS.has(part)) {
+            style.animationTimingFunction = part
+        } else if (part.endsWith('s') && !part.endsWith('ss')) {
             style.animationDuration = parseDuration(part)
         } else if (part === 'infinite') {
             style.animationIterationCount = Infinity
         } else if (/^\d+$/.test(part)) {
             style.animationIterationCount = parseInt(part)
-        } else if (!['ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'normal', 'reverse', 'alternate', 'forwards', 'backwards', 'both', 'running', 'paused'].includes(part)) {
+        } else if (part && !['normal', 'reverse', 'alternate', 'forwards', 'backwards', 'both', 'running', 'paused'].includes(part)) {
             style.animationName = part
         }
     }
 }
-
-const TRANSITION_TIMING_KEYWORDS = new Set([
-    'ease', 'linear', 'ease-in', 'ease-out', 'ease-in-out', 'step-start', 'step-end',
-])
 
 /** Parse `transition: <property> <duration> [...]`, comma-separated groups. */
 function parseTransitionShorthand(style: ResolvedStyle, value: string): void {
@@ -752,13 +774,17 @@ function parseTransitionShorthand(style: ResolvedStyle, value: string): void {
         style.transitionDuration = 0
         return
     }
+    const { easing, rest } = extractEasingFunction(trimmed)
+    if (easing) style.transitionTimingFunction = easing
     const properties: string[] = []
     let duration = 0
-    for (const group of trimmed.split(',')) {
+    for (const group of rest.split(',')) {
         for (const token of group.trim().split(/\s+/)) {
             if (/^\d*\.?\d+(ms|s)$/.test(token)) {
                 if (duration === 0) duration = parseDuration(token)
-            } else if (token && !TRANSITION_TIMING_KEYWORDS.has(token) && !token.startsWith('cubic-bezier')) {
+            } else if (TIMING_KEYWORDS.has(token)) {
+                style.transitionTimingFunction = token
+            } else if (token) {
                 properties.push(token)
             }
         }

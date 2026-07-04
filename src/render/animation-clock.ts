@@ -1,7 +1,13 @@
 import { TermNode } from '../renderer/node.js'
 import { AnimationRunner } from '../css/animation-runner.js'
+import { parseEasing, type Easing } from '../css/easing.js'
 import type { KeyframeStop, CSSDeclaration } from '../css/parser.js'
 import type { ResolvedStyle } from '../css/compute.js'
+
+/** The runner's easing for a CSS timing-function value; invalid → linear. */
+function easingFor(value: string): Easing {
+    return parseEasing(value) ?? (t => t)
+}
 
 /** Parse a transition-property value into the tracked-property filter. */
 function transitionedProperties(value: string): { all: boolean; names: Set<string> } {
@@ -154,7 +160,9 @@ export class AnimationClock {
                 if (!existing || existing.name !== name || existing.duration !== style.animationDuration) {
                     this.active.set(node.id, {
                         node,
-                        runner: new AnimationRunner(stops, style.animationDuration, style.animationIterationCount),
+                        runner: new AnimationRunner(
+                            stops, style.animationDuration, style.animationIterationCount,
+                            easingFor(style.animationTimingFunction)),
                         name,
                         duration: style.animationDuration,
                         start: this.now(),
@@ -212,7 +220,8 @@ export class AnimationClock {
         ]
         this.transitions.set(node.id, {
             node,
-            runner: new AnimationRunner(stops, style.transitionDuration, 1),
+            runner: new AnimationRunner(stops, style.transitionDuration, 1,
+                easingFor(style.transitionTimingFunction)),
             name: '',
             duration: style.transitionDuration,
             start: this.now(),

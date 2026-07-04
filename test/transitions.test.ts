@@ -36,7 +36,7 @@ describe('transition parsing', () => {
 describe('transitions via the animation clock', () => {
 
     const CSS = `
-    .box { color: red; transition: color 1000ms; }
+    .box { color: red; transition: color 1000ms linear; }
     .box.alt { color: blue; }
     `
 
@@ -106,7 +106,7 @@ describe('transitions via the animation clock', () => {
     it('interpolates width and flags the node as layout-dirty', () => {
         let now = 0
         const css = `
-        .box { width: 0cell; transition: width 1000ms; }
+        .box { width: 0cell; transition: width 1000ms linear; }
         .box.alt { width: 10cell; }
         `
         const { root, el, sheet } = makeTree(css, 'box')
@@ -126,7 +126,7 @@ describe('transitions via the animation clock', () => {
     it('transition: all covers colour changes', () => {
         let now = 0
         const css = `
-        .box { color: red; transition: all 1000ms; }
+        .box { color: red; transition: all 1000ms linear; }
         .box.alt { color: blue; }
         `
         const { root, el, sheet } = makeTree(css, 'box')

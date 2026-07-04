@@ -1,6 +1,7 @@
 import type { KeyframeStop, CSSDeclaration } from './parser.js'
 import { applyDeclaration, type ResolvedStyle } from './compute.js'
 import { resolveColor } from './color.js'
+import type { Easing } from './easing.js'
 import { lerpColor, lerpNumber } from './interpolate.js'
 import { parseCellLength } from './values.js'
 
@@ -16,18 +17,22 @@ const PAINT_ONLY_PROPERTIES = new Set([
  * time. Colours interpolate in RGB space between stops; properties that
  * cannot mix (booleans, `default` colours) switch discretely at the
  * segment midpoint, matching CSS's rule for non-interpolable values.
+ * The easing function shapes progress within each keyframe segment,
+ * as animation-timing-function does in CSS.
  */
 export class AnimationRunner {
     private keyframes: KeyframeStop[]
     private duration: number
     private iterations: number
+    private easing: Easing
     /** True when any keyframe animates a property that affects layout. */
     readonly touchesLayout: boolean
 
-    constructor(keyframes: KeyframeStop[], durationMs: number, iterations: number) {
+    constructor(keyframes: KeyframeStop[], durationMs: number, iterations: number, easing: Easing = t => t) {
         this.keyframes = keyframes.sort((a, b) => a.offset - b.offset)
         this.duration = durationMs
         this.iterations = iterations
+        this.easing = easing
         this.touchesLayout = this.keyframes.some(stop =>
             stop.declarations.some(decl => !PAINT_ONLY_PROPERTIES.has(decl.property)))
     }
@@ -37,7 +42,9 @@ export class AnimationRunner {
         if (this.keyframes.length === 0 || this.duration <= 0) return
 
         const progress = this.getProgress(elapsedMs)
-        const { from, to, localT } = this.segmentAt(progress)
+        const segment = this.segmentAt(progress)
+        const { from, to } = segment
+        const localT = this.easing(segment.localT)
 
         // Hold the earlier stop's values, then interpolate toward the next
         for (const decl of from.declarations) {
