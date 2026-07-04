@@ -906,7 +906,12 @@ function layoutGrid(
     const children = childrenWithPseudos(node).filter(c => c.nodeType === 'element' && styles.get(c.id)?.display !== 'none')
     if (children.length === 0) return { width: 0, height: 0 }
 
-    const colWidths = parseGridTemplate(style.gridTemplateColumns ?? '', availW)
+    const areas = style.gridTemplateAreas ? parseTemplateAreas(style.gridTemplateAreas) : null
+    let colWidths = parseGridTemplate(style.gridTemplateColumns ?? '', availW)
+    if (colWidths.length === 0 && areas && areas.columnCount > 0) {
+        // Areas without a column template: split the width evenly
+        colWidths = Array(areas.columnCount).fill(Math.floor(availW / areas.columnCount))
+    }
     const rowHeights = parseGridTemplate(style.gridTemplateRows ?? '', availH)
     const numCols = colWidths.length || 1
     const gap = style.gap ?? 0
@@ -926,40 +931,24 @@ function layoutGrid(
     }
 
     // Pass 1: assign each child to a row/col and compute content-based row heights
-    interface GridPlacement { child: TermNode; col: number; span: number; row: number; rowSpan: number }
     const placements: GridPlacement[] = []
     const computedRowHeights: number[] = []
-    let col = 0
-    let rowIdx = 0
+    const cursor: GridCursor = { col: 0, row: 0 }
 
     for (const child of children) {
         const childStyle = styles.get(child.id)
-        const span = childStyle?.gridColumnSpan ?? 1
+        const area = childStyle?.gridArea ? areas?.byName.get(childStyle.gridArea) : undefined
+        const placed = resolveGridPlacement(childStyle, area, cursor, numCols)
 
-        if (col >= numCols) { col = 0; rowIdx++ }
-
-        const colStart = resolveGridColumnStart(childStyle, col, numCols)
-        const colEnd = resolveGridColumnEnd(childStyle, colStart, span, numCols)
-        const actualSpan = colEnd - colStart
-
-        if (colStart > col) col = colStart
-        if (col + actualSpan > numCols) { col = 0; rowIdx++ }
-
-        const row = childStyle?.gridRowStart != null ? childStyle.gridRowStart - 1 : rowIdx
-        const rowSpan = childStyle?.gridRowEnd != null
-            ? Math.max(1, childStyle.gridRowEnd - 1 - row)
-            : (childStyle?.gridRowSpan ?? 1)
-
-        const colW = trackSpanSize(colWidths, col, actualSpan, hGap)
+        const colW = trackSpanSize(colWidths, placed.col, placed.span, hGap)
         // Measure content height with unconstrained available height
         const size = layoutNode(child, styles, boxes, 0, 0, colW, availH)
 
-        placements.push({ child, col, span: actualSpan, row, rowSpan })
+        placements.push({ child, ...placed })
         // Spanning content doesn't stretch individual tracks (matches columns)
-        if (rowSpan === 1) {
-            computedRowHeights[row] = Math.max(computedRowHeights[row] ?? 0, size.height)
+        if (placed.rowSpan === 1) {
+            computedRowHeights[placed.row] = Math.max(computedRowHeights[placed.row] ?? 0, size.height)
         }
-        col += actualSpan
     }
 
     // Resolve final row track heights: template first, content otherwise
@@ -990,6 +979,70 @@ function layoutGrid(
 
     const totalHeight = totalRows === 0 ? 0 : trackOffset(trackHeights, totalRows, vGap) - vGap
     return { width: maxWidth, height: totalHeight }
+}
+
+interface GridPlacement { child: TermNode; col: number; span: number; row: number; rowSpan: number }
+interface GridCursor { col: number; row: number }
+interface GridArea { rowStart: number; rowEnd: number; colStart: number; colEnd: number }
+
+/**
+ * Where one grid item lands: a named area wins outright; otherwise
+ * explicit lines/spans combine with the auto-flow cursor, which only
+ * auto-placed and column-placed items advance.
+ */
+function resolveGridPlacement(
+    childStyle: ResolvedStyle | undefined,
+    area: GridArea | undefined,
+    cursor: GridCursor,
+    numCols: number,
+): { col: number; span: number; row: number; rowSpan: number } {
+    if (area) {
+        return {
+            col: area.colStart, span: area.colEnd - area.colStart,
+            row: area.rowStart, rowSpan: area.rowEnd - area.rowStart,
+        }
+    }
+    const span = childStyle?.gridColumnSpan ?? 1
+    if (cursor.col >= numCols) { cursor.col = 0; cursor.row++ }
+    const colStart = resolveGridColumnStart(childStyle, cursor.col, numCols)
+    const colEnd = resolveGridColumnEnd(childStyle, colStart, span, numCols)
+    const actualSpan = colEnd - colStart
+    if (colStart > cursor.col) cursor.col = colStart
+    if (cursor.col + actualSpan > numCols) { cursor.col = 0; cursor.row++ }
+    const row = childStyle?.gridRowStart != null ? childStyle.gridRowStart - 1 : cursor.row
+    const rowSpan = childStyle?.gridRowEnd != null
+        ? Math.max(1, childStyle.gridRowEnd - 1 - row)
+        : (childStyle?.gridRowSpan ?? 1)
+    const col = cursor.col
+    cursor.col += actualSpan
+    return { col, span: actualSpan, row, rowSpan }
+}
+
+/**
+ * Parse the quoted rows of grid-template-areas into per-name rectangles.
+ * `.` cells are holes; a name repeated across cells spans their extent.
+ */
+function parseTemplateAreas(value: string): { byName: Map<string, GridArea>; columnCount: number } {
+    const byName = new Map<string, GridArea>()
+    let columnCount = 0
+    const rows = [...value.matchAll(/"([^"]*)"|'([^']*)'/g)].map(m => (m[1] ?? m[2] ?? '').trim())
+    rows.forEach((rowText, rowIndex) => {
+        const names = rowText.split(/\s+/)
+        columnCount = Math.max(columnCount, names.length)
+        names.forEach((name, colIndex) => {
+            if (name === '.' || name === '') return
+            const area = byName.get(name)
+            if (!area) {
+                byName.set(name, { rowStart: rowIndex, rowEnd: rowIndex + 1, colStart: colIndex, colEnd: colIndex + 1 })
+            } else {
+                area.rowStart = Math.min(area.rowStart, rowIndex)
+                area.rowEnd = Math.max(area.rowEnd, rowIndex + 1)
+                area.colStart = Math.min(area.colStart, colIndex)
+                area.colEnd = Math.max(area.colEnd, colIndex + 1)
+            }
+        })
+    })
+    return { byName, columnCount }
 }
 
 /** Resolve the start column for a grid item (0-indexed) */

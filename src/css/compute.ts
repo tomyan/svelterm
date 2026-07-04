@@ -66,6 +66,8 @@ export interface ResolvedStyle {
     gridRowStart: number | null
     gridRowEnd: number | null
     gridRowSpan: number | null
+    gridTemplateAreas: string | null
+    gridArea: string | null
     animationName: string | null
     animationDuration: number
     animationIterationCount: number
@@ -140,6 +142,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         gridTemplateColumns: null, gridTemplateRows: null,
         gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
         gridRowStart: null, gridRowEnd: null, gridRowSpan: null,
+        gridTemplateAreas: null, gridArea: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         transitionProperty: null, transitionDuration: 0,
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
@@ -563,6 +566,10 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             if (line.span !== null) style.gridRowSpan = line.span
             break
         }
+        case 'grid-template-areas':
+            style.gridTemplateAreas = value === 'none' ? null : value
+            break
+        case 'grid-area': parseGridArea(style, value); break
         case 'animation': parseAnimationShorthand(style, value); break
         case 'transition': parseTransitionShorthand(style, value); break
         case 'transition-property':
@@ -675,6 +682,24 @@ function parseSizeOrCell(value: string): number | string {
     if (value.endsWith('%')) return value
     if (value.startsWith('calc(') || value.startsWith('min(') || value.startsWith('max(') || value.startsWith('clamp(')) return value
     return parseCellValue(value)
+}
+
+/** Parse grid-area: an area name, or numeric row-start / col-start / row-end / col-end lines. */
+function parseGridArea(style: ResolvedStyle, value: string): void {
+    const trimmed = value.trim()
+    if (trimmed.includes('/')) {
+        const parts = trimmed.split('/').map(s => s.trim())
+        style.gridRowStart = parseIntOrNull(parts[0])
+        if (parts.length > 1) style.gridColumnStart = parseIntOrNull(parts[1])
+        if (parts.length > 2) style.gridRowEnd = parseIntOrNull(parts[2])
+        if (parts.length > 3) style.gridColumnEnd = parseIntOrNull(parts[3])
+        return
+    }
+    if (/^\d+$/.test(trimmed)) {
+        style.gridRowStart = parseInt(trimmed)
+        return
+    }
+    style.gridArea = trimmed
 }
 
 /** Parse a grid line value (grid-column/grid-row): span N | start / end | start */
