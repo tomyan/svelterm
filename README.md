@@ -88,14 +88,26 @@ Standard CSS works as expected. These are the terminal-specific additions:
 
 ## Features
 
-- **CSS engine** — selectors, specificity, cascade, inheritance, scoped styles, `var()`, `calc()`, `@media`, `@keyframes`
+- **CSS engine** — selectors (attribute operators, structural/state pseudo-classes, `::before`/`::after`), specificity, cascade, inheritance, scoped styles, `var()`, `calc()`, `@media`, `@container`, `@supports`, `@keyframes`
 - **Flexbox layout** — `flex-direction`, `justify-content`, `align-items`, `flex-grow`, `flex-shrink`, `gap`, `flex-wrap`
+- **CSS grid** — column and row templates with `fr`/`repeat()`/`minmax()`, `grid-column`/`grid-row` placement and spans, `grid-template-areas` with named `grid-area`
 - **CSS tables** — `display: table*` including `inline-table`, sections and captions, `colspan`/`rowspan`, column sizing, `vertical-align`, `border-collapse` with shared box-drawing grid lines, anonymous boxes
+- **Animations & transitions** — `@keyframes` with RGB colour interpolation and cell-stepped length animation, `transition` on style changes
 - **Terminal rendering** — ANSI colors (16, 256, truecolor), borders, text styles, differential output
 - **Input** — keyboard events, mouse click and scroll, focus management with Tab/Shift+Tab, `:focus` and `:hover` pseudo-classes
-- **Text input** — `<input>` and `<textarea>` with readline-like editing
+- **Form controls** — `<input>`/`<textarea>` editing, checkboxes and radios, cycling `<select>`, `<progress>`/`<meter>` bars, `<details>`/`<summary>`
 - **Incremental updates** — mutation tracking classifies changes as paint-only, style-resolve, or layout to avoid full recomputation
 - **Color scheme** — automatic `prefers-color-scheme` detection via terminal queries
+
+### Browser compatibility
+
+Any HTML/CSS feature with a sensible cell-grid meaning works as a browser
+author expects; pixel-derived features are dropped silently and targeted
+per mode with `@media (display-mode: terminal | browser)`. The full
+support matrix — elements, selectors, properties, units, deviations, and
+the terminal-specific extensions — lives in
+[`docs/reference.md`](docs/reference.md); the design rationale is in
+[`DESIGN-browser-compat.md`](DESIGN-browser-compat.md).
 
 ## Prerequisites
 

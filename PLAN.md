@@ -16,15 +16,8 @@
 
 ## CSS completeness
 
-- display: contents, inline-block width verification
-- Percentage heights
-- calc(), min(), max(), clamp() evaluation at layout time
-- inherit, initial, unset keywords
-- currentColor
-- Margin collapsing
-- CSS Grid (display: grid)
-- @supports, @container queries
-- text-decoration inheritance fix
+Done — see `DESIGN-browser-compat.md` (all 12 slices shipped) and
+`docs/reference.md` for the full support matrix.
 
 ## Input & interaction
 
