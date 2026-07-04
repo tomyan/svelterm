@@ -7,17 +7,17 @@ columns below). "Expected" means the terminal advertises the required
 capabilities and svelterm's output round-trips against a terminal model
 in CI, but nobody has watched it run there yet — reports welcome.
 
-| Terminal | Status | Truecolor | DEC 2026 | Kitty keys | OSC 52 |
-|---|---|---|---|---|---|
-| Ghostty | verified | ✓ | ✓ | ✓ | ✓ |
-| tmux (3.4+) | verified | ✓ (with `tmux-256color`) | ✓ | pass-through | needs `set-clipboard on` |
-| kitty | expected | ✓ | ✓ | ✓ | ✓ |
-| WezTerm | expected | ✓ | ✓ | ✓ | ✓ |
-| iTerm2 | expected | ✓ | ✓ | ✗ (legacy keys) | ✓ |
-| Alacritty | expected | ✓ | ✗ | ✓ | ✓ |
-| Terminal.app | expected | ✗ (256) | ✗ | ✗ | ✗ |
-| Windows Terminal | unknown | ✓ | ✗ | ✗ | ✓ |
-| Linux console | unknown | ✗ (16) | ✗ | ✗ | ✗ |
+| Terminal | Status | Truecolor | DEC 2026 | Kitty keys | OSC 52 | Graphics |
+|---|---|---|---|---|---|---|
+| Ghostty | verified | ✓ | ✓ | ✓ | ✓ | ✓ |
+| tmux (3.4+) | verified | ✓ (with `tmux-256color`) | ✓ | pass-through | needs `set-clipboard on` | passthrough only |
+| kitty | expected | ✓ | ✓ | ✓ | ✓ | ✓ |
+| WezTerm | expected | ✓ | ✓ | ✓ | ✓ | ✓ |
+| iTerm2 | expected | ✓ | ✓ | ✗ (legacy keys) | ✓ | ✗ (own protocol) |
+| Alacritty | expected | ✓ | ✗ | ✓ | ✓ | ✗ |
+| Terminal.app | expected | ✗ (256) | ✗ | ✗ | ✗ | ✗ |
+| Windows Terminal | unknown | ✓ | ✗ | ✗ | ✓ | ✗ |
+| Linux console | unknown | ✗ (16) | ✗ | ✗ | ✗ | ✗ |
 
 Every degradation path (truecolor → 256 → 16 → mono, sync output off,
 legacy keys) is tested in CI by round-tripping svelterm's emitted ANSI

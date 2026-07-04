@@ -6,6 +6,7 @@
  */
 
 import type { StdinRouter } from './stdin-router.js'
+import { graphicsSupported } from '../render/kitty-graphics.js'
 
 export type ColorDepth = 'truecolor' | '256' | '16' | 'mono'
 
@@ -13,6 +14,8 @@ export interface TerminalCapabilities {
     colorDepth: ColorDepth
     /** DEC 2026 begin/end synchronized update. */
     syncOutput: boolean
+    /** Kitty graphics protocol (crisp images instead of half-blocks). */
+    graphics: boolean
     /** Terminal name and version from XTVERSION, when it answered. */
     terminal: string | null
 }
@@ -70,15 +73,15 @@ export async function detectCapabilities(
     router: StdinRouter,
     env: Record<string, string | undefined> = process.env,
 ): Promise<TerminalCapabilities> {
-    const envDepth = resolveColorDepth(env)
-    const needsVersion = envDepth === '16' || envDepth === '256'
     const [xtversion, decrqm] = await Promise.all([
-        needsVersion ? router.query('\x1b[>0q', matchXTVERSION, 150) : Promise.resolve(null),
+        // Identifies known-truecolor terminals AND graphics support
+        router.query('\x1b[>0q', matchXTVERSION, 150),
         router.query('\x1b[?2026$p', matchDECRQM(2026), 150),
     ])
     return {
         colorDepth: resolveColorDepth(env, xtversion),
         syncOutput: decrqmSupported(decrqm),
+        graphics: graphicsSupported(xtversion),
         terminal: xtversion,
     }
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.0 — 2026-07-05
+
+Kitty graphics: crisp `<img>` pixels where the terminal supports them.
+
+### Added
+
+- **Kitty graphics protocol** — on kitty, Ghostty, and WezTerm (detected
+  via XTVERSION), `<img>` transmits real RGBA pixels scaled to its cell
+  box instead of half-blocks. Pixel data transmits once per (element,
+  src); each frame re-places over the box and deletes placements for
+  images that moved, scrolled away, or unmounted; teardown and suspend
+  clear them. Half-blocks stay the buffer fallback everywhere else.
+
 ## 0.18.0 — 2026-07-04
 
 Scroll-region diffing, and a border-clip fix found along the way.

@@ -23,6 +23,11 @@ dependencies). Sizing follows CSS `width`/`height` in cells, defaulting
 to the intrinsic pixel size; loading is async and reflows on arrival.
 Mostly-transparent pixels show the terminal background.
 
+On terminals that speak the [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
+(kitty, Ghostty, WezTerm — detected automatically), the image renders as
+real pixels scaled to its cell box, covering the half-blocks. Everywhere
+else the half-blocks are what you see.
+
 ## Links
 
 `<a>` is underlined and focusable. `Enter` or a click fires `click`; if

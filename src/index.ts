@@ -34,6 +34,7 @@ import { detectCapabilities, matchCPR, parseCPRRow, type ColorDepth } from './te
 import { copyToClipboard } from './terminal/clipboard.js'
 import { SelectionController, applySelectionOverlay } from './input/selection.js'
 import { InlineScreen } from './render/inline.js'
+import { GraphicsLayer } from './render/graphics-layer.js'
 import { registerInlineHooks } from './framelog.js'
 import { activeModal, withinSubtree } from './input/modal.js'
 import type { CSSStyleSheet } from './css/parser.js'
@@ -284,6 +285,15 @@ export function run<Props extends Record<string, any>>(
         io.write(syncOutput ? ansi.beginSyncUpdate() + data + ansi.endSyncUpdate() : data)
     }
 
+    // Kitty-graphics layer — off until capability detection turns it on.
+    const graphicsLayer = new GraphicsLayer()
+    let graphicsEnabled = false
+    /** The per-frame tail written after the cell diff: cursor + images. */
+    const frameTail = (): string => {
+        const cursor = emitFocusCursor(root, focusManager.focused)
+        return graphicsEnabled ? cursor + graphicsLayer.render(root, lastLayout) : cursor
+    }
+
     /** Resolve styles + layout for the current terminal size. */
     const resolveForRender = (size: { width: number; height: number }) => {
         root.attributes.set('data-width', String(size.width))
@@ -324,7 +334,7 @@ export function run<Props extends Record<string, any>>(
         paint(root, buffer, lastStyles, lastLayout)
         prevClean = buffer
         const display = overlayed(buffer)
-        const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
+        const output = diffBuffers(prevBuffer, display) + frameTail()
         if (output.length > 0) writeOutput(output)
         prevBuffer = display
 
@@ -360,6 +370,7 @@ export function run<Props extends Record<string, any>>(
         } else {
             output += ansi.hideCursor() + ansi.resetCursorShape()
         }
+        if (graphicsEnabled) output += graphicsLayer.render(root, lastLayout)
         if (output.length > 0) writeOutput(output)
 
         if (!initialRegistrationDone) {
@@ -421,7 +432,7 @@ export function run<Props extends Record<string, any>>(
             paintNodes(dirtyPaintNodes, buffer, lastStyles, lastLayout, root)
             prevClean = buffer
             const display = overlayed(buffer)
-            const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
+            const output = diffBuffers(prevBuffer, display) + frameTail()
             if (output.length > 0) writeOutput(output)
             prevBuffer = display
         } else {
@@ -429,7 +440,7 @@ export function run<Props extends Record<string, any>>(
             paint(root, buffer, lastStyles, lastLayout)
             prevClean = buffer
             const display = overlayed(buffer)
-            const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
+            const output = diffBuffers(prevBuffer, display) + frameTail()
             if (output.length > 0) writeOutput(output)
             prevBuffer = display
         }
@@ -686,6 +697,12 @@ export function run<Props extends Record<string, any>>(
         if (inline) queryInlineOrigin()
         detectCapabilities(router).then(caps => {
             syncOutput = caps.syncOutput
+            // Crisp images on kitty-graphics terminals; half-blocks stay
+            // in the buffer as the fallback and layout truth.
+            if (caps.graphics && !graphicsEnabled) {
+                graphicsEnabled = true
+                scheduleRender()
+            }
             if (caps.colorDepth === ansi.getColorDepth()) return
             ansi.setColorDepth(caps.colorDepth)
             // Full repaint so every cell re-emits at the new depth
@@ -702,6 +719,7 @@ export function run<Props extends Record<string, any>>(
         consoleDomain?.stop()
         debugServer?.stop()
         restoreConsole?.()
+        if (graphicsEnabled) io.write(graphicsLayer.clear())
         svUnmount()
         if (mouseEnabled) io.write(ansi.disableMouse())
         io.write(ansi.popKittyKeyboard())
@@ -725,6 +743,7 @@ export function run<Props extends Record<string, any>>(
      */
     const suspend = () => {
         if (typeof process === 'undefined') return
+        if (graphicsEnabled) io.write(graphicsLayer.clear())
         if (mouseEnabled) io.write(ansi.disableMouse())
         io.write(ansi.popKittyKeyboard() + ansi.disableBracketedPaste())
         if (fullscreen) exitFullscreen(io)
