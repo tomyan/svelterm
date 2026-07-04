@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.13.0 — 2026-07-04
+
+Virtual scrolling: long lists repaint at the speed of what's visible.
+
+### Changed
+
+- **Paint culling** — subtrees fully outside the active clip are skipped
+  in the paint walk (cell writes were already clipped, so output is
+  identical). A 10,000-row `overflow: scroll` list drops from ~228 ms to
+  ~1.4 ms per scroll repaint on the benchmark machine
+  (`scripts/bench-scroll.mjs`); first paint from ~254 ms to ~5 ms.
+- **Scrollbar extent caching** — the content-size walk behind scrollbar
+  overlays is memoized per layout, instead of re-walking every child on
+  every frame of the fade.
+
+### Fixed
+
+- A focused input culled offscreen no longer reports a stale cursor
+  position — cursor positions carry the paint generation that wrote
+  them, and the terminal cursor hides when its owner leaves the
+  viewport.
+
 ## 0.12.0 — 2026-07-04
 
 Terminal matrix evidence: proof the emitted bytes work, per terminal

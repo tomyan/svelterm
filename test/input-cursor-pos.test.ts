@@ -55,7 +55,9 @@ describe('paintInput cursor position', () => {
 
         // Then — cursor at content x=3 (no padding, no border), y=0
         const pos = input.getCursorScreenPos()
-        assert.deepEqual(pos, { x: 3, y: 0, inViewport: true })
+        assert.equal(pos?.x, 3)
+        assert.equal(pos?.y, 0)
+        assert.equal(pos?.inViewport, true)
     })
 
     it('cursor in middle of text reports correct screen x', () => {
@@ -115,10 +117,10 @@ describe('paintInput cursor position', () => {
         // When
         paint(root, buffer, styles, layout)
 
-        // Then
+        // Then — the input was culled offscreen, so it no longer owns a
+        // cursor this frame (the emitter hides the terminal cursor)
         const pos = input.getCursorScreenPos()
-        assert.ok(pos, 'cursor position is set')
-        assert.equal(pos!.inViewport, false, 'cursor row falls outside ancestor clip')
+        assert.equal(pos, null)
     })
 
     it('does not paint an inverse-styled cell at the cursor — real cursor is used now', () => {

@@ -6,6 +6,7 @@ import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
 import { blendColor } from '../css/color.js'
 import { stringWidth } from '../layout/unicode.js'
+import { bumpPaintGeneration, paintGeneration } from './generation.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
 import { selectOptions, selectedIndex } from '../input/select.js'
@@ -47,6 +48,9 @@ export function paint(
     layout?: Map<number, LayoutBox>,
     damageClip?: ClipRect,
 ): void {
+    // Damage-clipped paints repaint a region, not the whole tree — nodes
+    // outside the damage keep their cached cursor positions.
+    if (!damageClip) bumpPaintGeneration()
     paintNode(root, buffer, styles, layout, DEFAULT_VISUALS, null, NO_SCROLL, damageClip)
 }
 
@@ -68,6 +72,12 @@ function paintNode(
 
     // Skip nodes entirely outside the damage region
     if (damageClip && box && !boxesOverlap(box, damageClip)) return
+
+    // Cull subtrees fully outside the active clip: every cell write is
+    // clipped anyway, so this can't change output — it skips the walk.
+    // (In-flow descendants sit inside their ancestor's box; positioned
+    // ones offset from their parent, so they leave with it.)
+    if (clip && box && box.width > 0 && box.height > 0 && !boxesOverlap(box, clip)) return
 
     // Check display:none — element and all descendants are invisible and take no space
     const ownStyle = node.nodeType === 'element' ? styles?.get(node.id) : undefined
@@ -155,15 +165,11 @@ function paintNode(
         let contentHeight = 0
         let contentWidth = 0
         if (nodeBox && layout) {
-            const walk = (n: TermNode) => {
-                const cBox = layout.get(n.id)
-                if (cBox) {
-                    contentHeight = Math.max(contentHeight, cBox.y - nodeBox.y + cBox.height)
-                    contentWidth = Math.max(contentWidth, cBox.x - nodeBox.x + cBox.width)
-                }
-                for (const child of n.children) walk(child)
-            }
-            for (const child of node.children) walk(child)
+            // Scroll frames reuse the same layout map — walking a huge
+            // list's children every scrollbar frame would dominate paint.
+            const extent = cachedContentExtent(node, layout, nodeBox)
+            contentHeight = extent.height
+            contentWidth = extent.width
         }
         const visibleMs = 600
         const fadeMs = 400
@@ -186,6 +192,35 @@ function paintNode(
             }
         }
     }
+}
+
+/** Content extents per (layout map, node) — valid as long as the layout is. */
+const extentCache = new WeakMap<object, Map<number, { width: number; height: number }>>()
+
+function cachedContentExtent(
+    node: TermNode, layout: Map<number, LayoutBox>, nodeBox: LayoutBox,
+): { width: number; height: number } {
+    let perNode = extentCache.get(layout)
+    if (!perNode) {
+        perNode = new Map()
+        extentCache.set(layout, perNode)
+    }
+    const cached = perNode.get(node.id)
+    if (cached) return cached
+    let height = 0
+    let width = 0
+    const walk = (n: TermNode) => {
+        const cBox = layout.get(n.id)
+        if (cBox) {
+            height = Math.max(height, cBox.y - nodeBox.y + cBox.height)
+            width = Math.max(width, cBox.x - nodeBox.x + cBox.width)
+        }
+        for (const child of n.children) walk(child)
+    }
+    for (const child of node.children) walk(child)
+    const extent = { width, height }
+    perNode.set(node.id, extent)
+    return extent
 }
 
 /** A table cell is empty (for empty-cells: hide) if it has no element children and no visible text. */
@@ -429,7 +464,7 @@ function paintInput(
         const inViewport = cursorScreenX >= contentX
             && cursorScreenX <= contentX + contentW
             && (!clip || inClip(cursorScreenX, contentY, clip))
-        node.cache.cursorScreen = { x: cursorScreenX, y: contentY, inViewport }
+        node.cache.cursorScreen = { x: cursorScreenX, y: contentY, inViewport, generation: paintGeneration() }
     }
 }
 

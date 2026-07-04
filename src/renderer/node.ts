@@ -3,6 +3,7 @@ import type { LayoutBox } from '../layout/engine.js'
 import type { RenderContext } from '../render/context.js'
 import { TextBuffer } from '../components/text-buffer.js'
 import type { Cell } from '../render/buffer.js'
+import { paintGeneration } from '../render/generation.js'
 
 let nextId = 1
 
@@ -11,6 +12,8 @@ export type NodeType = 'element' | 'text' | 'comment' | 'fragment'
 export interface CursorScreenPos {
     x: number
     y: number
+    /** Full-paint generation that wrote this position (see render/generation). */
+    generation?: number
     /** False when the cursor falls outside the node's content viewport
      *  (scrolled off, clipped by an ancestor). The emitter hides the
      *  cursor in that case. */
@@ -233,7 +236,13 @@ export class TermNode {
      * post-paint cursor emitter.
      */
     getCursorScreenPos(): CursorScreenPos | null {
-        return this.cache.cursorScreen
+        const pos = this.cache.cursorScreen
+        if (!pos) return null
+        // A position stamped by an older full paint is stale — the node
+        // was culled offscreen this frame, so it no longer owns a cursor.
+        // Unstamped positions (set directly by embedders/tests) stay valid.
+        if (pos.generation !== undefined && pos.generation !== paintGeneration()) return null
+        return pos
     }
 
     invalidateStyle(): void {
