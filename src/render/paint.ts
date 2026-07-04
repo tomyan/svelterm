@@ -95,6 +95,10 @@ function paintNode(
             paintHorizontalRule(buffer, box, visuals, clip)
             return
         }
+        if (node.tag === 'progress' || node.tag === 'meter') {
+            paintValueBar(node, buffer, box, visuals, clip)
+            return // fallback content is not rendered, as in browsers
+        }
         if (node.tag === 'li') {
             paintListMarker(node, buffer, box, visuals, clip)
         }
@@ -363,6 +367,43 @@ function paintInput(
 function resolvePadVal(v: number | string | undefined): number {
     if (typeof v === 'number') return v
     return 0
+}
+
+/** Left-partial block glyphs by eighths (index 1–7). */
+const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']
+
+/** <progress>/<meter>: filled blocks for value, light shade for the track. */
+function paintValueBar(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const ratio = valueBarRatio(node)
+    const fillCells = ratio * box.width
+    let fullCells = Math.floor(fillCells)
+    let eighths = Math.round((fillCells - fullCells) * 8)
+    if (eighths === 8) { fullCells++; eighths = 0 }
+
+    for (let r = 0; r < box.height; r++) {
+        for (let c = 0; c < box.width; c++) {
+            const col = box.x + c
+            const row = box.y + r
+            if (clip && !inClip(col, row, clip)) continue
+            const char = c < fullCells ? '█'
+                : (c === fullCells && eighths > 0) ? PARTIAL_BLOCKS[eighths]
+                : '░'
+            buffer.setCell(col, row, { char, fg: visuals.fg, bg: visuals.bg })
+        }
+    }
+}
+
+/** Fraction filled, from value/max (progress) or value within min/max (meter). */
+function valueBarRatio(node: TermNode): number {
+    const value = parseFloat(node.attributes.get('value') ?? '')
+    if (isNaN(value)) return 0 // indeterminate
+    const min = node.tag === 'meter' ? (parseFloat(node.attributes.get('min') ?? '') || 0) : 0
+    const max = parseFloat(node.attributes.get('max') ?? '') || 1
+    if (max <= min) return 0
+    return Math.max(0, Math.min(1, (value - min) / (max - min)))
 }
 
 function paintHorizontalRule(
