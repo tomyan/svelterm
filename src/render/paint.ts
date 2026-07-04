@@ -151,7 +151,14 @@ function paintNode(
             // Root clips to the terminal viewport (buffer bounds)
             childClip = intersectClip(clip, { x: 0, y: 0, width: buffer.width, height: buffer.height })
         } else if (ownStyle && ownStyle.overflow !== 'visible') {
-            childClip = intersectClip(clip, box)
+            // Clip to the content box, inside any border — otherwise
+            // scrolled content paints over the border cells.
+            const inset = (ownStyle.borderStyle && ownStyle.borderStyle !== 'none') ? 1 : 0
+            childClip = intersectClip(clip, {
+                x: box.x + inset, y: box.y + inset,
+                width: Math.max(0, box.width - inset * 2),
+                height: Math.max(0, box.height - inset * 2),
+            })
         }
         if (node.scrollTop !== 0 || node.scrollLeft !== 0) {
             childScroll = { x: scroll.x + node.scrollLeft, y: scroll.y + node.scrollTop }

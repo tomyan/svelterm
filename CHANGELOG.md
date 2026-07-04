@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.18.0 — 2026-07-04
+
+Scroll-region diffing, and a border-clip fix found along the way.
+
+### Added
+
+- **DECSTBM scroll diffing** — when a repaint is a clean vertical
+  translation of the previous frame (a full-viewport scroll), the diff
+  emits a scroll-region command + index/reverse-index and paints only
+  the newly revealed rows, instead of rewriting the screen. ~13× less
+  output on an 80×40 one-line scroll (`scripts/bench-scroll-bytes.mjs`).
+  Falls back to the normal cell diff for any non-translation change.
+
+### Fixed
+
+- **Scrolled content painted over borders** — a bordered
+  `overflow: auto`/`scroll` box clipped its children to the box
+  *including* the border cells, so scrolled content overwrote the top
+  and bottom border rows. The clip now insets by the border. (Regression
+  from 0.13.0's virtual scrolling.)
+
 ## 0.17.0 — 2026-07-04
 
 Debug tooling: a minimal DevTools for terminal apps.

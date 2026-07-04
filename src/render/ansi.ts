@@ -157,6 +157,26 @@ export function disableBracketedPaste(): string {
     return `${CSI}?2004l`
 }
 
+/** DECSTBM — set the scroll region to rows [top, bottom] (1-based). */
+export function setScrollRegion(top: number, bottom: number): string {
+    return `${CSI}${top};${bottom}r`
+}
+
+/** DECSTBM reset — scroll region back to the full screen. */
+export function resetScrollRegion(): string {
+    return `${CSI}r`
+}
+
+/** IND — index: move down one line, scrolling the region at its bottom. */
+export function index(): string {
+    return `${ESC}D`
+}
+
+/** RI — reverse index: move up one line, scrolling the region at its top. */
+export function reverseIndex(): string {
+    return `${ESC}M`
+}
+
 export function beginSyncUpdate(): string {
     return `${CSI}?2026h`
 }

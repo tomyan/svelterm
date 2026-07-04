@@ -23,9 +23,13 @@ export class AnsiScreen {
     private bg = 'default'
     private bold = false
     private inverse = false
+    /** Scroll region [top, bottom] (0-based, inclusive); full screen by default. */
+    private scrollTop = 0
+    private scrollBottom: number
 
     constructor(public cols: number, public rows: number) {
         this.grid = Array.from({ length: rows }, () => Array.from({ length: cols }, blank))
+        this.scrollBottom = rows - 1
     }
 
     cell(col: number, row: number): ScreenCell {
@@ -55,7 +59,7 @@ export class AnsiScreen {
 
     private writeChar(char: string): void {
         if (char === '\r') { this.col = 0; return }
-        if (char === '\n') { this.row = Math.min(this.rows - 1, this.row + 1); return }
+        if (char === '\n') { this.lineFeed(); return }
         const width = char.codePointAt(0)! > 0x2e7f ? 2 : 1
         this.put(this.col, this.row, char)
         if (width === 2) this.put(this.col + 1, this.row, '')
@@ -71,6 +75,8 @@ export class AnsiScreen {
 
     /** Handle one escape sequence at the head of `data`; return its length. */
     private handleEscape(data: string): number {
+        // ESC D / ESC M (index / reverse index) are two-byte, not CSI
+        if (data[1] === 'D' || data[1] === 'M') return this.handleTwoByteEscape(data)
         const csi = /^\x1b\[([0-9;?]*)([a-zA-Z])/.exec(data)
         if (!csi) return 1 // lone ESC or unsupported — skip the ESC byte
         const params = csi[1]
@@ -87,9 +93,49 @@ export class AnsiScreen {
             case 'G': this.col = (nums[0] || 1) - 1; break
             case 'J': this.eraseBelow(); break
             case 'm': this.applySgr(params); break
+            case 'r': {
+                // DECSTBM: set scroll region (1-based inclusive), cursor home
+                this.scrollTop = params === '' ? 0 : (nums[0] || 1) - 1
+                this.scrollBottom = params === '' ? this.rows - 1 : (nums[1] || this.rows) - 1
+                this.row = this.scrollTop
+                this.col = 0
+                break
+            }
             default: break // modes (h/l), etc. — ignored
         }
         return csi[0].length
+    }
+
+    /** Match ESC D (index) and ESC M (reverse index) — not CSI. */
+    private handleTwoByteEscape(data: string): number {
+        if (data[1] === 'D') { this.index(); return 2 }
+        if (data[1] === 'M') { this.reverseIndex(); return 2 }
+        return 1
+    }
+
+    private lineFeed(): void {
+        if (this.row === this.scrollBottom) this.scrollUp()
+        else this.row = Math.min(this.rows - 1, this.row + 1)
+    }
+
+    private index(): void {
+        if (this.row === this.scrollBottom) this.scrollUp()
+        else this.row = Math.min(this.rows - 1, this.row + 1)
+    }
+
+    private reverseIndex(): void {
+        if (this.row === this.scrollTop) this.scrollDown()
+        else this.row = Math.max(0, this.row - 1)
+    }
+
+    private scrollUp(): void {
+        this.grid.splice(this.scrollTop, 1)
+        this.grid.splice(this.scrollBottom, 0, Array.from({ length: this.cols }, blank))
+    }
+
+    private scrollDown(): void {
+        this.grid.splice(this.scrollBottom, 1)
+        this.grid.splice(this.scrollTop, 0, Array.from({ length: this.cols }, blank))
     }
 
     private eraseBelow(): void {

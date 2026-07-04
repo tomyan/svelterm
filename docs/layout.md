@@ -23,6 +23,11 @@ paint walk, so a 10,000-row list repaints in ~1.5 ms per scroll step
 (initial layout still visits every row once). No windowing API needed —
 put long content in an `overflow: auto` box and scroll it.
 
+When the whole viewport scrolls (a fullscreen list, streaming inline
+output), the diff detects the vertical translation and emits a DECSTBM
+scroll-region command instead of rewriting every cell — an 80×40 screen
+scrolled one line is ~13× less output, which shows on slow links.
+
 ## Display and flow
 
 `display: block, inline, inline-block, flex, grid, none, contents` and
