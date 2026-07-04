@@ -2,8 +2,15 @@ import { createRenderer as svelteCreateRenderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode, SvtRegionNode } from './node.js'
 
-export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>> {
-    return svelteCreateRenderer<TermNode, TermNode, TermNode, TermNode>({
+type TermNodes = {
+    fragment: TermNode
+    element: TermNode
+    text: TermNode
+    comment: TermNode
+}
+
+export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNodes>> {
+    return svelteCreateRenderer<TermNodes>({
         createFragment(): TermNode {
             return new TermNode('fragment')
         },

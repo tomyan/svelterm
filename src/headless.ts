@@ -1,3 +1,4 @@
+import { mount as svelteMount, unmount as svelteUnmount } from 'svelte'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
 import renderer from './renderer/default.js'
@@ -35,10 +36,13 @@ export function renderHeadless<Props extends Record<string, any>>(
 
     const stylesheet = parseCSS(DEFAULT_STYLESHEET + (options.css ?? ''))
 
-    const { unmount } = renderer.render(
-        AppComponent as any,
-        { target: root, props: options.props ?? {} as any },
-    )
+    const app = svelteMount(AppComponent as any, {
+        renderer,
+        target: root,
+        props: options.props ?? {} as any,
+        context: new Map([[Symbol.for('@svelterm/target'), 'terminal']]),
+    } as any)
+    const unmount = () => void svelteUnmount(app)
 
     const buffer = new CellBuffer(width, height)
     const styles = resolveStyles(root, stylesheet)

@@ -1,3 +1,4 @@
+import { mount, unmount } from 'svelte'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
 import { hasBooleanAttribute } from './renderer/node.js'
@@ -441,14 +442,13 @@ export function run<Props extends Record<string, any>>(
     // `getContext` call there returns undefined and the component
     // defaults to the browser path.
     ctx.queue.setFullRecompute()
-    const { unmount: svUnmount } = renderer.render(
-        AppComponent as any,
-        {
-            target: root,
-            props: (options as any)?.props ?? {},
-            context: new Map([[Symbol.for('@svelterm/target'), 'terminal']]),
-        },
-    )
+    const app = mount(AppComponent as any, {
+        renderer,
+        target: root,
+        props: (options as any)?.props ?? {},
+        context: new Map([[Symbol.for('@svelterm/target'), 'terminal']]),
+    } as any)
+    const svUnmount = () => void unmount(app)
 
     // Collect CSS from injected <style> elements (css: 'injected' mode).
     // Skipped when the host passed an explicit `css` option.

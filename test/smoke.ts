@@ -89,10 +89,9 @@ console.log('Test 4: Diff produces output for changed cells only')
 }
 
 // Test 5: createTermRenderer interface
-console.log('Test 5: createTermRenderer creates renderer with render method')
+console.log('Test 5: createTermRenderer creates renderer usable with mount()')
 {
     const renderer = createTermRenderer()
-    console.assert(typeof renderer.render === 'function', 'renderer has render method')
     console.assert(typeof renderer.createElement === 'function', 'renderer has createElement')
     console.assert(typeof renderer.createTextNode === 'function', 'renderer has createTextNode')
     console.assert(typeof renderer.insert === 'function', 'renderer has insert')
