@@ -69,10 +69,33 @@ function parseEscapeSequence(data: Buffer | Uint8Array): KeyEvent {
     return { key: 'Escape', ctrl: false, shift: false, meta: false }
 }
 
+/** Codepoints the kitty protocol uses for functional keys. */
+const KITTY_FUNCTIONAL: Record<number, string> = {
+    9: 'Tab', 13: 'Enter', 27: 'Escape', 127: 'Backspace',
+    57352: 'Insert', 57349: 'Delete',
+    57354: 'PageUp', 57355: 'PageDown', 57356: 'Home', 57357: 'End',
+    57358: 'CapsLock',
+}
+
+const KITTY_KEY_RE = /^\x1b\[(\d+)(?:;(\d+)(?::\d+)?)?u/
+
+/** Parse a kitty-protocol CSI u key report, or null if not one. */
+function parseKittyKey(str: string): KeyEvent | null {
+    const match = KITTY_KEY_RE.exec(str)
+    if (!match) return null
+    const codepoint = parseInt(match[1], 10)
+    const mods = match[2] ? parseModifier(parseInt(match[2], 10)) : { ctrl: false, shift: false, meta: false }
+    const key = KITTY_FUNCTIONAL[codepoint] ?? String.fromCodePoint(codepoint)
+    return { key, ...mods }
+}
+
 function parseCSI(data: Buffer | Uint8Array): KeyEvent {
     const base = { ctrl: false, shift: false, meta: false }
 
     if (data.length < 3) return { key: 'Escape', ...base }
+
+    const kitty = parseKittyKey(decodeBytes(data))
+    if (kitty) return kitty
 
     const third = data[2]
 
@@ -115,10 +138,11 @@ const CSI_KEYS: Record<number, string> = {
 }
 
 function parseModifier(mod: number): { ctrl: boolean; shift: boolean; meta: boolean } {
-    // CSI modifier values: 1=none, 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Shift+Ctrl, 7=Alt+Ctrl, 8=Shift+Alt+Ctrl
+    // CSI modifier values are bitmask+1: 2=Shift, 3=Alt, 5=Ctrl, 6=Shift+Ctrl…
+    const mask = mod - 1
     return {
-        shift: (mod & 1) !== 0,
-        meta: (mod & 2) !== 0,
-        ctrl: (mod & 4) !== 0,
+        shift: (mask & 1) !== 0,
+        meta: (mask & 2) !== 0,
+        ctrl: (mask & 4) !== 0,
     }
 }

@@ -139,6 +139,16 @@ export function resetCursorShape(): string {
     return `${CSI}0 q`
 }
 
+/** Kitty keyboard protocol: push disambiguate-escape-codes mode. */
+export function pushKittyKeyboard(): string {
+    return `${CSI}>1u`
+}
+
+/** Kitty keyboard protocol: pop our mode entry. */
+export function popKittyKeyboard(): string {
+    return `${CSI}<u`
+}
+
 export function enableBracketedPaste(): string {
     return `${CSI}?2004h`
 }

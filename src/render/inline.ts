@@ -68,6 +68,18 @@ export class InlineScreen {
         return parts.join('')
     }
 
+    /**
+     * Forget the zone entirely — after a suspend the shell owned the
+     * screen, so the next render starts a fresh zone at the cursor.
+     */
+    reset(): void {
+        this.prev = null
+        this.physicalRows = 0
+        this.contentHeight = 0
+        this.cursorRow = 0
+        this.cursorCol = 0
+    }
+
     /** Hand the top `n` rows to the terminal's scrollback. */
     releaseTop(n: number): void {
         if (n <= 0) return

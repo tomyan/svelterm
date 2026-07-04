@@ -35,6 +35,7 @@ import { copyToClipboard } from './terminal/clipboard.js'
 import { SelectionController, applySelectionOverlay } from './input/selection.js'
 import { InlineScreen } from './render/inline.js'
 import { registerInlineHooks } from './framelog.js'
+import { activeModal, withinSubtree } from './input/modal.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import { emitFocusCursor } from './render/cursor-emit.js'
@@ -70,6 +71,11 @@ export interface RunOptions {
      * disabled in inline mode.
      */
     mode?: 'fullscreen' | 'inline'
+    /**
+     * Key combinations that exit the app. Ctrl+C always exits; add
+     * 'ctrl+d' for EOF-style exit. Default: ['ctrl+c'].
+     */
+    exitOn?: Array<'ctrl+c' | 'ctrl+d'>
     /**
      * Override colour depth instead of detecting it (NO_COLOR/COLORTERM/
      * XTVERSION). Hex colours quantize to the terminal's palette at emit
@@ -123,6 +129,7 @@ export function run<Props extends Record<string, any>>(
     const mouseEnabled = inline ? false : (options?.mouse ?? true)
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
+    const exitOn = options?.exitOn ?? ['ctrl+c']
     const userCss = options?.css ?? [...registeredComponentCss].join('\n')
     let stylesheet = parseCSS(DEFAULT_STYLESHEET + userCss)
 
@@ -448,6 +455,8 @@ export function run<Props extends Record<string, any>>(
     io.write(ansi.hideCursor())
     // Write mode sequences directly — sync update wrapping can interfere
     io.write(ansi.enableBracketedPaste())
+    // Kitty keyboard protocol: unsupported terminals ignore the push/pop
+    io.write(ansi.pushKittyKeyboard())
     if (mouseEnabled) io.write(ansi.enableMouse())
 
     // Single stdin router — all input flows through here
@@ -458,7 +467,25 @@ export function run<Props extends Record<string, any>>(
         if (!key) return
 
         if (key.ctrl && key.key === 'c') { doCleanup(); if (typeof process !== 'undefined') process.exit(0); return }
-        if (key.ctrl && key.key === 'z') { doCleanup(); if (typeof process !== 'undefined') process.kill(process.pid, 'SIGTSTP'); return }
+        if (key.ctrl && key.key === 'd' && exitOn.includes('ctrl+d')) {
+            doCleanup(); if (typeof process !== 'undefined') process.exit(0); return
+        }
+        if (key.ctrl && key.key === 'z') { suspend(); return }
+
+        // An open <dialog> captures keys: Escape closes it, Tab traps inside
+        const modal = activeModal(root)
+        focusManager.setScope(modal)
+        if (modal && key.key === 'Escape') {
+            modal.attributes.delete('open')
+            ctx.onRemoveAttribute(modal, 'open')
+            dispatchEvent(modal, 'close')
+            focusManager.setScope(null)
+            scheduleRender()
+            return
+        }
+        if (modal && focusManager.focused && !withinSubtree(focusManager.focused, modal)) {
+            focusManager.focusNext() // pull focus into the modal
+        }
 
         if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
@@ -636,6 +663,7 @@ export function run<Props extends Record<string, any>>(
         restoreConsole?.()
         svUnmount()
         if (mouseEnabled) io.write(ansi.disableMouse())
+        io.write(ansi.popKittyKeyboard())
         io.write(ansi.disableBracketedPaste())
         if (fullscreen) exitFullscreen(io)
         if (inline) {
@@ -650,9 +678,36 @@ export function run<Props extends Record<string, any>>(
         io.dispose()
     }
 
+    /**
+     * Ctrl+Z: release the terminal without unmounting, stop, and pick up
+     * where we left off on `fg` — modes re-enter and everything repaints.
+     */
+    const suspend = () => {
+        if (typeof process === 'undefined') return
+        if (mouseEnabled) io.write(ansi.disableMouse())
+        io.write(ansi.popKittyKeyboard() + ansi.disableBracketedPaste())
+        if (fullscreen) exitFullscreen(io)
+        if (inline) inlineScreen.reset()
+        io.write(ansi.showCursor() + ansi.resetCursorShape())
+        io.disableRawMode()
+        process.kill(process.pid, 'SIGTSTP')
+    }
+
+    const resume = () => {
+        io.enableRawMode()
+        if (fullscreen) enterFullscreen(io)
+        io.write(ansi.hideCursor() + ansi.enableBracketedPaste() + ansi.pushKittyKeyboard())
+        if (mouseEnabled) io.write(ansi.enableMouse())
+        ctx.onResize()
+        prevBuffer = null
+        prevClean = null
+        scheduleRender()
+    }
+
     if (typeof process !== 'undefined') {
         process.on('SIGINT', () => { doCleanup(); process.exit(0) })
         process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
+        process.on('SIGCONT', resume)
     }
 
     const setColorScheme = (scheme: 'dark' | 'light') => {

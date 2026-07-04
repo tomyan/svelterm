@@ -1,8 +1,11 @@
 import { TermNode, hasBooleanAttribute } from '../renderer/node.js'
+import { withinSubtree } from './modal.js'
 
 export class FocusManager {
     private elements: TermNode[] = []
     private focusIndex: number = -1
+    /** When set, focus cycling is trapped inside this subtree (modals). */
+    private scope: TermNode | null = null
     onSetAttribute?: (node: TermNode, key: string, value: string) => void
     onRemoveAttribute?: (node: TermNode, key: string) => void
     onFocusChange?: (focused: TermNode | null, previous: TermNode | null) => void
@@ -37,6 +40,11 @@ export class FocusManager {
         }
     }
 
+    /** Trap focus cycling inside `node`'s subtree; null lifts the trap. */
+    setScope(node: TermNode | null): void {
+        this.scope = node
+    }
+
     focusNext(): void {
         this.focusFirstEnabledFrom(this.focusIndex, +1)
     }
@@ -62,10 +70,11 @@ export class FocusManager {
         const count = this.elements.length
         for (let offset = 1; offset <= count; offset++) {
             const index = ((start + step * offset) % count + count) % count
-            if (!hasBooleanAttribute(this.elements[index], 'disabled')) {
-                this.setFocusIndex(index)
-                return
-            }
+            const element = this.elements[index]
+            if (hasBooleanAttribute(element, 'disabled')) continue
+            if (this.scope && !withinSubtree(element, this.scope)) continue
+            this.setFocusIndex(index)
+            return
         }
     }
 
