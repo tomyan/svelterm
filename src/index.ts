@@ -11,6 +11,7 @@ import { paint } from './render/paint.js'
 import { parseCSS } from './css/parser.js'
 import { DEFAULT_STYLESHEET } from './css/defaults.js'
 import { resolveStyles, filterByMedia, type ResolvedStyle } from './css/compute.js'
+import { collectVariables } from './css/variables.js'
 import { resolveStylesIncremental } from './css/incremental.js'
 import { computeLayout, type LayoutBox } from './layout/engine.js'
 import { computeLayoutIncremental } from './layout/incremental.js'
@@ -208,7 +209,10 @@ export function run<Props extends Record<string, any>>(
             }
         }
         if (lastStyles && lastFilteredStylesheet) {
-            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet), {
+                variables: collectVariables(root, lastFilteredStylesheet),
+                scheme: detectedScheme,
+            })
             animationClock.syncTransitions(root, lastStyles)
             animationClock.apply(lastStyles)
         }
@@ -247,7 +251,10 @@ export function run<Props extends Record<string, any>>(
             )
             // Newly mounted or restyled nodes may start/stop animations,
             // and re-resolution resets styles to their base keyframe.
-            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet))
+            animationClock.sync(root, lastStyles, getKeyframes(lastFilteredStylesheet), {
+                variables: collectVariables(root, lastFilteredStylesheet),
+                scheme: detectedScheme,
+            })
             animationClock.syncTransitions(root, lastStyles, resolvedIds)
             animationClock.apply(lastStyles)
         }

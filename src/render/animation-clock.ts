@@ -1,8 +1,11 @@
 import { TermNode } from '../renderer/node.js'
 import { AnimationRunner } from '../css/animation-runner.js'
+import { resolveKeyframeStops, type KeyframeResolution } from '../css/animation.js'
 import { parseEasing, type Easing } from '../css/easing.js'
 import type { KeyframeStop, CSSDeclaration } from '../css/parser.js'
 import type { ResolvedStyle } from '../css/compute.js'
+
+export type { KeyframeResolution } from '../css/animation.js'
 
 /** The runner's easing for a CSS timing-function value; invalid → linear. */
 function easingFor(value: string): Easing {
@@ -102,9 +105,12 @@ export class AnimationClock {
     }
 
     /** Reconcile active animations with the tree's current resolved styles. */
-    sync(root: TermNode, styles: Map<number, ResolvedStyle>, keyframes: Map<string, KeyframeStop[]>): void {
+    sync(
+        root: TermNode, styles: Map<number, ResolvedStyle>,
+        keyframes: Map<string, KeyframeStop[]>, resolution?: KeyframeResolution,
+    ): void {
         const seen = new Set<number>()
-        this.discover(root, styles, keyframes, seen)
+        this.discover(root, styles, keyframes, seen, resolution)
         for (const id of this.active.keys()) {
             if (!seen.has(id)) this.active.delete(id)
         }
@@ -150,6 +156,7 @@ export class AnimationClock {
     private discover(
         node: TermNode, styles: Map<number, ResolvedStyle>,
         keyframes: Map<string, KeyframeStop[]>, seen: Set<number>,
+        resolution?: KeyframeResolution,
     ): void {
         if (node.nodeType === 'element') {
             const style = styles.get(node.id)
@@ -158,10 +165,13 @@ export class AnimationClock {
             if (style && name && stops && style.animationDuration > 0) {
                 const existing = this.active.get(node.id)
                 if (!existing || existing.name !== name || existing.duration !== style.animationDuration) {
+                    const resolved = resolution
+                        ? resolveKeyframeStops(stops, resolution, node.id)
+                        : stops
                     this.active.set(node.id, {
                         node,
                         runner: new AnimationRunner(
-                            stops, style.animationDuration, style.animationIterationCount,
+                            resolved, style.animationDuration, style.animationIterationCount,
                             easingFor(style.animationTimingFunction)),
                         name,
                         duration: style.animationDuration,
@@ -171,7 +181,7 @@ export class AnimationClock {
                 seen.add(node.id)
             }
         }
-        for (const child of node.children) this.discover(child, styles, keyframes, seen)
+        for (const child of node.children) this.discover(child, styles, keyframes, seen, resolution)
     }
 
     private discoverTransitions(
