@@ -66,7 +66,9 @@ node dist/app.mjs
 
 Global CSS is picked up from `src/main.css`/`main.css` (or the
 `--css` flag); each component's scoped styles travel inside the bundle.
-See
+Component libraries installed as symlinks (e.g. a local `@svelterm/ui`
+via `file:`) resolve `@svelterm/core` and `svelte` from your project, so
+they bundle correctly. See
 [distribution](./distribution.md) for platform packaging and the
 curl-pipe pattern.
 

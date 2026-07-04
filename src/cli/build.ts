@@ -12,6 +12,7 @@
  */
 
 import { readFileSync, mkdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import {
     withCssRegistration, bootstrapModule, globalCssModule,
@@ -62,12 +63,24 @@ export async function runBuild(argv: string[]): Promise<void> {
 
 /** Compile .svelte modules and serve the bundle's virtual modules. */
 function sveltermPlugin(compile: any, entry: string, globalCss: string) {
+    // Component libraries installed as symlinks (file:/link: deps) resolve
+    // imports from their real path, where the app's dependencies aren't
+    // visible — pin the renderer packages to this project's installation.
+    const requireFromProject = createRequire(path.join(process.cwd(), 'package.json'))
+    const PINNED = ['@svelterm/core', 'svelte']
     return {
         name: 'svelterm',
         resolveId(id: string) {
             if (id === BOOTSTRAP_MODULE || id === 'svelterm:global-css' || id === 'ws') {
                 return id === 'ws' ? WS_STUB_MODULE
                     : id === BOOTSTRAP_MODULE ? BOOTSTRAP_MODULE : GLOBAL_CSS_MODULE
+            }
+            if (PINNED.some(pkg => id === pkg || id.startsWith(`${pkg}/`))) {
+                try {
+                    return requireFromProject.resolve(id)
+                } catch {
+                    return null
+                }
             }
             return null
         },

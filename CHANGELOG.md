@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.16.0 — 2026-07-04
+
+### Fixed
+
+- **`svelterm build` with symlinked component libraries** — a library
+  installed via `file:`/`link:` (e.g. a local `@svelterm/ui`) resolves
+  its imports from its real path, where the app's `node_modules` isn't
+  visible, so `@svelterm/core` and `svelte` failed to resolve. The
+  bundler now pins those packages to the project's own installation.
+
 ## 0.15.0 — 2026-07-04
 
 Images: `<img>` on the cell grid.
