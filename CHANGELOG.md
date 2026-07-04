@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.20.0 — 2026-07-05
+
+DevTools: a terminal inspector, itself a svelterm app.
+
+### Added
+
+- **`svelterm devtools`** — connects to a `run(App, { debug: true })`
+  app's debug server and shows its live node tree (left) with each
+  selected node's computed style and layout box (right); ↑/↓ to select,
+  r to refresh. Built with svelterm and the DOM/CSS debug domains — it
+  dogfoods the renderer it inspects. See `docs/debug/devtools.md`.
+- The DevTools component is precompiled into the package at build time,
+  so it runs without a build step in your project.
+
 ## 0.19.0 — 2026-07-05
 
 Kitty graphics: crisp `<img>` pixels where the terminal supports them.

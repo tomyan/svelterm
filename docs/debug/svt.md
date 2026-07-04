@@ -1,8 +1,9 @@
 # svt — debug CLI
 
 `svt` connects to a running svelterm app's debug server (a WebSocket on
-`127.0.0.1`) and inspects its live node tree, styles, and layout — a
-minimal DevTools for the terminal. Also available as `svelterm inspect`.
+`127.0.0.1`) and inspects its live node tree, styles, and layout from the
+command line. Also available as `svelterm inspect`. For an interactive
+terminal inspector, see [DevTools](./devtools.md).
 
 ## Enabling debug mode
 

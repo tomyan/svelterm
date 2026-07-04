@@ -12,7 +12,8 @@ const USAGE = `Usage:
   svelterm init <directory>
   svelterm dev <dev-server-url>[/path/to/App.svelte]
   svelterm build [entry.svelte] [-o out.mjs] [--css main.css]
-  svelterm inspect <tree|query|style|box|console|raw> [args] [--port n]`
+  svelterm inspect <tree|query|style|box|console|raw> [args] [--port n]
+  svelterm devtools [--port n]`
 
 async function main(): Promise<void> {
     const [command, ...rest] = process.argv.slice(2)
@@ -35,6 +36,11 @@ async function main(): Promise<void> {
         case 'inspect': {
             const { runSvt } = await import('./svt.js')
             await runSvt(rest)
+            break
+        }
+        case 'devtools': {
+            const { runDevtools } = await import('./devtools.js')
+            await runDevtools(rest)
             break
         }
         default:
