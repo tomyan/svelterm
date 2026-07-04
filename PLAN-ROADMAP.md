@@ -29,6 +29,19 @@ run `npm login` locally, or add an `NPM_TOKEN` secret (or configure npm
 trusted publishing for tomyan/svelterm) and re-run the failed publish jobs.
 
 - @svelterm/core 0.2.0 (tag v0.2.0)
+- @svelterm/core 0.3.0 (tag v0.3.0)
+
+Local `npm login` succeeded (2026-07-04) but each publish still demands an
+interactive OTP; run `npm publish --access public --otp=<code>` per pending
+version, oldest first — npm requires ascending order? (it doesn't; any
+order works, but publish 0.3.0 last so `latest` points at it).
+
+## Site deploy queue
+
+Deploys pending AWS SSO login (`aws sso login --profile tyanroot`):
+
+- svelterm-site rebuild with 0.3.0 docs (built 2026-07-04, plan blocked on
+  SSO; run `tofu plan -out=x.tfplan` → review → `tofu apply x.tfplan`)
 
 ## Arc 0 — Release 0.2.0: everything shipped to date
 

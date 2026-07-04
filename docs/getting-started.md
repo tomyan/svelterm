@@ -6,53 +6,88 @@ out on a character-cell grid instead of a browser DOM.
 
 ## Prerequisites
 
-svelterm builds on Svelte's experimental custom renderer API, currently on
-the [`svelte-custom-renderer`](https://github.com/paoloricciuti/svelte/tree/svelte-custom-renderer)
-branch:
+svelterm builds on Svelte's experimental custom renderer API
+([sveltejs/svelte#18042](https://github.com/sveltejs/svelte/pull/18042)).
+Until [#18505](https://github.com/sveltejs/svelte/pull/18505) lands, use
+the svelterm fork of that branch (upstream plus the `svelte/renderer`
+mount export svelterm needs on Node):
 
 ```bash
-git clone -b svelte-custom-renderer https://github.com/paoloricciuti/svelte.git svelte-fork
+git clone -b svelte-custom-renderer https://github.com/tomyan/svelte.git svelte-fork
 cd svelte-fork
 pnpm install
 pnpm -C packages/svelte build
 ```
 
-Reference the build from your project:
+## Scaffold a project
 
-```json
-{
-    "peerDependencies": {
-        "svelte": "file:../svelte-fork/packages/svelte"
-    }
-}
+```bash
+npx @svelterm/core init my-app        # or: svelterm init my-app
+cd my-app
+npm install
 ```
 
-## Build setup
+The scaffold expects the Svelte fork as a sibling directory
+(`../svelte-fork`) — adjust the `svelte` path in `package.json` if yours
+lives elsewhere. It contains a counter component, a vite config, and
+three scripts:
 
-Point the Svelte compiler at svelterm's renderer and keep CSS external —
-the terminal engine consumes the extracted stylesheet:
+```bash
+npm run dev    # vite dev server (terminal 1)
+npm run app    # the app itself, hot-reloading (terminal 2)
+npm run build  # one self-contained dist/app.mjs
+```
+
+## Dev mode
+
+`svelterm dev <url>` connects to the vite dev server over WebSocket and
+renders the app in *its own* terminal — the server terminal keeps logs
+and errors readable:
+
+- Edits to any imported module restart the app in place.
+- `console.log` from the app appears in the **vite terminal**, prefixed
+  `[svelterm]` — the app's terminal is its screen.
+- `Ctrl+C` in the app terminal exits and restores the screen.
+
+Terminal-only projects need no `vite-plugin-svelte`: svelterm's
+`terminalServer()` plugin compiles `.svelte` files for the terminal
+environment itself.
+
+## Shipping
+
+`svelterm build [entry.svelte]` bundles the component graph, the Svelte
+runtime, and svelterm into one `.mjs` (default `dist/app.mjs`) that runs
+with plain `node` — no `node_modules` at the destination:
+
+```bash
+npx svelterm build src/App.svelte -o dist/app.mjs
+node dist/app.mjs
+```
+
+Global CSS is picked up from `src/main.css`/`main.css` (or `--css
+<file>`); each component's scoped styles travel inside the bundle. See
+[distribution](./distribution.md) for platform packaging and the
+curl-pipe pattern.
+
+## Manual setup
+
+An existing project needs the compiler pointed at svelterm's renderer
+with CSS kept external. With the environment-aware `vite-plugin-svelte`
+fork (needed for dual-target; terminal-only projects can rely on
+`terminalServer()` instead):
 
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { svelterm } from '@svelterm/core/vite'
 
 export default defineConfig({
     plugins: [
-        svelte({
-            compilerOptions: {
-                experimental: { customRenderer: '@svelterm/core' },
-                css: 'external',
-            },
-        }),
+        ...svelterm.terminalServer({ entry: './src/App.svelte' }),
     ],
-    build: {
-        target: 'node22',
-        rollupOptions: {
-            external: ['svelte', 'svelte/renderer', 'svelte/internal',
-                       'svelte/internal/client', 'ws', 'http', 'crypto'],
-        },
-    },
+    environments: svelterm.environments(),
+    optimizeDeps: { exclude: ['svelte'] },
+    ssr: { noExternal: ['svelte'] },
 })
 ```
 
@@ -82,7 +117,7 @@ export default defineConfig({
 </style>
 ```
 
-Run it:
+Run it programmatically (the CLI does this for you):
 
 ```typescript
 import { run } from '@svelterm/core/app'
@@ -99,7 +134,7 @@ Press `Tab` to focus the button, `Enter` to click it, `Ctrl+C` to exit.
 
 | Option | Default | Meaning |
 |---|---|---|
-| `css` | `''` | Extracted CSS to load alongside the component |
+| `css` | registered CSS | Extracted CSS; defaults to styles components registered via `registerComponentCss` (bundles do this automatically) |
 | `fullscreen` | `true` | Use the alternate screen buffer |
 | `mouse` | `true` | Enable mouse click/scroll/hover |
 | `props` | — | Props passed to the component |
@@ -126,6 +161,10 @@ identically; anything mode-specific goes in a
     @media (display-mode: browser)  { border: 1px solid #ccc; border-radius: 6px; }
 }
 ```
+
+Dual-target builds compile per environment, which needs the
+environment-aware [`vite-plugin-svelte` fork](https://github.com/sveltejs/vite-plugin-svelte/pull/1318)
+and the `svelterm.svelteOptions()` helper.
 
 Event payloads differ slightly: terminal events carry data on
 `event.data`, browsers on the event itself — handlers that run in both

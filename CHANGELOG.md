@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.4.0 — 2026-07-04
+
+The developer-experience release: `npx @svelterm/core init` to a running,
+hot-reloading, shippable app in one minute.
+
+### Added
+
+- **`svelterm init <dir>`** — scaffold a working project: counter
+  component, vite config, dev/app/build scripts, fork-setup README.
+- **`svelterm build [entry]`** — bundle the component graph, Svelte
+  runtime and svelterm into one self-contained `.mjs` (rolldown, node
+  platform) that runs with plain `node`. Global CSS via `--css` or
+  `src/main.css` convention; component CSS travels in the bundle through
+  the new `registerComponentCss` registry that `run()` falls back to.
+- **Terminal-environment `.svelte` compilation** — `terminalServer()`
+  compiles components for the terminal environment itself, so
+  terminal-only projects need no `vite-plugin-svelte` (the registry
+  plugin is not environment-aware and emitted empty component stubs for
+  custom environments, rendering a blank screen).
+- **Console forwarding in dev** — `console.log` from the app streams to
+  the vite terminal prefixed `[svelterm]`; previously any console call
+  crashed `svelterm dev`.
+
+### Changed
+
+- The `svelterm` bin now dispatches `init` / `dev` / `build`
+  subcommands (previously `dev` only).
+- The terminal environment marks `svelte` and `@svelterm/core` as
+  `noExternal` so a natively-imported second copy can't split module
+  state.
+
 ## 0.3.0 — 2026-07-04
 
 Motion completeness: easing everywhere, and keyframes that understand

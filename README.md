@@ -144,33 +144,20 @@ Then reference it in your project's `package.json`:
 
 ## Setup
 
-Configure the Svelte compiler to use svelterm as the custom renderer:
+Scaffold a project with the CLI (the Svelte fork above must be a sibling
+directory, or adjust the `svelte` path in the generated `package.json`):
 
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-
-export default defineConfig({
-    plugins: [
-        svelte({
-            compilerOptions: {
-                experimental: {
-                    customRenderer: '@svelterm/core',
-                },
-                css: 'external',
-            },
-        }),
-    ],
-    build: {
-        target: 'node22',
-        rollupOptions: {
-            external: ['svelte', 'svelte/renderer', 'svelte/internal',
-                        'svelte/internal/client', 'ws', 'http', 'crypto'],
-        },
-    },
-})
+```bash
+npx @svelterm/core init my-app
+cd my-app && npm install
+npm run dev    # vite dev server (terminal 1)
+npm run app    # the app, hot-reloading, in this terminal (terminal 2)
+npm run build  # → dist/app.mjs — self-contained, runs with plain node
 ```
+
+`console.log` output from the app streams to the vite terminal, like a
+browser console. See [docs/getting-started.md](docs/getting-started.md)
+for manual setup and dual-target configuration.
 
 ## API
 
