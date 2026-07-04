@@ -38,6 +38,7 @@ describe('RenderContext mutation routing', () => {
         const ctx = new RenderContext()
         const node = new TermNode('element', 'div')
         node.cache.classAttr = 'same'
+        node.attributes.set('class', 'same')
 
         ctx.onSetAttribute(node, 'class', 'same')
         assert.ok(ctx.queue.isEmpty())
@@ -68,12 +69,20 @@ describe('RenderContext mutation routing', () => {
         assert.ok(ctx.queue.styleResolve.has(node))
     })
 
-    it('setAttribute other enqueues paint-only', () => {
+    it('setAttribute checked enqueues style-resolve (drives :checked)', () => {
+        const ctx = new RenderContext()
+        const node = new TermNode('element', 'input')
+
+        ctx.onSetAttribute(node, 'checked', 'true')
+        assert.ok(ctx.queue.styleResolve.has(node))
+    })
+
+    it('setAttribute other enqueues style-resolve (attribute selectors)', () => {
         const ctx = new RenderContext()
         const node = new TermNode('element', 'div')
 
         ctx.onSetAttribute(node, 'title', 'hello')
-        assert.ok(ctx.queue.paintOnly.has(node))
+        assert.ok(ctx.queue.styleResolve.has(node))
     })
 
     it('insert enqueues layout for parent', () => {

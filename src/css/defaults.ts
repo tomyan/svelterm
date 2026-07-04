@@ -24,6 +24,7 @@ ul, ol { margin-top: 1cell; margin-bottom: 1cell; }
 mark { background-color: yellow; color: black; }
 kbd { border: single; border-color: gray; padding: 0 1cell; }
 progress, meter { display: inline-block; width: 20cell; height: 1cell; }
+input[type="checkbox"], input[type="radio"] { display: inline-block; width: 3cell; height: 1cell; }
 abbr { text-decoration: underline; }
 samp { color: cyan; }
 var { font-style: italic; }

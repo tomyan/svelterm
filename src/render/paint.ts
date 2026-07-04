@@ -1,4 +1,4 @@
-import { TermNode, SvtRegionNode, childrenWithPseudos } from '../renderer/node.js'
+import { TermNode, SvtRegionNode, childrenWithPseudos, hasBooleanAttribute } from '../renderer/node.js'
 import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
@@ -103,7 +103,12 @@ function paintNode(
             paintListMarker(node, buffer, box, visuals, clip)
         }
         if (node.tag === 'input' && box) {
-            paintInput(node, buffer, box, visuals, clip)
+            const inputType = node.attributes.get('type')
+            if (inputType === 'checkbox' || inputType === 'radio') {
+                paintCheckable(node, buffer, box, visuals, clip)
+            } else {
+                paintInput(node, buffer, box, visuals, clip)
+            }
         }
         if (node instanceof SvtRegionNode) {
             paintRegion(node, buffer, box, clip)
@@ -281,6 +286,25 @@ function paintListMarker(
         if (cx < 0) continue
         if (clip && !inClip(cx, box.y, clip)) continue
         buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
+    }
+}
+
+/** Checkbox → [x]/[ ], radio → (•)/( ), coloured by the element's visuals. */
+function paintCheckable(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const checked = hasBooleanAttribute(node, 'checked')
+    const glyphs = node.attributes.get('type') === 'radio'
+        ? (checked ? '(•)' : '( )')
+        : (checked ? '[x]' : '[ ]')
+    for (let i = 0; i < glyphs.length; i++) {
+        const col = box.x + i
+        if (clip && !inClip(col, box.y, clip)) continue
+        buffer.setCell(col, box.y, {
+            char: glyphs[i], fg: visuals.fg, bg: visuals.bg,
+            bold: visuals.bold, dim: visuals.dim,
+        })
     }
 }
 

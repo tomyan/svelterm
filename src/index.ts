@@ -22,6 +22,7 @@ import { parseMouseEvent, type MouseEvent } from './input/mouse.js'
 import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
+import { isCheckableInput, toggleCheckable } from './input/checkable.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import type { CSSStyleSheet } from './css/parser.js'
@@ -347,9 +348,16 @@ export function run<Props extends Record<string, any>>(
             return
         }
 
+        // Space toggles a focused checkbox or selects a focused radio
+        if (key.key === ' ' && focusManager.focused && isCheckableInput(focusManager.focused)) {
+            toggleCheckable(focusManager.focused)
+            scheduleRender()
+            return
+        }
+
         // Text input for focused input/textarea
         const focused = focusManager.focused
-        if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
+        if (focused && (focused.tag === 'input' || focused.tag === 'textarea') && !isCheckableInput(focused)) {
             if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
             if (focused.textBuffer.handleKey(key)) {
                 const newValue = focused.textBuffer.text
@@ -546,6 +554,7 @@ function handleMouse(
             if (FOCUSABLE_TAGS.has(target.tag ?? '')) {
                 focusManager.focusByNode(target)
             }
+            if (isCheckableInput(target)) toggleCheckable(target)
             const event = dispatchEvent(target, 'click', mouse)
             if (!event.defaultPrevented && target.tag === 'a') {
                 const href = target.attributes.get('href')

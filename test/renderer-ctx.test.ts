@@ -73,7 +73,7 @@ describe('renderer with node-owned ctx', () => {
             assert.ok(ctx.queue.styleResolve.has(el))
         })
 
-        it('enqueues paint for non-style attribute when node has ctx', () => {
+        it('enqueues style resolve for non-class attribute when node has ctx', () => {
             // Given
             const { root, ctx } = rootWithCtx()
             const el = renderer.createElement('div')
@@ -85,7 +85,7 @@ describe('renderer with node-owned ctx', () => {
 
             // Then
             assert.equal(renderer.getAttribute(el, 'data-value'), '42')
-            assert.ok(ctx.queue.paintOnly.has(el))
+            assert.ok(ctx.queue.styleResolve.has(el))
         })
 
         it('sets attribute directly when node has no ctx', () => {

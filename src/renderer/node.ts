@@ -71,6 +71,21 @@ export class TermNode {
         }
     }
 
+    /** DOM compatibility — checkbox/radio state as a property */
+    get checked(): boolean {
+        return hasBooleanAttribute(this, 'checked')
+    }
+
+    set checked(value: boolean) {
+        if (value) {
+            if (this.ctx) this.ctx.onSetAttribute(this, 'checked', 'true')
+            else this.attributes.set('checked', 'true')
+        } else {
+            if (this.ctx) this.ctx.onRemoveAttribute(this, 'checked')
+            else this.attributes.delete('checked')
+        }
+    }
+
     /** DOM compatibility — Svelte may also use textContent */
     get textContent(): string {
         return this.collectText()

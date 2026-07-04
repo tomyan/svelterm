@@ -23,22 +23,20 @@ export class RenderContext {
     }
 
     onSetAttribute(node: TermNode, key: string, value: string): void {
+        if (node.attributes.get(key) === value) return // no change
+
+        // Any attribute can participate in selector matching ([attr=…],
+        // :checked, inline style), so re-resolve the node's style. Only
+        // class gets descendant invalidation — descendant selectors keyed
+        // on other attributes are rare enough to accept staleness.
         if (key === 'class') {
-            if (node.cache.classAttr === value) return // no change
             node.cache.classAttr = value
             node.invalidateStyle()
             this.queue.enqueueStyleResolve(node)
-            // Also invalidate descendants — descendant selectors may change
             this.invalidateDescendantStyles(node)
-        } else if (key === 'style') {
-            if (node.attributes.get('style') === value) return // no change
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-        } else if (key === 'id' || key === 'data-focused' || key === 'data-hovered') {
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
         } else {
-            this.queue.enqueuePaintOnly(node)
+            node.invalidateStyle()
+            this.queue.enqueueStyleResolve(node)
         }
 
         node.attributes.set(key, value)
@@ -46,15 +44,16 @@ export class RenderContext {
     }
 
     onRemoveAttribute(node: TermNode, key: string): void {
+        if (!node.attributes.has(key)) return // no change
         node.attributes.delete(key)
-        if (key === 'style') {
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-        } else if (key === 'class' || key === 'id' || key === 'data-focused' || key === 'data-hovered') {
+        if (key === 'class') {
             node.cache.classAttr = ''
             node.invalidateStyle()
             this.queue.enqueueStyleResolve(node)
             this.invalidateDescendantStyles(node)
+        } else {
+            node.invalidateStyle()
+            this.queue.enqueueStyleResolve(node)
         }
         this.onScheduleRender?.()
     }
