@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 — 2026-07-04
+
+Colour blending: real alpha compositing on the cell grid.
+
+### Added
+
+- **Alpha colours** — `rgba()`, `hsl(... / a)`, `#rrggbbaa` keep their
+  alpha and composite over whatever the cell already holds at paint
+  time. Blending over ANSI names uses nominal xterm values; over the
+  terminal's default background it assumes black.
+- **Numeric `opacity`** — folds into the element's colours as a blend
+  factor (previously any `opacity < 1` just set the dim attribute; the
+  non-standard `opacity: dim` still does).
+
 ## 0.9.0 — 2026-07-04
 
 Text & content: wrapping control, path-friendly truncation, and raw

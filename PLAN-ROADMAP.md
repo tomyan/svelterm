@@ -35,6 +35,7 @@ trusted publishing for tomyan/svelterm) and re-run the failed publish jobs.
 - @svelterm/core 0.6.0 (tag v0.6.0)
 - @svelterm/core 0.7.0 (tag v0.7.0)
 - @svelterm/core 0.8.0 (tag v0.8.0)
+- @svelterm/core 0.9.0 (tag v0.9.0)
 
 Also queued behind AWS SSO: a playground example for inline mode
 (browser preview + run-real endpoint) — repo demo shipped as

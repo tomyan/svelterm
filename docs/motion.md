@@ -72,8 +72,8 @@ style never transitions.
   properties (per-property lists aren't split).
 - An interrupted transition restarts from its previous target value, not
   the current blended value.
-- `opacity` can't fade (dim is binary) — animate colour toward the
-  background instead.
+- `opacity` doesn't interpolate (it applies discretely mid-animation) —
+  animate colour toward the background for a smooth fade.
 - Keyframe `var()`/`light-dark()` resolution happens once when the
   animation starts; changing a custom property doesn't retarget a
   running animation.

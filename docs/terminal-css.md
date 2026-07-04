@@ -93,12 +93,24 @@ The terminal's own scheme is detected by polling OSC 11 (override with
 [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark)
 is usually the shortest way to theme a component for both schemes.
 
-## Opacity is dim
+## Alpha and opacity
 
-Terminals have no alpha layer. `opacity` below 1 applies the terminal's
-*dim* attribute — a binary state, not a blend. The explicit non-standard
-value `opacity: dim` does the same. Fading is approximated in
-[animations](./motion.md) by colour interpolation instead.
+Terminals have no alpha layer, so svelterm composites at paint time:
+`rgba()`, `#rrggbbaa` and slash-alpha colours blend over whatever the
+cell already holds, and numeric `opacity` folds into the element's
+colours as a blend factor. Blending over ANSI colour names uses their
+nominal xterm values; blending over the terminal's *default* background
+assumes black — set an explicit background on an ancestor when
+compositing in light themes.
+
+```css
+.overlay { background: rgb(0 0 0 / 0.4); }   /* darkens what's beneath */
+.muted   { opacity: 0.6; }                    /* blends toward the bg */
+```
+
+The non-standard `opacity: dim` applies the terminal's *dim* attribute
+instead of blending. Animating `opacity` switches discretely — animate a
+colour toward the background for a smooth fade.
 
 ## Text attributes
 

@@ -12,10 +12,9 @@ describe('modern rgb() syntax', () => {
         assert.equal(resolveColor('rgb(72 202 228)'), '#48cae4')
     })
 
-    it('space-separated with / alpha', () => {
-        // Alpha is ignored for terminal output, but should parse without error
+    it('space-separated with / alpha keeps the alpha', () => {
         const result = resolveColor('rgb(72 202 228 / 0.5)')
-        assert.equal(result, '#48cae4')
+        assert.equal(result, '#48cae480')
     })
 
     it('percentage values', () => {
@@ -34,8 +33,8 @@ describe('modern hsl() syntax', () => {
         assert.equal(resolveColor('hsl(0 100% 50%)'), '#ff0000')
     })
 
-    it('space-separated with / alpha', () => {
-        assert.equal(resolveColor('hsl(0 100% 50% / 0.5)'), '#ff0000')
+    it('space-separated with / alpha keeps the alpha', () => {
+        assert.equal(resolveColor('hsl(0 100% 50% / 0.5)'), '#ff000080')
     })
 
     it('legacy comma syntax still works', () => {

@@ -8,6 +8,7 @@ import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { wrapText, truncateText, truncateMiddle } from '../layout/text.js'
 import { parseAnsiText } from './ansi-text.js'
+import { blendColor } from '../css/color.js'
 
 interface TextVisuals {
     fg: string
@@ -86,16 +87,22 @@ export function paintTextContent(
         }
     }
 
+    const fgHasAlpha = visuals.fg.startsWith('#') && visuals.fg.length === 9
+    const bgHasAlpha = visuals.bg.startsWith('#') && visuals.bg.length === 9
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         const line = lines[lineIdx]
         const y = box.y + lineIdx
         for (let i = 0; i < line.length; i++) {
             const cx = startX + i
             if (clip && (cx < clip.x || cx >= clip.x + clip.width || y < clip.y || y >= clip.y + clip.height)) continue
+            // An alpha bg was already composited by the ancestor's fill —
+            // the cell beneath holds the blended value; don't blend twice.
+            const under = buffer.getCell(cx, y)?.bg ?? 'default'
+            const bg = bgHasAlpha ? under : visuals.bg
             buffer.setCell(cx, y, {
                 char: line[i],
-                fg: visuals.fg,
-                bg: visuals.bg,
+                fg: fgHasAlpha ? blendColor(bg !== 'default' ? bg : under, visuals.fg) : visuals.fg,
+                bg,
                 bold: visuals.bold,
                 italic: visuals.italic,
                 underline: visuals.underline,

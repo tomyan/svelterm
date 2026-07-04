@@ -70,13 +70,64 @@ export function resolveColor(value: string): string {
     const funcMatch = lower.match(/^(\w+)\((.+)\)$/)
     if (funcMatch) {
         const rgb = parseColorFunction(funcMatch[1], funcMatch[2])
-        if (rgb) return rgbToColor(rgb[0], rgb[1], rgb[2])
+        if (rgb) {
+            const alpha = parseFunctionAlpha(funcMatch[1], funcMatch[2])
+            if (alpha <= 0) return 'default'
+            const base = rgbToColor(rgb[0], rgb[1], rgb[2])
+            return alpha < 1 ? base + toHex(Math.round(alpha * 255)) : base
+        }
     }
 
     // CSS named colors
     if (lower in CSS_NAMED_COLORS) return CSS_NAMED_COLORS[lower]
 
     return 'default'
+}
+
+/** Nominal xterm values for blending over SGR colour names. */
+const NOMINAL_RGB: Record<string, [number, number, number]> = {
+    black: [0, 0, 0], red: [205, 0, 0], green: [0, 205, 0], yellow: [205, 205, 0],
+    blue: [0, 0, 238], magenta: [205, 0, 205], cyan: [0, 205, 205], white: [229, 229, 229],
+    // The terminal's actual default bg is unknowable — assume black.
+    default: [0, 0, 0],
+}
+
+/**
+ * Composite an alpha colour (#rrggbbaa) over a base colour, returning
+ * opaque #rrggbb. Opaque over-colours return unchanged.
+ */
+export function blendColor(under: string, over: string): string {
+    if (!over.startsWith('#') || over.length !== 9) return over
+    const alpha = parseInt(over.slice(7, 9), 16) / 255
+    const overRgb = [
+        parseInt(over.slice(1, 3), 16),
+        parseInt(over.slice(3, 5), 16),
+        parseInt(over.slice(5, 7), 16),
+    ]
+    const underRgb = under.startsWith('#')
+        ? [parseInt(under.slice(1, 3), 16), parseInt(under.slice(3, 5), 16), parseInt(under.slice(5, 7), 16)]
+        : NOMINAL_RGB[under] ?? NOMINAL_RGB.default
+    const mixed = overRgb.map((channel, i) =>
+        Math.round(channel * alpha + underRgb[i] * (1 - alpha)))
+    return '#' + mixed.map(c => toHex(c)).join('')
+}
+
+/** The alpha component of a colour-function value (legacy or modern). */
+function parseFunctionAlpha(name: string, args: string): number {
+    let alphaStr: string | null = null
+    if (args.includes(',')) {
+        const parts = args.split(',').map(s => s.trim())
+        if ((name === 'rgb' || name === 'rgba' || name === 'hsl' || name === 'hsla') && parts.length >= 4) {
+            alphaStr = parts[3]
+        }
+    } else {
+        const slashIdx = args.indexOf('/')
+        if (slashIdx >= 0) alphaStr = args.substring(slashIdx + 1).trim()
+    }
+    if (alphaStr === null) return 1
+    const value = alphaStr.endsWith('%') ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr)
+    if (isNaN(value)) return 1
+    return Math.max(0, Math.min(1, value))
 }
 
 // --- Color function parsing ---

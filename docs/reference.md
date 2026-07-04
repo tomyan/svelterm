@@ -203,6 +203,8 @@ transitions restart from the previous target value, keyframe
   `lab()`, `lch()`, `oklab()`, `oklch()` (legacy and modern syntax), all
   148 named colours, `transparent`, `currentColor`,
   [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark).
+  Alpha composites at paint time (blends over the cell beneath), and
+  numeric `opacity` acts as a blend factor.
 - Keywords: `inherit`, `initial`, `unset`.
 - At-rules: [`@media`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media)
   (`prefers-color-scheme`, `display-mode`, `min/max-width`, `min/max-height`

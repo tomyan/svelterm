@@ -90,6 +90,7 @@ export interface ResolvedStyle {
     textOverflow: 'clip' | 'ellipsis' | 'ellipsis-middle'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
     wordBreak: 'normal' | 'break-all'
+    opacity: number
     textAlign: 'left' | 'center' | 'right'
     textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize'
     position: 'static' | 'relative' | 'absolute' | 'fixed'
@@ -157,6 +158,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         textOverflow: 'clip',
         whiteSpace: 'normal',
         wordBreak: 'normal',
+        opacity: 1,
         textAlign: tag === 'button' ? 'center' : 'left',
         textTransform: 'none',
         position: 'static',
@@ -435,7 +437,7 @@ function applyInherit(style: ResolvedStyle, property: string, parentStyle: Resol
         case 'text-align': style.textAlign = parentStyle.textAlign; break
         case 'text-transform': style.textTransform = parentStyle.textTransform; break
         case 'visibility': style.visibility = parentStyle.visibility; break
-        case 'opacity': style.dim = parentStyle.dim; break
+        case 'opacity': style.dim = parentStyle.dim; style.opacity = parentStyle.opacity; break
     }
 }
 
@@ -659,7 +661,7 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             if (value === 'dim') { style.dim = true }
             else {
                 const num = parseFloat(value)
-                style.dim = !isNaN(num) && num < 1
+                if (!isNaN(num)) style.opacity = Math.max(0, Math.min(1, num))
             }
             break
     }

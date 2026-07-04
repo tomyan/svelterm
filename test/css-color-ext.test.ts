@@ -17,8 +17,8 @@ describe('rgb() color function', () => {
 })
 
 describe('rgba() color function', () => {
-    it('resolves rgba ignoring alpha', () => {
-        assert.equal(resolveColor('rgba(0, 255, 0, 0.5)'), '#00ff00')
+    it('resolves rgba keeping alpha as 8-digit hex', () => {
+        assert.equal(resolveColor('rgba(0, 255, 0, 0.5)'), '#00ff0080')
     })
 })
 

@@ -4,6 +4,7 @@ import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
+import { blendColor } from '../css/color.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
 import { selectOptions, selectedIndex } from '../input/select.js'
@@ -230,12 +231,16 @@ function fillBackground(
     const right = box.x + box.width - 1
     const top = box.y
     const bottom = box.y + box.height - 1
+    const bgHasAlpha = visuals.bg.startsWith('#') && visuals.bg.length === 9
     for (let row = top; row <= bottom; row++) {
         for (let col = left; col <= right; col++) {
             if (clip && !inClip(col, row, clip)) continue
             if (skipBorderRing && isBorderCell(col, row, left, right, top, bottom)) continue
             if (skipCorners && isCorner(col, row, left, right, top, bottom)) continue
-            buffer.setCell(col, row, { bg: visuals.bg })
+            const bg = bgHasAlpha
+                ? blendColor(buffer.getCell(col, row)?.bg ?? 'default', visuals.bg)
+                : visuals.bg
+            buffer.setCell(col, row, { bg })
         }
     }
 }
@@ -527,9 +532,10 @@ function resolveVisuals(
 
     const hyperlink = node.tag === 'a' ? node.attributes.get('href') : inherited.hyperlink
 
+    const opacity = own.opacity
     return {
-        fg: own.fg !== 'default' ? own.fg : inherited.fg,
-        bg: own.bg !== 'default' ? own.bg : inherited.bg,
+        fg: applyOpacity(own.fg !== 'default' ? own.fg : inherited.fg, opacity),
+        bg: applyOpacity(own.bg !== 'default' ? own.bg : inherited.bg, opacity),
         bold: own.bold || inherited.bold,
         italic: own.italic || inherited.italic,
         underline: own.underline || inherited.underline,
@@ -537,4 +543,23 @@ function resolveVisuals(
         dim: own.dim || inherited.dim,
         hyperlink,
     }
+}
+
+/** Fold a numeric opacity into the colour's alpha channel. */
+function applyOpacity(color: string, opacity: number): string {
+    if (opacity >= 1 || color === 'default') return color
+    const hex = color.startsWith('#') ? color : nominalHex(color)
+    if (!hex) return color
+    const existing = hex.length === 9 ? parseInt(hex.slice(7, 9), 16) / 255 : 1
+    const alpha = Math.round(existing * opacity * 255)
+    return hex.slice(0, 7) + alpha.toString(16).padStart(2, '0')
+}
+
+const NOMINAL_HEX: Record<string, string> = {
+    black: '#000000', red: '#cd0000', green: '#00cd00', yellow: '#cdcd00',
+    blue: '#0000ee', magenta: '#cd00cd', cyan: '#00cdcd', white: '#e5e5e5',
+}
+
+function nominalHex(name: string): string | null {
+    return NOMINAL_HEX[name] ?? null
 }

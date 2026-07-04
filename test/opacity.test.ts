@@ -16,14 +16,15 @@ describe('opacity property', () => {
         assert.equal(styles.get(el.id)?.dim, true)
     })
 
-    it('opacity less than 1 sets dim flag', () => {
+    it('numeric opacity resolves as a blend factor, not dim', () => {
         const root = new TermNode('element', 'root')
         const sheet = parseCSS('.t{opacity:0.5}')
         const el = new TermNode('element', 'span')
         el.attributes.set('class', 't')
         root.insertBefore(el, null)
         const styles = resolveStyles(root, sheet)
-        assert.equal(styles.get(el.id)?.dim, true)
+        assert.equal(styles.get(el.id)?.opacity, 0.5)
+        assert.equal(styles.get(el.id)?.dim, false)
     })
 
     it('opacity:1 does not set dim', () => {
@@ -36,13 +37,13 @@ describe('opacity property', () => {
         assert.equal(styles.get(el.id)?.dim, false)
     })
 
-    it('opacity:0 sets dim flag', () => {
+    it('opacity:0 resolves as fully transparent', () => {
         const root = new TermNode('element', 'root')
         const sheet = parseCSS('.t{opacity:0}')
         const el = new TermNode('element', 'span')
         el.attributes.set('class', 't')
         root.insertBefore(el, null)
         const styles = resolveStyles(root, sheet)
-        assert.equal(styles.get(el.id)?.dim, true)
+        assert.equal(styles.get(el.id)?.opacity, 0)
     })
 })
