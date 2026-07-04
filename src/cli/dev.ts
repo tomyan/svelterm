@@ -92,6 +92,16 @@ async function main() {
                 css,
                 fullscreen: true,
                 mouse: true,
+                // The terminal is the app's screen — route console output
+                // to the dev server pane instead, like a browser console.
+                onConsole(entry: { level: string; args: string[] }) {
+                    if (ws.readyState !== ws.OPEN) return
+                    ws.send(JSON.stringify({
+                        type: 'custom',
+                        event: 'svelterm:console',
+                        data: { level: entry.level, text: entry.args.join(' ') },
+                    }))
+                },
             })
         } catch (err) {
             console.error('[svelterm] Error:', err)

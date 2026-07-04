@@ -142,6 +142,15 @@ export function terminalServer(config: SveltermConfig = {}): any[] {
                             try {
                                 const msg = JSON.parse(data.toString())
                                 if (msg.type === 'ping') return
+                                if (msg.type === 'custom' && msg.event === 'svelterm:console') {
+                                    // The app's console output — the terminal
+                                    // shows the app, so logs surface here.
+                                    const { level, text } = msg.data ?? {}
+                                    server.config.logger.info(
+                                        `[svelterm] console.${level}: ${text}`,
+                                    )
+                                    return
+                                }
                                 if (msg.type === 'custom' && msg.event) {
                                     env.hot.api?.innerEmitter?.emit(msg.event, msg.data, client)
                                 }
