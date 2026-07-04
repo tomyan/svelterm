@@ -103,10 +103,13 @@ Standard CSS works as expected. These are the terminal-specific additions:
 
 Any HTML/CSS feature with a sensible cell-grid meaning works as a browser
 author expects; pixel-derived features are dropped silently and targeted
-per mode with `@media (display-mode: terminal | browser)`. The full
-support matrix — elements, selectors, properties, units, deviations, and
-the terminal-specific extensions — lives in
-[`docs/reference.md`](docs/reference.md); the design rationale is in
+per mode with `@media (display-mode: terminal | browser)`. The manual
+lives in [`docs/`](docs/) — [getting started](docs/getting-started.md),
+[terminal CSS](docs/terminal-css.md), [layout](docs/layout.md),
+[selectors](docs/selectors.md), [elements & input](docs/elements.md),
+[motion](docs/motion.md), [compatibility](docs/compatibility.md) — with
+the one-page support matrix in [`docs/reference.md`](docs/reference.md)
+and the design rationale in
 [`DESIGN-browser-compat.md`](DESIGN-browser-compat.md).
 
 ## Prerequisites
