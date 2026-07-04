@@ -51,6 +51,23 @@ describe('RenderContext mutation routing', () => {
         assert.ok(ctx.queue.styleResolve.has(node))
     })
 
+    it('setAttribute style enqueues style-resolve', () => {
+        const ctx = new RenderContext()
+        const node = new TermNode('element', 'div')
+
+        ctx.onSetAttribute(node, 'style', 'background-color: #ff0000')
+        assert.ok(ctx.queue.styleResolve.has(node))
+    })
+
+    it('removeAttribute style enqueues style-resolve', () => {
+        const ctx = new RenderContext()
+        const node = new TermNode('element', 'div')
+        node.attributes.set('style', 'color: red')
+
+        ctx.onRemoveAttribute(node, 'style')
+        assert.ok(ctx.queue.styleResolve.has(node))
+    })
+
     it('setAttribute other enqueues paint-only', () => {
         const ctx = new RenderContext()
         const node = new TermNode('element', 'div')
