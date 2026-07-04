@@ -26,36 +26,26 @@ export class RenderContext {
         if (node.attributes.get(key) === value) return // no change
 
         // Any attribute can participate in selector matching ([attr=…],
-        // :checked, inline style), so re-resolve the node's style. Only
-        // class gets descendant invalidation — descendant selectors keyed
-        // on other attributes are rare enough to accept staleness.
-        if (key === 'class') {
-            node.cache.classAttr = value
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-            this.invalidateDescendantStyles(node)
-        } else {
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-        }
-
+        // :checked, details[open] > …, inline style), so re-resolve the
+        // node and its descendants.
+        if (key === 'class') node.cache.classAttr = value
         node.attributes.set(key, value)
+        this.invalidateStyles(node)
         this.onScheduleRender?.()
     }
 
     onRemoveAttribute(node: TermNode, key: string): void {
         if (!node.attributes.has(key)) return // no change
+        if (key === 'class') node.cache.classAttr = ''
         node.attributes.delete(key)
-        if (key === 'class') {
-            node.cache.classAttr = ''
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-            this.invalidateDescendantStyles(node)
-        } else {
-            node.invalidateStyle()
-            this.queue.enqueueStyleResolve(node)
-        }
+        this.invalidateStyles(node)
         this.onScheduleRender?.()
+    }
+
+    private invalidateStyles(node: TermNode): void {
+        node.invalidateStyle()
+        this.queue.enqueueStyleResolve(node)
+        this.invalidateDescendantStyles(node)
     }
 
     onInsert(parent: TermNode, child: TermNode): void {

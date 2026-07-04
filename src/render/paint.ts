@@ -102,6 +102,9 @@ function paintNode(
         if (node.tag === 'li') {
             paintListMarker(node, buffer, box, visuals, clip)
         }
+        if (node.tag === 'summary') {
+            paintSummaryMarker(node, buffer, box, visuals, clip)
+        }
         if (node.tag === 'input' && box) {
             const inputType = node.attributes.get('type')
             if (inputType === 'checkbox' || inputType === 'radio') {
@@ -287,6 +290,17 @@ function paintListMarker(
         if (clip && !inClip(cx, box.y, clip)) continue
         buffer.setCell(cx, box.y, { char: marker[i], fg: visuals.fg, dim: visuals.dim })
     }
+}
+
+/** Disclosure triangle in the summary's marker padding: ▶ closed, ▼ open. */
+function paintSummaryMarker(
+    node: TermNode, buffer: CellBuffer, box: LayoutBox,
+    visuals: InheritedVisuals, clip: ClipRect | null,
+): void {
+    const details = node.parent
+    const open = details?.tag === 'details' && hasBooleanAttribute(details, 'open')
+    if (clip && !inClip(box.x, box.y, clip)) return
+    buffer.setCell(box.x, box.y, { char: open ? '▼' : '▶', fg: visuals.fg })
 }
 
 /** Checkbox → [x]/[ ], radio → (•)/( ), coloured by the element's visuals. */

@@ -23,6 +23,7 @@ import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { isCheckableInput, toggleCheckable } from './input/checkable.js'
+import { toggleDetails } from './input/details.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import type { CSSStyleSheet } from './css/parser.js'
@@ -344,6 +345,7 @@ export function run<Props extends Record<string, any>>(
                 const href = target.attributes.get('href')
                 if (href) openUrl(href)
             }
+            if (!event.defaultPrevented && target.tag === 'summary') toggleDetails(target)
             scheduleRender()
             return
         }
@@ -560,6 +562,7 @@ function handleMouse(
                 const href = target.attributes.get('href')
                 if (href) openUrl(href)
             }
+            if (!event.defaultPrevented && target.tag === 'summary') toggleDetails(target)
             scheduleRender()
         }
     } else if (mouse.button === 'scrollLeft' || mouse.button === 'scrollRight') {
@@ -618,7 +621,7 @@ function handleMouse(
 }
 
 
-const FOCUSABLE_TAGS = new Set(['button', 'input', 'textarea', 'a', 'select'])
+const FOCUSABLE_TAGS = new Set(['button', 'input', 'textarea', 'a', 'select', 'summary'])
 
 function registerFocusableNodes(node: TermNode, focusManager: FocusManager): void {
     if (node.nodeType === 'element' && FOCUSABLE_TAGS.has(node.tag ?? '')) {
