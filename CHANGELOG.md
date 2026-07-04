@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0 — 2026-07-04
+
+Terminal robustness: the same app now degrades gracefully from a
+truecolor GPU terminal down to `TERM=xterm` — and respects `NO_COLOR`.
+
+### Added
+
+- **Capability detection** — colour depth from
+  `NO_COLOR`/`COLORTERM`/`TERM`, plus an XTVERSION query identifying
+  known-truecolor terminals; DEC 2026 synchronized-output support probed
+  via DECRQM. Detection runs in the background with timeouts; the first
+  frame paints with modern defaults and re-paints on a downgrade.
+- **Colour degradation** — hex/RGB colours quantize at emit time: xterm
+  256 cube/grey-ramp on 256-colour terminals, nearest base colour on
+  16-colour terminals, no colour under `NO_COLOR`. ANSI names always
+  pass through. Override with `run(App, { colorDepth })`.
+- **Gated synchronized output** — frames wrap in DEC 2026 only when the
+  terminal reports the mode (previously sent unconditionally).
+- **`docs/terminals.md`** — what svelterm emits and queries, per depth.
+
 ## 0.4.0 — 2026-07-04
 
 The developer-experience release: `npx @svelterm/core init` to a running,

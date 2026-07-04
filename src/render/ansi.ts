@@ -1,5 +1,20 @@
+import { quantizeTo256, quantizeTo16 } from './color-depth.js'
+import type { ColorDepth } from '../terminal/capabilities.js'
+
 const ESC = '\x1b'
 const CSI = `${ESC}[`
+
+// Colour depth applies to the whole process's output stream, set once
+// after capability detection (default: truecolor, today's common case).
+let colorDepth: ColorDepth = 'truecolor'
+
+export function setColorDepth(depth: ColorDepth): void {
+    colorDepth = depth
+}
+
+export function getColorDepth(): ColorDepth {
+    return colorDepth
+}
 
 function expandHex(color: string): string {
     if (color.length === 4) {
@@ -61,33 +76,35 @@ export function inverse(): string {
 }
 
 export function fgColor(color: string): string {
-    const code = ANSI_FG[color]
-    if (code !== undefined) return `${CSI}${code}m`
-
-    if (color.startsWith('#')) {
-        const hex = expandHex(color)
-        const r = parseInt(hex.slice(1, 3), 16)
-        const g = parseInt(hex.slice(3, 5), 16)
-        const b = parseInt(hex.slice(5, 7), 16)
-        return `${CSI}38;2;${r};${g};${b}m`
-    }
-
-    return ''
+    return sgrColor(color, ANSI_FG, 38)
 }
 
 export function bgColor(color: string): string {
-    const code = ANSI_BG[color]
-    if (code !== undefined) return `${CSI}${code}m`
+    return sgrColor(color, ANSI_BG, 48)
+}
 
-    if (color.startsWith('#')) {
-        const hex = expandHex(color)
-        const r = parseInt(hex.slice(1, 3), 16)
-        const g = parseInt(hex.slice(3, 5), 16)
-        const b = parseInt(hex.slice(5, 7), 16)
-        return `${CSI}48;2;${r};${g};${b}m`
+function sgrColor(color: string, names: Record<string, number>, extended: 38 | 48): string {
+    if (colorDepth === 'mono') {
+        // Colour is disabled; only default (the reset) still emits.
+        return color === 'default' ? `${CSI}${names.default}m` : ''
     }
+    const code = names[color]
+    if (code !== undefined) return `${CSI}${code}m`
+    if (!color.startsWith('#')) return ''
 
-    return ''
+    const hex = expandHex(color)
+    switch (colorDepth) {
+        case '256':
+            return `${CSI}${extended};5;${quantizeTo256(hex)}m`
+        case '16':
+            return `${CSI}${names[quantizeTo16(hex)]}m`
+        default: {
+            const r = parseInt(hex.slice(1, 3), 16)
+            const g = parseInt(hex.slice(3, 5), 16)
+            const b = parseInt(hex.slice(5, 7), 16)
+            return `${CSI}${extended};2;${r};${g};${b}m`
+        }
+    }
 }
 
 const ANSI_FG: Record<string, number> = {

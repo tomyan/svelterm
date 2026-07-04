@@ -30,6 +30,7 @@ trusted publishing for tomyan/svelterm) and re-run the failed publish jobs.
 
 - @svelterm/core 0.2.0 (tag v0.2.0)
 - @svelterm/core 0.3.0 (tag v0.3.0)
+- @svelterm/core 0.4.0 (tag v0.4.0)
 
 Local `npm login` succeeded (2026-07-04) but each publish still demands an
 interactive OTP; run `npm publish --access public --otp=<code>` per pending

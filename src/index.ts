@@ -30,6 +30,7 @@ import { cycleSelect } from './input/select.js'
 import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
+import { detectCapabilities, type ColorDepth } from './terminal/capabilities.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import { emitFocusCursor } from './render/cursor-emit.js'
@@ -57,6 +58,12 @@ export interface RunOptions {
      * and the host already knows the scheme.
      */
     colorScheme?: 'dark' | 'light'
+    /**
+     * Override colour depth instead of detecting it (NO_COLOR/COLORTERM/
+     * XTVERSION). Hex colours quantize to the terminal's palette at emit
+     * time; `mono` drops colour output entirely.
+     */
+    colorDepth?: ColorDepth
 }
 
 /** @deprecated Use RunOptions */
@@ -198,8 +205,11 @@ export function run<Props extends Record<string, any>>(
         }
     }
 
+    // Synchronized output (DEC 2026) is on until detection says otherwise —
+    // terminals that don't know the mode ignore it.
+    let syncOutput = true
     const writeOutput = (data: string) => {
-        io.write(ansi.beginSyncUpdate() + data + ansi.endSyncUpdate())
+        io.write(syncOutput ? ansi.beginSyncUpdate() + data + ansi.endSyncUpdate() : data)
     }
 
     const fullRender = () => {
@@ -505,6 +515,23 @@ export function run<Props extends Record<string, any>>(
         if (pollRunning) setTimeout(pollScheme, 1000)
     }
     if (!colorSchemeOverride) pollScheme()
+
+    // Detect terminal capabilities in the background: colour depth for
+    // SGR quantization, DEC 2026 support for frame batching. Only the
+    // real terminal answers queries; embedded IO keeps the defaults.
+    if (options?.colorDepth) {
+        ansi.setColorDepth(options.colorDepth)
+    } else if (io instanceof ProcessIO) {
+        detectCapabilities(router).then(caps => {
+            syncOutput = caps.syncOutput
+            if (caps.colorDepth === ansi.getColorDepth()) return
+            ansi.setColorDepth(caps.colorDepth)
+            // Full repaint so every cell re-emits at the new depth
+            ctx.onResize()
+            prevBuffer = null
+            scheduleRender()
+        }).catch(() => { /* keep defaults */ })
+    }
 
     const doCleanup = () => {
         pollRunning = false
