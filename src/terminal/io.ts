@@ -31,17 +31,55 @@ export interface TerminalIO {
 
 /**
  * Passthrough to process.stdout/stdin — the default for Node.js terminal apps.
+ *
+ * When stdin is not a TTY — `curl app.mjs | node -` delivers the script
+ * itself on stdin — input falls back to the controlling terminal
+ * (`/dev/tty`) so the app stays interactive.
  */
 export class ProcessIO implements TerminalIO {
     private dataCallbacks: Array<(data: Buffer) => void> = []
     private resizeCallbacks: Array<() => void> = []
-    private onStdinData = (data: Buffer) => {
+    private input: NodeJS.ReadStream = process.stdin
+    private onInputData = (data: Buffer) => {
         for (const cb of this.dataCallbacks) cb(data)
     }
     private onStdoutResize = () => {
         for (const cb of this.resizeCallbacks) cb()
     }
     private listening = false
+    private rawModeWanted = false
+    private disposed = false
+
+    constructor() {
+        // With `node -` the script is read to EOF before execution, so no
+        // input can be lost while the async reopen is in flight.
+        if (!process.stdin.isTTY) {
+            void this.reopenControllingTerminal()
+        }
+    }
+
+    private async reopenControllingTerminal(): Promise<void> {
+        try {
+            const [fs, tty] = await Promise.all([import('node:fs'), import('node:tty')])
+            const stream = new tty.ReadStream(fs.openSync('/dev/tty', 'r'))
+            if (this.disposed) {
+                stream.destroy()
+                return
+            }
+            const previous = this.input
+            this.input = stream
+            if (this.listening) {
+                previous.removeListener('data', this.onInputData)
+                stream.on('data', this.onInputData)
+            }
+            if (this.rawModeWanted && stream.isTTY) {
+                stream.setRawMode(true)
+                stream.resume()
+            }
+        } catch {
+            // No controlling terminal (CI, Windows pipe) — stay on stdin.
+        }
+    }
 
     write(data: string): void {
         process.stdout.write(data)
@@ -57,7 +95,7 @@ export class ProcessIO implements TerminalIO {
     onData(callback: (data: Buffer) => void): void {
         this.dataCallbacks.push(callback)
         if (!this.listening) {
-            process.stdin.on('data', this.onStdinData)
+            this.input.on('data', this.onInputData)
             this.listening = true
         }
     }
@@ -68,22 +106,28 @@ export class ProcessIO implements TerminalIO {
     }
 
     enableRawMode(): void {
-        if (process.stdin.isTTY) {
-            process.stdin.setRawMode(true)
-            process.stdin.resume()
+        this.rawModeWanted = true
+        if (this.input.isTTY) {
+            this.input.setRawMode(true)
+            this.input.resume()
         }
     }
 
     disableRawMode(): void {
-        if (process.stdin.isTTY) {
-            process.stdin.setRawMode(false)
-            process.stdin.pause()
+        this.rawModeWanted = false
+        if (this.input.isTTY) {
+            this.input.setRawMode(false)
+            this.input.pause()
         }
     }
 
     dispose(): void {
-        process.stdin.removeListener('data', this.onStdinData)
+        this.disposed = true
+        this.input.removeListener('data', this.onInputData)
         process.stdout.removeListener('resize', this.onStdoutResize)
+        if (this.input !== process.stdin) {
+            this.input.destroy()
+        }
         this.dataCallbacks = []
         this.resizeCallbacks = []
         this.listening = false
