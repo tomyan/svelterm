@@ -36,6 +36,7 @@ trusted publishing for tomyan/svelterm) and re-run the failed publish jobs.
 - @svelterm/core 0.7.0 (tag v0.7.0)
 - @svelterm/core 0.8.0 (tag v0.8.0)
 - @svelterm/core 0.9.0 (tag v0.9.0)
+- @svelterm/core 0.10.0 (tag v0.10.0)
 
 Also queued behind AWS SSO: a playground example for inline mode
 (browser preview + run-real endpoint) — repo demo shipped as
@@ -50,104 +51,109 @@ order works, but publish 0.3.0 last so `latest` points at it).
 
 Deploys pending AWS SSO login (`aws sso login --profile tyanroot`):
 
-- svelterm-site rebuild with 0.3.0 docs (built 2026-07-04, plan blocked on
-  SSO; run `tofu plan -out=x.tfplan` → review → `tofu apply x.tfplan`)
+- svelterm-site rebuild with ALL 0.3.0–0.10.0 docs including the two new
+  chapters (terminals, inline-mode; routes committed and site built
+  2026-07-04). To ship: `aws sso login --profile tyanroot`, then in
+  svelterm-site/infra: `tofu plan -out=x.tfplan` → review → apply.
+
+All arcs below completed 2026-07-04 (v0.2.0 … v0.10.0). Remaining
+work lives under “Later”.
 
 ## Arc 0 — Release 0.2.0: everything shipped to date
 
 The npm package is stale at 0.1.0; the repo has since gained the full
 browser-compat arc, animations/transitions, grid, tables, forms, docs.
 
-- [ ] Create `CHANGELOG.md` retroactively: 0.1.0 summary + 0.2.0 section
+- [x] Create `CHANGELOG.md` retroactively: 0.1.0 summary + 0.2.0 section
       covering browser compat, grid, tables, animations, docs.
-- [ ] Verify package contents (`npm pack --dry-run`) include dist + docs refs.
-- [ ] Release checklist.
+- [x] Verify package contents (`npm pack --dry-run`) include dist + docs refs.
+- [x] Release checklist.
 
 ## Arc 1 — Motion completeness (0.3.0)
 
 Close the documented deviations in the animation system.
 
-- [ ] Slice 1: easing functions — `linear`, `ease`, `ease-in`, `ease-out`,
+- [x] Slice 1: easing functions — `linear`, `ease`, `ease-in`, `ease-out`,
       `ease-in-out`, `cubic-bezier(...)` applied to keyframe segment progress
       and transitions. `steps(n, position)` for discrete stepping.
-- [ ] Slice 2: keyframe declarations resolve `var()` and `light-dark()`
+- [x] Slice 2: keyframe declarations resolve `var()` and `light-dark()`
       against the animating element's computed custom properties/scheme.
-- [ ] Docs: `docs/motion.md` deviations table shrinks accordingly.
+- [x] Docs: `docs/motion.md` deviations table shrinks accordingly.
 
 ## Arc 2 — Developer experience (0.4.0)
 
 Make `npx svelterm` the happy path; kill the manual vite config in README.
 
-- [ ] Slice 1: verify/fix existing `svelterm dev` + `src/vite/config.ts`
+- [x] Slice 1: verify/fix existing `svelterm dev` + `src/vite/config.ts`
       against the current fork (HMR, CSS collection, error reporting).
-- [ ] Slice 2: `svelterm build` — produce a self-contained mjs bundle
+- [x] Slice 2: `svelterm build` — produce a self-contained mjs bundle
       (reuse the site's build-demos approach: rolldown, node platform,
       ws stubbed).
-- [ ] Slice 3: `svelterm init` — scaffold vite.config + App.svelte + main.css
+- [x] Slice 3: `svelterm init` — scaffold vite.config + App.svelte + main.css
       into an empty directory.
-- [ ] Docs: rewrite `docs/getting-started.md` around the CLI; update README
+- [x] Docs: rewrite `docs/getting-started.md` around the CLI; update README
       Setup section.
 
 ## Arc 3 — Terminal robustness (0.5.0)
 
 "Works on my machine" insurance for varied terminals.
 
-- [ ] Slice 1: capability detection — DA1/DA2 + XTVERSION queries at startup
+- [x] Slice 1: capability detection — DA1/DA2 + XTVERSION queries at startup
       (with timeout fallback), exposed as a capabilities object.
-- [ ] Slice 2: colour degradation — truecolor → 256 → 16 quantization applied
+- [x] Slice 2: colour degradation — truecolor → 256 → 16 quantization applied
       at ANSI-emit time based on detected capabilities; overridable via env
       (`COLORTERM`, `NO_COLOR`, explicit option).
-- [ ] Slice 3: synchronized output — wrap frames in DEC 2026 BSU/ESU when
+- [x] Slice 3: synchronized output — wrap frames in DEC 2026 BSU/ESU when
       the terminal supports it.
-- [ ] Docs: new `docs/terminals.md` (support matrix by terminal emulator).
+- [x] Docs: new `docs/terminals.md` (support matrix by terminal emulator).
 
 ## Arc 4 — Terminal integration (0.6.0)
 
-- [ ] Slice 1: cursor shape control (DECSCUSR) — block/underline/bar tied to
+- [x] Slice 1: cursor shape control (DECSCUSR) — block/underline/bar tied to
       focused editable state.
-- [ ] Slice 2: clipboard — OSC 52 write on copy; platform fallbacks
+- [x] Slice 2: clipboard — OSC 52 write on copy; platform fallbacks
       (pbcopy/xclip/wl-copy) behind the IO abstraction.
-- [ ] Slice 3: text selection — mouse drag selects cells, double-click word,
+- [x] Slice 3: text selection — mouse drag selects cells, double-click word,
       triple-click line; copies via slice 2.
-- [ ] Docs: `docs/elements.md` + reference updates.
+- [x] Docs: `docs/elements.md` + reference updates.
 
 ## Arc 5 — Inline rendering mode (0.7.0)
 
 Per `DESIGN-inline-mode.md`: non-alt-screen streaming apps (Claude-Code-like
 CLIs). Largest new audience.
 
-- [ ] Slice 1: inline viewport — render at cursor position, height = content,
+- [x] Slice 1: inline viewport — render at cursor position, height = content,
       relative cursor movement diffing, no alt screen.
-- [ ] Slice 2: archive zone — `<framelog>` element whose completed entries are
+- [x] Slice 2: archive zone — `<framelog>` element whose completed entries are
       printed into scrollback and dropped from the live tree.
-- [ ] Slice 3: resize + reflow of the live zone; scrollback stays untouched.
-- [ ] Slice 4: demo (streaming log + input prompt) + run-real endpoint.
-- [ ] Docs: `docs/inline-mode.md`.
+- [x] Slice 3: resize + reflow of the live zone; scrollback stays untouched.
+- [x] Slice 4: demo (streaming log + input prompt) + run-real endpoint.
+- [x] Docs: `docs/inline-mode.md`.
 
 ## Arc 6 — Input completeness (0.8.0)
 
-- [ ] Slice 1: kitty keyboard protocol (CSI u) — detect, enable, parse;
+- [x] Slice 1: kitty keyboard protocol (CSI u) — detect, enable, parse;
       fixes key-release/modifier gaps where supported.
-- [ ] Slice 2: Ctrl+Z suspend (restore terminal, SIGTSTP, reinit on SIGCONT);
+- [x] Slice 2: Ctrl+Z suspend (restore terminal, SIGTSTP, reinit on SIGCONT);
       configurable Ctrl+D.
-- [ ] Slice 3: priority-based key routing — modal layers capture keys before
+- [x] Slice 3: priority-based key routing — modal layers capture keys before
       focus routing (`<dialog>` integration).
-- [ ] Docs: `docs/elements.md` input section.
+- [x] Docs: `docs/elements.md` input section.
 
 ## Arc 7 — Text & content (0.9.0)
 
-- [ ] Slice 1: `word-break` / `overflow-wrap` control; `text-overflow`
+- [x] Slice 1: `word-break` / `overflow-wrap` control; `text-overflow`
       middle-truncation extension.
-- [ ] Slice 2: raw ANSI passthrough element (`<pre data-ansi>` or similar)
+- [x] Slice 2: raw ANSI passthrough element (`<pre data-ansi>` or similar)
       rendering pre-styled content via the vt100 parser.
-- [ ] Docs: `docs/terminal-css.md` text section.
+- [x] Docs: `docs/terminal-css.md` text section.
 
 ## Arc 8 — Colour blending (0.10.0)
 
-- [ ] Slice 1: alpha compositing — `rgba()`/`#rrggbbaa` backgrounds blend
+- [x] Slice 1: alpha compositing — `rgba()`/`#rrggbbaa` backgrounds blend
       over the cell beneath during paint.
-- [ ] Slice 2: `opacity: <number>` as blend factor (in addition to `dim`).
-- [ ] Docs: `docs/terminal-css.md` colour section.
+- [x] Slice 2: `opacity: <number>` as blend factor (in addition to `dim`).
+- [x] Docs: `docs/terminal-css.md` colour section.
 
 ## Later (not in this run's scope unless reached)
 

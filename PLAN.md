@@ -21,38 +21,38 @@ Done — see `DESIGN-browser-compat.md` (all 12 slices shipped) and
 
 ## Input & interaction
 
-- Ctrl+Z suspend, Ctrl+D configurable
-- Priority-based key routing (modal dialogs capture keys)
-- Kitty keyboard protocol (CSI u)
+Done (0.8.0) — Ctrl+Z suspend/resume, Ctrl+D via exitOn, modal <dialog>
+key capture, kitty keyboard protocol.
 
 ## Rendering quality
 
-- Synchronized output (DEC 2026 BSU/ESU)
+Done in 0.5.0: synchronized output (gated on DECRQM), capability
+detection (XTVERSION + env), colour degradation truecolor → 256 → 16 →
+mono. Remaining:
+
 - Virtual scrolling for large lists
-- Terminal capability detection (DA1/DA2, XTVERSION)
-- Color degradation: perceptual quantization for truecolor → 256 → 16
 - DECSTBM hardware scroll regions
 
 ## Text & content
 
-- Raw ANSI passthrough element
+Done in 0.9.0: <svt-ansi> raw ANSI passthrough, ellipsis-middle
+truncation, word-break control. Remaining:
+
 - Syntax highlighting (tree-sitter)
 - Markdown rendering component
-- Middle truncation, word-break control
 
 ## Terminal features
 
-- Cursor shape control (DECSCUSR)
-- Clipboard (OSC 52 + platform fallbacks)
-- Text selection (mouse drag, double/triple click)
+Done: cursor shape (0.6.0), clipboard (0.6.0), text selection (0.6.0),
+inline rendering mode + FrameLog (0.7.0), alpha compositing (0.10.0).
+Remaining:
+
 - Image rendering (half-block, sixel/kitty protocol)
-- Inline rendering mode (non-alt-screen)
-- Color blending / alpha compositing
 
 ## Developer experience
 
-- Vite plugin (vite-plugin-svelterm): auto-configure compiler, CSS collection, dev mode HMR
-- Dev CLI: `npx svelterm dev`, `npx svelterm build`
+Done (0.4.0) — `svelterm init/dev/build`, terminal-env .svelte compile
+without vite-plugin-svelte, console forwarding to the vite terminal.
 
 ## Debug protocol
 
