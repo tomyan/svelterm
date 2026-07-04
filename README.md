@@ -122,11 +122,11 @@ and the design rationale in
 
 ## Prerequisites
 
-Svelterm requires the experimental custom renderer API, available on the [`svelte-custom-renderer`](https://github.com/paoloricciuti/svelte/tree/svelte-custom-renderer) branch:
+Svelterm requires the experimental custom renderer API from the [`svelte-custom-renderer`](https://github.com/sveltejs/svelte/pull/18042) branch by [@paoloricciuti](https://github.com/paoloricciuti). Until [sveltejs/svelte#18505](https://github.com/sveltejs/svelte/pull/18505) lands (it exposes `mount`/`unmount` from `svelte/renderer`, which svelterm needs on Node), clone the branch from the svelterm fork, which tracks upstream plus that fix:
 
 ```bash
 # Clone the branch
-git clone -b svelte-custom-renderer https://github.com/paoloricciuti/svelte.git svelte-fork
+git clone -b svelte-custom-renderer https://github.com/tomyan/svelte.git svelte-fork
 cd svelte-fork
 pnpm install
 pnpm -C packages/svelte build
