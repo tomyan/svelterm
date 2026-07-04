@@ -30,7 +30,7 @@ import { cycleSelect } from './input/select.js'
 import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
-import { detectCapabilities, type ColorDepth } from './terminal/capabilities.js'
+import { detectCapabilities, matchCPR, parseCPRRow, type ColorDepth } from './terminal/capabilities.js'
 import { copyToClipboard } from './terminal/clipboard.js'
 import { SelectionController, applySelectionOverlay } from './input/selection.js'
 import { InlineScreen } from './render/inline.js'
@@ -67,8 +67,9 @@ export interface RunOptions {
      * 'fullscreen' (default) uses the alternate screen buffer. 'inline'
      * renders at the shell cursor in the main buffer: output above the
      * live area scrolls into real scrollback, the live area sizes to its
-     * content, and all cursor movement is relative. Mouse reporting is
-     * disabled in inline mode.
+     * content, and all cursor movement is relative. Mouse events map
+     * into the live area via a cursor-position query; clicks on shell
+     * history above it are ignored.
      */
     mode?: 'fullscreen' | 'inline'
     /**
@@ -120,13 +121,14 @@ export function run<Props extends Record<string, any>>(
     options?: RunOptions & ({} extends Props ? { props?: Props } : { props: Props }),
 ): RunHandle {
     const io = options?.io ?? new ProcessIO()
-    // `fullscreen: false` always meant "no alternate screen"; it now gets
-    // the inline renderer, which is what a main-buffer app actually needs.
-    const inline = options?.mode === 'inline' || options?.fullscreen === false
+    // `fullscreen: false` without an explicit mode gets the inline
+    // renderer (what a main-buffer app actually needs). An explicit
+    // `mode` always wins — `mode: 'fullscreen', fullscreen: false` is
+    // full-viewport rendering without the alternate screen (embedded
+    // previews drive a virtual terminal that way).
+    const inline = options?.mode ? options.mode === 'inline' : options?.fullscreen === false
     const fullscreen = !inline && (options?.fullscreen ?? true)
-    // Mouse coordinates are screen-absolute and the inline origin is
-    // unknown by design, so mouse reporting stays off in inline mode.
-    const mouseEnabled = inline ? false : (options?.mouse ?? true)
+    const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
     const exitOn = options?.exitOn ?? ['ctrl+c']
@@ -195,6 +197,20 @@ export function run<Props extends Record<string, any>>(
     const inlineScreen = new InlineScreen()
     if (inline) {
         registerInlineHooks(root, { releaseTop: n => inlineScreen.releaseTop(n) })
+    }
+
+    /** Learn where the inline zone starts so mouse coordinates can map. */
+    const queryInlineOrigin = () => {
+        // The terminal reports where the cursor is, which is wherever the
+        // last render left it *within* the zone — snapshot that at the
+        // moment the query bytes go out (queries queue behind others).
+        let cursorRowAtQuery = 0
+        router.query('\x1b[6n', matchCPR, 200,
+            () => { cursorRowAtQuery = inlineScreen.cursorZoneRow() },
+        ).then(reply => {
+            const row = parseCPRRow(reply)
+            if (row !== null) inlineScreen.setOriginRow(Math.max(1, row - cursorRowAtQuery))
+        }).catch(() => { /* terminal without CPR — mouse stays off-zone */ })
     }
 
     /** The buffer as displayed: the clean paint plus any selection. */
@@ -539,8 +555,15 @@ export function run<Props extends Record<string, any>>(
     }
 
     const handleMouseData = (data: Buffer | Uint8Array) => {
-        const mouse = parseMouseEvent(data)
+        let mouse = parseMouseEvent(data)
         if (!mouse) return
+        if (inline) {
+            // Mouse rows are screen-absolute; the zone origin comes from a
+            // CPR query. Events above the zone (shell history) are ignored.
+            const zoneRow = inlineScreen.screenRowToZone(mouse.row, io.getSize().height)
+            if (zoneRow === null) return
+            mouse = { ...mouse, row: zoneRow }
+        }
         handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx, io,
             selection, redrawSelection)
     }
@@ -612,7 +635,13 @@ export function run<Props extends Record<string, any>>(
 
     scheduleRender()
 
-    io.onResize(() => { ctx.onResize(); prevBuffer = null; scheduleRender() })
+    io.onResize(() => {
+        ctx.onResize()
+        prevBuffer = null
+        scheduleRender()
+        // Rewrap may have moved the zone — re-learn where it starts
+        if (inline && io instanceof ProcessIO) queryInlineOrigin()
+    })
 
     // Detect color scheme in background and re-render if different.
     // Skipped when the host pinned a scheme via options.colorScheme.
@@ -643,6 +672,7 @@ export function run<Props extends Record<string, any>>(
     if (options?.colorDepth) {
         ansi.setColorDepth(options.colorDepth)
     } else if (io instanceof ProcessIO) {
+        if (inline) queryInlineOrigin()
         detectCapabilities(router).then(caps => {
             syncOutput = caps.syncOutput
             if (caps.colorDepth === ansi.getColorDepth()) return
@@ -702,6 +732,7 @@ export function run<Props extends Record<string, any>>(
         prevBuffer = null
         prevClean = null
         scheduleRender()
+        if (inline && io instanceof ProcessIO) queryInlineOrigin()
     }
 
     if (typeof process !== 'undefined') {

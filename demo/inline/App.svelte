@@ -4,6 +4,7 @@
 
     let turn = $state(0)
     let archivedCount = $state(0)
+    let clicks = $state(0)
 
     const PROMPTS = [
         'explain the renderer',
@@ -49,7 +50,10 @@
 
 <div class="app">
     <div class="log" {@attach runSession}></div>
-    <div class="status">turn {turn}/5 · {archivedCount} frames archived · Ctrl+C to exit</div>
+    <div class="status">
+        <span>turn {turn}/5 · {archivedCount} archived</span>
+        <button onclick={() => clicks++}>clicks: {clicks}</button>
+    </div>
 </div>
 
 <style>
@@ -59,6 +63,8 @@
     }
 
     .status {
+        display: flex;
+        gap: 2cell;
         color: magenta;
         border: single;
         border-color: magenta;

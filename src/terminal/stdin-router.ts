@@ -38,6 +38,7 @@ export class StdinRouter {
         resolve: (response: string) => void
         reject: (err: Error) => void
         timeoutMs: number
+        onSend?: () => void
     }> = []
     private pasteBuffer: string | null = null
 
@@ -67,9 +68,10 @@ export class StdinRouter {
         write: string,
         match: (data: string) => string | null,
         timeoutMs: number = 200,
+        onSend?: () => void,
     ): Promise<string | null> {
         return new Promise((resolve, reject) => {
-            this.queryQueue.push({ write, match, resolve: resolve as any, reject, timeoutMs })
+            this.queryQueue.push({ write, match, resolve: resolve as any, reject, timeoutMs, onSend })
             this.drainQueryQueue()
         })
     }
@@ -77,7 +79,7 @@ export class StdinRouter {
     private drainQueryQueue(): void {
         if (this.pendingQuery || this.queryQueue.length === 0) return
 
-        const { write, match, resolve, timeoutMs } = this.queryQueue.shift()!
+        const { write, match, resolve, timeoutMs, onSend } = this.queryQueue.shift()!
 
         const timer = setTimeout(() => {
             this.pendingQuery = null
@@ -96,6 +98,7 @@ export class StdinRouter {
             timer,
         }
 
+        onSend?.()
         this.io.write(write)
     }
 

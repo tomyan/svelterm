@@ -43,6 +43,18 @@ export function matchDECRQM(mode: number): (data: string) => string | null {
     return data => pattern.exec(data)?.[0] ?? null
 }
 
+/** Match a CPR (cursor position report) reply: CSI row ; col R. */
+export function matchCPR(data: string): string | null {
+    return /\x1b\[\d+;\d+R/.exec(data)?.[0] ?? null
+}
+
+/** The 1-based row from a CPR reply, or null. */
+export function parseCPRRow(reply: string | null): number | null {
+    if (!reply) return null
+    const row = /\x1b\[(\d+);/.exec(reply)?.[1]
+    return row ? parseInt(row, 10) : null
+}
+
 /** Whether a DECRQM reply says the mode is recognised (set or reset). */
 export function decrqmSupported(reply: string | null): boolean {
     if (!reply) return false

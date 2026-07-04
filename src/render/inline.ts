@@ -27,6 +27,8 @@ export class InlineScreen {
     private cursorRow = 0
     /** -1 when unknown (wrap-pending after writing the last column). */
     private cursorCol = 0
+    /** 1-based screen row of zone row 0, from a CPR query; null = unknown. */
+    private originRow: number | null = null
 
     /** ANSI that makes the terminal's live zone match `next`. */
     render(next: CellBuffer): string {
@@ -72,6 +74,30 @@ export class InlineScreen {
         return parts.join('')
     }
 
+    /** Record where the zone starts on screen (1-based, from CPR). */
+    setOriginRow(row: number): void {
+        this.originRow = row
+    }
+
+    /** The cursor's current row within the zone (for CPR origin math). */
+    cursorZoneRow(): number {
+        return Math.max(0, this.cursorRow)
+    }
+
+    /**
+     * Map a 0-based screen row (mouse coordinates) to a zone row, or
+     * null when unknown or outside the live content. Growth past the
+     * screen bottom scrolls the zone up, so the effective origin is
+     * clamped to keep the zone's bottom on screen.
+     */
+    screenRowToZone(screenRow: number, screenHeight: number): number | null {
+        if (this.originRow === null) return null
+        const effectiveOrigin = Math.min(this.originRow, screenHeight - this.physicalRows + 1)
+        const zoneRow = screenRow - (effectiveOrigin - 1)
+        if (zoneRow < 0 || zoneRow >= this.contentHeight) return null
+        return zoneRow
+    }
+
     /**
      * Forget the zone entirely — after a suspend the shell owned the
      * screen, so the next render starts a fresh zone at the cursor.
@@ -82,6 +108,7 @@ export class InlineScreen {
         this.contentHeight = 0
         this.cursorRow = 0
         this.cursorCol = 0
+        this.originRow = null
     }
 
     /** Hand the top `n` rows to the terminal's scrollback. */
@@ -92,6 +119,7 @@ export class InlineScreen {
         this.physicalRows -= count
         this.contentHeight -= count
         this.cursorRow -= count
+        if (this.originRow !== null) this.originRow += count
     }
 
     /** Place the terminal cursor at live-zone coordinates. */
