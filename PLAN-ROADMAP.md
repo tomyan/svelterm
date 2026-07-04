@@ -33,6 +33,11 @@ trusted publishing for tomyan/svelterm) and re-run the failed publish jobs.
 - @svelterm/core 0.4.0 (tag v0.4.0)
 - @svelterm/core 0.5.0 (tag v0.5.0)
 - @svelterm/core 0.6.0 (tag v0.6.0)
+- @svelterm/core 0.7.0 (tag v0.7.0)
+
+Also queued behind AWS SSO: a playground example for inline mode
+(browser preview + run-real endpoint) — repo demo shipped as
+`demo/inline`; the site example needs a site rebuild/deploy.
 
 Local `npm login` succeeded (2026-07-04) but each publish still demands an
 interactive OTP; run `npm publish --access public --otp=<code>` per pending

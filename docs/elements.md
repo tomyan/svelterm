@@ -57,7 +57,30 @@ button:focus { border-color: yellow; }
 - Printable keys — type into the focused input/textarea.
 - Unhandled keys dispatch `keydown` to the focused element (or the tree
   root) with `{ key, ctrl, shift, meta }`.
-- `Ctrl+C` exits; `Ctrl+Z` suspends.
+- `Ctrl+C` exits (add `'ctrl+d'` to `run`'s `exitOn` for EOF-style
+  exit). `Ctrl+Z` truly suspends: the terminal is restored for the
+  shell, and `fg` re-enters modes and repaints with state intact.
+- The [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/)
+  is enabled where supported, so combinations the legacy encoding can't
+  express (`Ctrl+Enter`, `Shift+Space`, …) arrive with correct
+  modifiers. Elsewhere the classic encoding applies.
+
+## Modal dialogs
+
+A `<dialog open>` captures input like a browser modal:
+`Tab`/`Shift+Tab` trap inside it, focus is pulled in from outside, and
+`Escape` removes `open` and dispatches a `close` event. Style it with
+`position: absolute` + `z-index` to float above the page.
+
+```svelte
+{#if confirming}
+    <dialog open onclose={() => confirming = false}>
+        <span>Delete everything?</span>
+        <button onclick={confirm}>Yes</button>
+        <button onclick={() => confirming = false}>No</button>
+    </dialog>
+{/if}
+```
 
 ## Mouse
 

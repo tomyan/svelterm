@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0 — 2026-07-04
+
+Input completeness: modern key reporting, honest job control, and
+browser-style modals.
+
+### Added
+
+- **Kitty keyboard protocol** — CSI u key reports parse with correct
+  modifiers (`Ctrl+Enter`, `Shift+Space`, …); the protocol is pushed at
+  startup and popped on exit and suspend. Terminals without it ignore
+  the push and keep the legacy encoding.
+- **Suspend/resume** — `Ctrl+Z` restores the terminal for the shell
+  without unmounting; `fg` (SIGCONT) re-enters raw mode, alt screen,
+  mouse and keyboard modes, and repaints with component state intact.
+  Previously Ctrl+Z tore the app down.
+- **`exitOn` option** — opt into `Ctrl+D` EOF-style exit
+  (`run(App, { exitOn: ['ctrl+c', 'ctrl+d'] })`).
+- **Modal `<dialog open>`** — captures keys: Tab/Shift+Tab trap inside
+  the dialog, focus pulls in from outside, Escape removes `open` and
+  dispatches `close`.
+
+### Fixed
+
+- Legacy CSI modifier parsing was off by one — `Shift+Arrow` reported
+  as Alt, `Ctrl+Arrow` as Shift+Alt.
+
 ## 0.7.0 — 2026-07-04
 
 Inline rendering: svelterm apps that live in the main buffer like a
