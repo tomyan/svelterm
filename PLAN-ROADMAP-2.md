@@ -66,6 +66,10 @@ Long lists (logs, file trees) currently lay out and paint entirely.
       buffer prop; PNG decode via optional dependency).
 - [ ] Slice 2: kitty graphics protocol where detected (capability query
       already plumbed); half-block fallback elsewhere.
+      *2026-07-04: deferred to Later — transmission/placement lifecycle
+      (ids, deletion on repaint, scroll interaction) is a large surface
+      for one terminal family; half-block works everywhere and ships in
+      0.15.0.*
 
 ## Arc 6 — @svelterm/ui 0.1.0
 

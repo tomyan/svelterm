@@ -7,6 +7,7 @@ import { paintTextContent } from './paint-text.js'
 import { blendColor } from '../css/color.js'
 import { stringWidth } from '../layout/unicode.js'
 import { bumpPaintGeneration, paintGeneration } from './generation.js'
+import { ensureImageLoading, paintImage } from './image.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
 import { selectOptions, selectedIndex } from '../input/select.js'
@@ -103,6 +104,11 @@ function paintNode(
             if (ownStyle && ownStyle.borderStyle !== 'none') {
                 renderBorder(buffer, box, ownStyle)
             }
+        }
+        if (node.tag === 'img') {
+            ensureImageLoading(node)
+            paintImage(node, buffer, box, clip)
+            return // replaced element — no children render
         }
         if (node.tag === 'hr') {
             paintHorizontalRule(buffer, box, visuals, clip)

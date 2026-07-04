@@ -13,6 +13,16 @@ Headings, paragraphs, lists (`ul`/`ol` with markers), `blockquote`,
 `video`, `canvas`, and `iframe` are not rendered (inline images are a
 planned, separate feature).
 
+## Images
+
+`<img src="...">` renders as half-blocks — each cell shows two vertically
+stacked pixels ('▀' with per-half colours), so a 40×20-pixel image is
+40 columns × 10 rows. Sources: file paths and `data:image/png;base64`
+URIs (PNG: 8-bit RGB/RGBA/greyscale/palette, decoded with no native
+dependencies). Sizing follows CSS `width`/`height` in cells, defaulting
+to the intrinsic pixel size; loading is async and reflows on arrival.
+Mostly-transparent pixels show the terminal background.
+
 ## Links
 
 `<a>` is underlined and focusable. `Enter` or a click fires `click`; if

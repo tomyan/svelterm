@@ -6,6 +6,7 @@ export type LayoutMap = NodeMap<LayoutBox>
 import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
 import { measureAnsiText } from '../render/ansi-text.js'
+import { imageIntrinsicSize } from '../render/image.js'
 import { resolveSize, constrain } from './size.js'
 import { parseCellLength } from '../css/values.js'
 
@@ -294,6 +295,13 @@ function layoutElement(
     let autoWidth = isFillPrimitive || isBlock
         ? (availWidth - margin.left - margin.right)
         : content.width + inset.left + inset.right
+    // <img> is a replaced element: intrinsic size from its pixels
+    // (1 px per column, 2 px per row for half-block rendering)
+    const intrinsicImage = node.tag === 'img' ? imageIntrinsicSize(node) : null
+    if (intrinsicImage) {
+        autoWidth = Math.min(intrinsicImage.width + inset.left + inset.right,
+            availWidth - margin.left - margin.right)
+    }
     // A select shrink-wraps to its longest option label plus the " ▾" indicator
     if (node.tag === 'select') {
         autoWidth = Math.max(autoWidth, longestOptionLength(node) + 2 + inset.left + inset.right)
@@ -304,7 +312,9 @@ function layoutElement(
         : content.height
     const autoHeight = isFillPrimitive
         ? (availHeight - margin.top - margin.bottom)
-        : intrinsicHeight + inset.top + inset.bottom
+        : intrinsicImage
+            ? intrinsicImage.height + inset.top + inset.bottom
+            : intrinsicHeight + inset.top + inset.bottom
     const finalWidth = constrain(nodeWidth ?? autoWidth, style?.minWidth, style?.maxWidth)
     const finalHeight = constrain(nodeHeight ?? autoHeight, style?.minHeight, style?.maxHeight)
 

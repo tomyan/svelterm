@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0 — 2026-07-04
+
+Images: `<img>` on the cell grid.
+
+### Added
+
+- **`<img>`** — renders as half-blocks (two pixels per cell) from file
+  paths or `data:image/png;base64` URIs. PNG decoding (8-bit
+  RGB/RGBA/greyscale/palette) is built in with no dependencies, via
+  `node:zlib`. Intrinsic size is 1 column per pixel and 1 row per two;
+  CSS `width`/`height` scale nearest-neighbour. Loading is async — the
+  layout reflows when pixels arrive; transparent pixels show the
+  terminal background. (Kitty graphics passthrough is deliberately not
+  included yet — half-blocks work everywhere.)
+
 ## 0.14.0 — 2026-07-04
 
 Inline-mode maturity: the mouse works in the live area.
