@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.0 — 2026-07-04
+
+Inline rendering: svelterm apps that live in the main buffer like a
+CLI tool, not a fullscreen TUI.
+
+### Added
+
+- **`mode: 'inline'`** — render at the shell cursor: the live area sizes
+  to content, updates via cell diffs with relative-only cursor movement
+  (LF to grow, erase-below to shrink), and leaves its output in place on
+  exit. `fullscreen: false` now routes here too. Mouse reporting is off
+  in inline mode (screen-absolute coordinates can't map to an unknown
+  origin); keyboard, focus, and the input cursor work as usual.
+- **`FrameLog`** — append-only frame log for streaming sessions:
+  `append(Component, props)` / `update` / `archive` / `remove`.
+  Archived frames' rows scroll into the terminal's real history
+  untouched and their components unmount, so a long session's memory
+  tracks the live area, not the transcript. See `docs/inline-mode.md`.
+- **`demo/inline`** — five streaming turns, each archived into
+  scrollback (`DEMO=inline npm run demo`).
+
 ## 0.6.0 — 2026-07-04
 
 Terminal integration: selection, clipboard, and a cursor that reads as

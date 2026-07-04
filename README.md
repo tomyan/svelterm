@@ -116,7 +116,8 @@ lives in [`docs/`](docs/) — [getting started](docs/getting-started.md),
 [terminal CSS](docs/terminal-css.md), [layout](docs/layout.md),
 [selectors](docs/selectors.md), [elements & input](docs/elements.md),
 [motion](docs/motion.md), [compatibility](docs/compatibility.md),
-[terminal support](docs/terminals.md) — with
+[terminal support](docs/terminals.md),
+[inline mode](docs/inline-mode.md) — with
 the one-page support matrix in [`docs/reference.md`](docs/reference.md)
 and the design rationale in
 [`DESIGN-browser-compat.md`](DESIGN-browser-compat.md).
