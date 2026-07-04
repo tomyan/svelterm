@@ -1,6 +1,6 @@
 {
   "name": "@svelterm/core",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Svelte 5 components rendered to the terminal with real CSS",
   "type": "module",
   "exports": {

@@ -6,7 +6,8 @@ import { TermNode } from '../renderer/node.js'
 import { CellBuffer } from './buffer.js'
 import { ResolvedStyle } from '../css/compute.js'
 import { LayoutBox } from '../layout/engine.js'
-import { wrapText, truncateText } from '../layout/text.js'
+import { wrapText, truncateText, truncateMiddle } from '../layout/text.js'
+import { parseAnsiText } from './ansi-text.js'
 
 interface TextVisuals {
     fg: string
@@ -36,6 +37,12 @@ export function paintTextContent(
     if (!text) return
     if (box.width === 0 && box.height === 0) return
 
+    // <svt-ansi> content is pre-styled — its own SGR codes win
+    if (node.parent?.tag === 'svt-ansi') {
+        paintAnsiContent(text, buffer, box, clip)
+        return
+    }
+
     // Find text properties from the ancestor that sets them
     const alignResult = findAncestorWithBox(node, styles, layout, s => s.textAlign !== 'left' ? s.textAlign : undefined)
     const align = alignResult?.value ?? 'left'
@@ -47,7 +54,7 @@ export function paintTextContent(
     else if (textTransform === 'capitalize') text = text.replace(/\b\w/g, c => c.toUpperCase())
 
     const noWrap = whiteSpace === 'nowrap'
-    const ellipsis = textOverflow === 'ellipsis'
+    const wordBreak = findAncestorProp(node, styles, s => s.wordBreak !== 'normal' ? s.wordBreak : undefined) ?? 'normal'
 
     // For truncation, use the alignment container's inner width
     const alignBox = alignResult?.box
@@ -56,12 +63,14 @@ export function paintTextContent(
 
     // Determine text lines
     let lines: string[]
-    if (noWrap && ellipsis) {
+    if (noWrap && textOverflow === 'ellipsis') {
         lines = [truncateText(text, truncWidth)]
+    } else if (noWrap && textOverflow === 'ellipsis-middle') {
+        lines = [truncateMiddle(text, truncWidth)]
     } else if (noWrap) {
         lines = [text.substring(0, truncWidth)]
     } else {
-        lines = wrapText(text, box.width > 0 ? box.width : buffer.width)
+        lines = wrapText(text, box.width > 0 ? box.width : buffer.width, wordBreak)
     }
 
     // Compute starting x with text-align
@@ -148,6 +157,23 @@ function innerX(alignBox: LayoutBox, node: TermNode, styles: Map<number, Resolve
 function innerWidth(alignBox: LayoutBox, node: TermNode, styles: Map<number, ResolvedStyle>, layout: Map<number, LayoutBox>): number {
     const inset = findBorderInset(alignBox, node, styles, layout)
     return alignBox.width - inset * 2
+}
+
+/** Paint <svt-ansi> content: cells carry their own SGR styling. */
+function paintAnsiContent(
+    text: string, buffer: CellBuffer, box: LayoutBox,
+    clip?: { x: number; y: number; width: number; height: number } | null,
+): void {
+    const lines = parseAnsiText(text)
+    for (let row = 0; row < lines.length; row++) {
+        const y = box.y + row
+        if (clip && (y < clip.y || y >= clip.y + clip.height)) continue
+        for (let col = 0; col < lines[row].length; col++) {
+            const x = box.x + col
+            if (clip && (x < clip.x || x >= clip.x + clip.width)) continue
+            buffer.setCell(x, y, lines[row][col])
+        }
+    }
 }
 
 /** Find the border inset of the ancestor that owns alignBox. */

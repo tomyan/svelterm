@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0 — 2026-07-04
+
+Text & content: wrapping control, path-friendly truncation, and raw
+ANSI passthrough.
+
+### Added
+
+- **`word-break: break-all`** — wrap at any character (URLs, hashes,
+  paths) instead of only at spaces; inherits as in CSS and applies in
+  both layout and paint.
+- **`text-overflow: ellipsis-middle`** — the parsed-but-unwired middle
+  truncation now paints: `/Users/tom/…/index.ts` style, keeping both
+  ends of long paths.
+- **`<svt-ansi>`** — raw ANSI passthrough element: pre-styled output
+  (git diff, ls --color, build logs) renders with its own SGR colours
+  (16/256/truecolor + attributes); non-SGR sequences are stripped,
+  content is `pre`-formatted.
+
 ## 0.8.0 — 2026-07-04
 
 Input completeness: modern key reporting, honest job control, and

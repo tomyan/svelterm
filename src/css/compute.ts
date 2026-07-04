@@ -89,6 +89,7 @@ export interface ResolvedStyle {
     overflow: 'visible' | 'hidden' | 'scroll' | 'auto'
     textOverflow: 'clip' | 'ellipsis' | 'ellipsis-middle'
     whiteSpace: 'normal' | 'nowrap' | 'pre'
+    wordBreak: 'normal' | 'break-all'
     textAlign: 'left' | 'center' | 'right'
     textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize'
     position: 'static' | 'relative' | 'absolute' | 'fixed'
@@ -155,6 +156,7 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         overflow: 'visible',
         textOverflow: 'clip',
         whiteSpace: 'normal',
+        wordBreak: 'normal',
         textAlign: tag === 'button' ? 'center' : 'left',
         textTransform: 'none',
         position: 'static',
@@ -248,7 +250,7 @@ const SUPPORTED_PROPERTIES = new Set([
     'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
     'color', 'background-color', 'background',
     'font-weight', 'font-style', 'text-decoration', 'text-align', 'text-overflow', 'text-transform',
-    'white-space', 'overflow', 'visibility', 'opacity',
+    'white-space', 'word-break', 'overflow', 'visibility', 'opacity',
     'border', 'border-style', 'border-color', 'border-corner',
     'box-sizing',
     'position', 'top', 'right', 'bottom', 'left', 'z-index',
@@ -418,7 +420,7 @@ function parseInlineStyle(text: string): { property: string; value: string }[] {
 
 const INHERITABLE_PROPERTIES = new Set([
     'color', 'font-weight', 'font-style', 'text-decoration',
-    'white-space', 'text-align', 'visibility', 'opacity',
+    'white-space', 'word-break', 'text-align', 'visibility', 'opacity',
 ])
 
 function applyInherit(style: ResolvedStyle, property: string, parentStyle: ResolvedStyle): void {
@@ -429,6 +431,7 @@ function applyInherit(style: ResolvedStyle, property: string, parentStyle: Resol
         case 'font-style': style.italic = parentStyle.italic; break
         case 'text-decoration': style.underline = parentStyle.underline; style.strikethrough = parentStyle.strikethrough; break
         case 'white-space': style.whiteSpace = parentStyle.whiteSpace; break
+        case 'word-break': style.wordBreak = parentStyle.wordBreak; break
         case 'text-align': style.textAlign = parentStyle.textAlign; break
         case 'text-transform': style.textTransform = parentStyle.textTransform; break
         case 'visibility': style.visibility = parentStyle.visibility; break
@@ -614,6 +617,9 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
         case 'white-space':
             if (value === 'nowrap' || value === 'pre') style.whiteSpace = value
             else style.whiteSpace = 'normal'
+            break
+        case 'word-break':
+            style.wordBreak = value === 'break-all' ? 'break-all' : 'normal'
             break
         case 'text-align':
             if (value === 'center' || value === 'right') style.textAlign = value

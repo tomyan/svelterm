@@ -104,10 +104,23 @@ value `opacity: dim` does the same. Fading is approximated in
 
 `font-weight: bold`, `font-style: italic`, `text-decoration: underline`
 and `line-through` map to terminal attributes. `text-transform`,
-`text-align`, `white-space` (`normal`/`nowrap`/`pre`), and
-`text-overflow: ellipsis` (plus non-standard `ellipsis-middle`) behave as
+`text-align`, `white-space` (`normal`/`nowrap`/`pre`), `word-break`
+(`normal`/`break-all`), and `text-overflow: ellipsis` (plus non-standard
+`ellipsis-middle`, which keeps both ends of long paths) behave as
 standard. Font *choice* and *size* are the terminal emulator's business —
 `font-family`, `font-size`, `line-height` are ignored.
+
+## `<svt-ansi>`
+
+Raw ANSI passthrough for pre-styled output — `git diff`, `ls --color`,
+build logs. Its text content renders with its own SGR styling (16/256/
+truecolor, bold, underline, …); non-SGR escape sequences are stripped.
+Content is treated as `pre`: newlines split lines, tabs expand to
+8-column stops, nothing wraps.
+
+```svelte
+<svt-ansi>{diffOutput}</svt-ansi>
+```
 
 ## `<svt-region>`
 

@@ -5,6 +5,7 @@ import { NodeMap } from '../utils/node-map.js'
 export type LayoutMap = NodeMap<LayoutBox>
 import { computeMainStart, computeItemGap, computeCrossOffset } from './flex.js'
 import { measureText } from './text.js'
+import { measureAnsiText } from '../render/ansi-text.js'
 import { resolveSize, constrain } from './size.js'
 import { parseCellLength } from '../css/values.js'
 
@@ -157,11 +158,19 @@ function layoutText(
         }
     }
 
+    // <svt-ansi> content is pre-styled and pre-formatted: measure with
+    // escape sequences stripped, no wrapping.
+    if (node.parent?.tag === 'svt-ansi') {
+        const measured = measureAnsiText(text)
+        boxes.set(node.id, { x, y, width: measured.width, height: measured.height })
+        return measured
+    }
+
     // Check parent's whiteSpace
     const noWrap = parentStyle?.whiteSpace === 'nowrap'
     const wrapWidth = noWrap ? Infinity : (availWidth > 0 ? availWidth : Infinity)
 
-    const measured = measureText(text, wrapWidth)
+    const measured = measureText(text, wrapWidth, parentStyle?.wordBreak ?? 'normal')
     boxes.set(node.id, { x, y, width: measured.width, height: measured.height })
     return measured
 }
