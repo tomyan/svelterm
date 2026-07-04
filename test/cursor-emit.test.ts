@@ -11,7 +11,7 @@ describe('emitFocusCursor', () => {
         const root = new TermNode('element', 'root')
 
         // When / Then
-        assert.equal(emitFocusCursor(root, null), ansi.hideCursor())
+        assert.equal(emitFocusCursor(root, null), ansi.hideCursor() + ansi.resetCursorShape())
     })
 
     it('returns hideCursor when focused has no cursor position and no region cursor', () => {
@@ -21,7 +21,7 @@ describe('emitFocusCursor', () => {
         root.insertBefore(button, null)
 
         // When / Then
-        assert.equal(emitFocusCursor(root, button), ansi.hideCursor())
+        assert.equal(emitFocusCursor(root, button), ansi.hideCursor() + ansi.resetCursorShape())
     })
 
     it('positions cursor at focused input pos when inViewport', () => {
@@ -35,7 +35,7 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, input)
 
         // Then — moveTo uses 1-based coords, then showCursor
-        assert.equal(out, ansi.moveTo(5, 3) + ansi.showCursor())
+        assert.equal(out, ansi.moveTo(5, 3) + ansi.setCursorShape('bar') + ansi.showCursor())
     })
 
     it('hides cursor when focused input position is not inViewport', () => {
@@ -46,7 +46,7 @@ describe('emitFocusCursor', () => {
         root.insertBefore(input, null)
 
         // When / Then — focused input wins; region (if any) stays dormant
-        assert.equal(emitFocusCursor(root, input), ansi.hideCursor())
+        assert.equal(emitFocusCursor(root, input), ansi.hideCursor() + ansi.resetCursorShape())
     })
 
     it('emits region cursor when nothing is focused', () => {
@@ -62,7 +62,7 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, null)
 
         // Then
-        assert.equal(out, ansi.moveTo(13, 7) + ansi.showCursor())
+        assert.equal(out, ansi.resetCursorShape() + ansi.moveTo(13, 7) + ansi.showCursor())
     })
 
     it('emits region cursor with hide when region cursor is invisible', () => {
@@ -78,7 +78,7 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, null)
 
         // Then
-        assert.equal(out, ansi.moveTo(4, 1) + ansi.hideCursor())
+        assert.equal(out, ansi.resetCursorShape() + ansi.moveTo(4, 1) + ansi.hideCursor())
     })
 
     it('focused input wins over a registered region cursor', () => {
@@ -97,7 +97,7 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, input)
 
         // Then — input position wins
-        assert.equal(out, ansi.moveTo(2, 2) + ansi.showCursor())
+        assert.equal(out, ansi.moveTo(2, 2) + ansi.setCursorShape('bar') + ansi.showCursor())
     })
 
     it('falls through to region cursor when focused is not an input', () => {
@@ -115,7 +115,7 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, button)
 
         // Then
-        assert.equal(out, ansi.moveTo(7, 3) + ansi.showCursor())
+        assert.equal(out, ansi.resetCursorShape() + ansi.moveTo(7, 3) + ansi.showCursor())
     })
 
     it('finds a region cursor nested inside the tree', () => {
@@ -133,6 +133,6 @@ describe('emitFocusCursor', () => {
         const out = emitFocusCursor(root, null)
 
         // Then
-        assert.equal(out, ansi.moveTo(1, 1) + ansi.showCursor())
+        assert.equal(out, ansi.resetCursorShape() + ansi.moveTo(1, 1) + ansi.showCursor())
     })
 })

@@ -31,6 +31,8 @@ import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import { detectCapabilities, type ColorDepth } from './terminal/capabilities.js'
+import { copyToClipboard } from './terminal/clipboard.js'
+import { SelectionController, applySelectionOverlay } from './input/selection.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import { emitFocusCursor } from './render/cursor-emit.js'
@@ -162,7 +164,30 @@ export function run<Props extends Record<string, any>>(
     ctx.onScheduleRender = () => scheduleRender()
 
     // Persisted render state
+    /** What the terminal currently shows (selection overlay included). */
     let prevBuffer: CellBuffer | null = null
+    /** The last paint without the selection overlay — diff/extraction base. */
+    let prevClean: CellBuffer | null = null
+
+    const selection = new SelectionController(() => prevClean)
+
+    /** The buffer as displayed: the clean paint plus any selection. */
+    const overlayed = (buffer: CellBuffer): CellBuffer => {
+        const range = selection.range()
+        if (!range) return buffer
+        const display = buffer.clone()
+        applySelectionOverlay(display, range)
+        return display
+    }
+
+    /** Re-diff after a selection change without repainting the tree. */
+    const redrawSelection = () => {
+        if (!prevClean) return
+        const display = overlayed(prevClean)
+        const output = diffBuffers(prevBuffer, display)
+        if (output.length > 0) writeOutput(output)
+        prevBuffer = display
+    }
     let lastStyles: Map<number, ResolvedStyle> | undefined
     let lastFilteredStylesheet: import('./css/parser.js').CSSStyleSheet | null = null
     let lastLayout: Map<number, LayoutBox> | undefined
@@ -245,9 +270,11 @@ export function run<Props extends Record<string, any>>(
             clampScrollPositions(root, lastLayout, io)
         }
         paint(root, buffer, lastStyles, lastLayout)
-        const output = diffBuffers(prevBuffer, buffer) + emitFocusCursor(root, focusManager.focused)
+        prevClean = buffer
+        const display = overlayed(buffer)
+        const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
         if (output.length > 0) writeOutput(output)
-        prevBuffer = buffer
+        prevBuffer = display
 
         // Register focusable elements after initial render
         if (!initialRegistrationDone) {
@@ -304,18 +331,22 @@ export function run<Props extends Record<string, any>>(
         }
 
         const hasScroll = hasScrolledNode(root)
-        if (noLayoutChanges && !hasScroll && dirtyPaintNodes.size > 0 && prevBuffer && lastStyles && lastLayout) {
-            const buffer = prevBuffer.clone()
+        if (noLayoutChanges && !hasScroll && dirtyPaintNodes.size > 0 && prevClean && lastStyles && lastLayout) {
+            const buffer = prevClean.clone()
             paintNodes(dirtyPaintNodes, buffer, lastStyles, lastLayout, root)
-            const output = diffBuffers(prevBuffer, buffer) + emitFocusCursor(root, focusManager.focused)
+            prevClean = buffer
+            const display = overlayed(buffer)
+            const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
             if (output.length > 0) writeOutput(output)
-            prevBuffer = buffer
+            prevBuffer = display
         } else {
             const buffer = new CellBuffer(size.width, size.height)
             paint(root, buffer, lastStyles, lastLayout)
-            const output = diffBuffers(prevBuffer, buffer) + emitFocusCursor(root, focusManager.focused)
+            prevClean = buffer
+            const display = overlayed(buffer)
+            const output = diffBuffers(prevBuffer, display) + emitFocusCursor(root, focusManager.focused)
             if (output.length > 0) writeOutput(output)
-            prevBuffer = buffer
+            prevBuffer = display
         }
     }
 
@@ -421,7 +452,8 @@ export function run<Props extends Record<string, any>>(
     const handleMouseData = (data: Buffer | Uint8Array) => {
         const mouse = parseMouseEvent(data)
         if (!mouse) return
-        handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx, io)
+        handleMouse(mouse, root, lastLayout, focusManager, scheduleRender, lastStyles, ctx, io,
+            selection, redrawSelection)
     }
 
     const handlePaste = (text: string) => {
@@ -588,11 +620,17 @@ function handleMouse(
     lastStyles: Map<number, ResolvedStyle> | undefined,
     ctx: RenderContext,
     io: TerminalIO,
+    selection: SelectionController,
+    redrawSelection: () => void,
 ): void {
     if (!layout) return
 
-    // Handle hover — only update when the hovered element changes
+    // Handle hover — only update when the hovered element changes.
+    // Dragging with the left button extends the text selection.
     if (mouse.type === 'motion') {
+        if (mouse.button === 'left' && selection.onMotion(mouse.col, mouse.row)) {
+            redrawSelection()
+        }
         const target = hitTest(root, layout, mouse.col, mouse.row)
         const hoveredId = target?.id ?? -1
         if (hoveredId !== lastHoveredId) {
@@ -602,9 +640,19 @@ function handleMouse(
         return
     }
 
+    // Releasing the left button finishes a selection and copies it
+    if (mouse.type === 'release' && mouse.button === 'left') {
+        const text = selection.onRelease()
+        if (text) copyToClipboard(text, data => io.write(data))
+        return
+    }
+
     if (mouse.type !== 'press' && mouse.type !== 'scroll') return
 
     if (mouse.button === 'left') {
+        const hadSelection = selection.range() !== null
+        selection.onPress(mouse.col, mouse.row)
+        if (hadSelection || selection.range() !== null) redrawSelection()
         const target = hitTest(root, layout, mouse.col, mouse.row)
         if (target) {
             // Disabled interactive elements swallow the click, as in browsers
@@ -841,3 +889,4 @@ export { parseCSS } from './css/parser.js'
 export { resolveStyles } from './css/compute.js'
 export { StdinRouter } from './terminal/stdin-router.js'
 export { type TerminalIO, ProcessIO, InProcessIO } from './terminal/io.js'
+export { copyToClipboard, osc52Copy } from './terminal/clipboard.js'

@@ -134,6 +134,11 @@ export function setCursorShape(shape: 'block' | 'underline' | 'bar'): string {
     return `${CSI}${code} q`
 }
 
+/** DECSCUSR 0 — the terminal's configured default cursor. */
+export function resetCursorShape(): string {
+    return `${CSI}0 q`
+}
+
 export function enableBracketedPaste(): string {
     return `${CSI}?2004h`
 }

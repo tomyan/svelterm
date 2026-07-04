@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 — 2026-07-04
+
+Terminal integration: selection, clipboard, and a cursor that reads as
+an insertion point.
+
+### Added
+
+- **Text selection** — drag selects a row-major cell range (painted
+  inverted), double-click selects the word, triple-click the line.
+  Releasing copies the selection; the next click clears it. Works over
+  the diff pipeline without repainting the tree.
+- **Clipboard** — selections copy via OSC 52 (in-band, ssh-safe) plus
+  the platform tool (`pbcopy`, `wl-copy`/`xclip`, `clip`) when present;
+  `copyToClipboard` is exported for apps.
+- **Cursor shape** — a focused `<input>`/`<textarea>` shows a bar cursor
+  (DECSCUSR 6); the terminal's configured shape is restored otherwise
+  and on exit.
+
 ## 0.5.0 — 2026-07-04
 
 Terminal robustness: the same app now degrades gracefully from a

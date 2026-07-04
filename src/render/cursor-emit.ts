@@ -20,12 +20,15 @@ import * as ansi from './ansi.js'
 export function emitFocusCursor(root: TermNode, focused: TermNode | null): string {
     const focusedPos = focused?.getCursorScreenPos()
     if (focusedPos) {
-        if (!focusedPos.inViewport) return ansi.hideCursor()
-        return ansi.moveTo(focusedPos.x + 1, focusedPos.y + 1) + ansi.showCursor()
+        if (!focusedPos.inViewport) return ansi.hideCursor() + ansi.resetCursorShape()
+        // A bar reads as "text insertion point"; everything else keeps the
+        // terminal's configured shape.
+        return ansi.moveTo(focusedPos.x + 1, focusedPos.y + 1)
+            + ansi.setCursorShape('bar') + ansi.showCursor()
     }
     const regionOut = findRegionCursor(root)
-    if (regionOut) return regionOut
-    return ansi.hideCursor()
+    if (regionOut) return ansi.resetCursorShape() + regionOut
+    return ansi.hideCursor() + ansi.resetCursorShape()
 }
 
 function findRegionCursor(node: TermNode): string | null {

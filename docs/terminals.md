@@ -34,6 +34,22 @@ a live theme switch re-renders the app. Pin it with
 `run(App, { colorScheme: 'light' })` (embedded terminals do this — the
 OSC channel is meaningless there).
 
+## Text selection and clipboard
+
+Mouse reporting turns off the terminal's native selection, so svelterm
+provides its own: **drag** selects a cell range (painted inverted),
+**double-click** selects the word, **triple-click** the line. Releasing
+the button copies the selection — via OSC 52 (survives ssh; needs the
+terminal to allow clipboard writes) and the platform tool (`pbcopy`,
+`wl-copy`/`xclip`, `clip`) when one exists. The highlight clears on the
+next click.
+
+## Cursor shape
+
+The real terminal cursor becomes a **bar** while a focused
+`<input>`/`<textarea>` owns it (DECSCUSR), and resets to the terminal's
+configured shape otherwise — including on exit.
+
 ## Queries a svelterm app may send
 
 At startup: OSC 11 (background colour), `CSI > 0 q` (XTVERSION, only when
