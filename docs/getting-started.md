@@ -64,8 +64,9 @@ npx svelterm build src/App.svelte -o dist/app.mjs
 node dist/app.mjs
 ```
 
-Global CSS is picked up from `src/main.css`/`main.css` (or `--css
-<file>`); each component's scoped styles travel inside the bundle. See
+Global CSS is picked up from `src/main.css`/`main.css` (or the
+`--css` flag); each component's scoped styles travel inside the bundle.
+See
 [distribution](./distribution.md) for platform packaging and the
 curl-pipe pattern.
 
@@ -141,6 +142,9 @@ Press `Tab` to focus the button, `Enter` to click it, `Ctrl+C` to exit.
 | `colorScheme` | auto | Force `'dark'`/`'light'` instead of OSC 11 detection |
 | `io` | process stdio | A custom `TerminalIO` (embedding, tests) |
 | `onConsole` | — | Receive `console.*` output; without it, `console.log` throws rather than corrupt the screen |
+| `mode` | `'fullscreen'` | `'inline'` renders at the shell cursor — see [inline mode](./inline-mode.md) |
+| `exitOn` | `['ctrl+c']` | Add `'ctrl+d'` for EOF-style exit |
+| `colorDepth` | detected | Force `'truecolor' \| '256' \| '16' \| 'mono'` |
 | `debug` / `debugPort` | off | WebSocket debug server |
 
 Returns `{ cleanup, setColorScheme }`. `cleanup()` unmounts, restores the

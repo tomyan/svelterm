@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.14.0 — 2026-07-04
+
+Inline-mode maturity: the mouse works in the live area.
+
+### Added
+
+- **Inline-mode mouse** — the zone's screen origin comes from a CPR
+  (cursor position report) query, snapshotted as the query bytes go out,
+  shifted as frames archive, and clamped when growth scrolls the zone.
+  Mouse coordinates map through it; clicks on shell history are ignored.
+  Origins re-query after resize and suspend/resume.
+- **Playground example** — `inline mode` example with a `svelterm:inline`
+  marker that the site preview and the `run/*.mjs` bundles honour.
+
+### Fixed
+
+- An explicit `mode` now wins over the `fullscreen` flag —
+  `mode: 'fullscreen', fullscreen: false` is full-viewport rendering
+  without the alternate screen again (embedded previews), instead of
+  being forced inline.
+
 ## 0.13.0 — 2026-07-04
 
 Virtual scrolling: long lists repaint at the speed of what's visible.

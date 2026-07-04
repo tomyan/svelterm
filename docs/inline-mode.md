@@ -64,9 +64,11 @@ Try it: `DEMO=inline npm run demo` in the svelterm repo.
 
 - The live area must fit the terminal height — archive finished content
   to keep it short. Content past the bottom clips.
-- **Mouse reporting is off** (SGR coordinates are screen-absolute and the
-  origin is unknown by design). Keyboard input, focus, and `:focus`
-  styling work as usual; the terminal cursor follows focused inputs.
+- **Mouse works in the live area**: the zone's screen position comes
+  from a cursor-position query, so clicks, hover, and scroll map into
+  the app; clicks on shell history above it are ignored. (On a terminal
+  that doesn't answer CPR, mouse events are dropped.) Keyboard input,
+  focus, and the input cursor work as usual.
 - Archived rows never re-wrap: after a resize they keep their old
   wrapping, like any other scrollback. The live area re-lays-out and
   repaints in place on width changes (best effort — some terminals
