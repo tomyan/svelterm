@@ -12,6 +12,8 @@ export function diffBuffers(prev: CellBuffer | null, next: CellBuffer): string {
             const prevCell = prev?.getCell(col, row)
 
             if (prevCell && cellsEqual(prevCell, cell)) continue
+            // Continuation cell of a wide glyph — the glyph writes it
+            if (cell.char === '') continue
 
             parts.push(ansi.moveTo(col + 1, row + 1))
 

@@ -1,4 +1,5 @@
 import type { KeyEvent } from '../input/keyboard.js'
+import { nextGraphemeBoundary, prevGraphemeBoundary } from '../layout/unicode.js'
 
 export class TextBuffer {
     private _text: string
@@ -24,17 +25,19 @@ export class TextBuffer {
 
     delete(): void {
         if (this._cursor >= this._text.length) return
-        this._text = this._text.substring(0, this._cursor) + this._text.substring(this._cursor + 1)
+        const end = nextGraphemeBoundary(this._text, this._cursor)
+        this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
     }
 
     backspace(): void {
         if (this._cursor <= 0) return
-        this._text = this._text.substring(0, this._cursor - 1) + this._text.substring(this._cursor)
-        this._cursor--
+        const start = prevGraphemeBoundary(this._text, this._cursor)
+        this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
+        this._cursor = start
     }
 
-    moveLeft(): void { this.cursor-- }
-    moveRight(): void { this.cursor++ }
+    moveLeft(): void { this._cursor = prevGraphemeBoundary(this._text, this._cursor) }
+    moveRight(): void { this._cursor = nextGraphemeBoundary(this._text, this._cursor) }
     home(): void { this._cursor = 0 }
     end(): void { this._cursor = this._text.length }
 

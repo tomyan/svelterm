@@ -5,6 +5,7 @@ import { LayoutBox } from '../layout/engine.js'
 import { renderBorder } from './border.js'
 import { paintTextContent } from './paint-text.js'
 import { blendColor } from '../css/color.js'
+import { stringWidth } from '../layout/unicode.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
 import { selectOptions, selectedIndex } from '../input/select.js'
@@ -421,7 +422,10 @@ function paintInput(
     // can drive the real terminal cursor. No cell is painted — the real
     // cursor brings its own blink and shape.
     if (isFocused) {
-        const cursorScreenX = contentX + (cursor - scrollOffset)
+        // Cursor cell offset = cell width of the text before it (wide
+        // glyphs take two columns), not its code-unit index.
+        const cursorCells = stringWidth(value.substring(0, cursor))
+        const cursorScreenX = contentX + (cursorCells - scrollOffset)
         const inViewport = cursorScreenX >= contentX
             && cursorScreenX <= contentX + contentW
             && (!clip || inClip(cursorScreenX, contentY, clip))

@@ -12,6 +12,7 @@
 
 import { CellBuffer, cellsEqual, type Cell } from './buffer.js'
 import * as ansi from './ansi.js'
+import { stringWidth } from '../layout/unicode.js'
 
 const CSI = '\x1b['
 
@@ -48,6 +49,8 @@ export class InlineScreen {
                 const cell = next.getCell(col, row)!
                 const prevCell = this.prev?.getCell(col, row)
                 if (prevCell && cellsEqual(prevCell, cell)) continue
+                // Continuation cell of a wide glyph — the glyph writes it
+                if (cell.char === '') continue
 
                 if (this.cursorRow !== row || this.cursorCol !== col) {
                     parts.push(this.moveRow(row), `${CSI}${col + 1}G`)
@@ -58,7 +61,8 @@ export class InlineScreen {
                     lastStyle = styleCode
                 }
                 parts.push(cell.char)
-                this.cursorCol = col + 1 >= next.width ? -1 : col + 1
+                const advance = Math.max(1, stringWidth(cell.char))
+                this.cursorCol = col + advance >= next.width ? -1 : col + advance
             }
         }
         if (lastStyle !== null) parts.push(ansi.resetStyle())
