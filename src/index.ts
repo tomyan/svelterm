@@ -1,4 +1,4 @@
-import { mount, unmount } from 'svelte'
+import { mount, unmount } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
 import { hasBooleanAttribute } from './renderer/node.js'

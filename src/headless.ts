@@ -1,4 +1,4 @@
-import { mount as svelteMount, unmount as svelteUnmount } from 'svelte'
+import { mount as svelteMount, unmount as svelteUnmount } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
 import { TermNode } from './renderer/index.js'
 import renderer from './renderer/default.js'

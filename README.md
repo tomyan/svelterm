@@ -4,6 +4,8 @@ Svelte 5 components rendered to the terminal with real CSS.
 
 Write standard Svelte components with `<style>` blocks. They render in the terminal with ANSI escape sequences — flexbox layout, scoped styles, CSS variables, pseudo-classes, all on a cell grid.
 
+svelterm is largely LLM-written — designed and directed by a human, with most of the code produced in pair-programming sessions with Claude, test-driven and reviewed as it landed. If that's not your thing, there are plenty of artisanal, hand-typed frameworks out there.
+
 > **Early release.** Svelterm requires an unmerged Svelte branch (`svelte-custom-renderer` by [@paoloricciuti](https://github.com/paoloricciuti)) that adds the custom renderer API. It is not usable with mainline Svelte yet.
 
 ## Example
