@@ -591,14 +591,25 @@ export function run<Props extends Record<string, any>>(
     let debugServer: any = null
     let consoleDomain: any = null
     if (debugEnabled) {
-        import('./debug/server.js').then(({ DebugServer }) => {
-            import('./debug/console.js').then(({ ConsoleDomain }) => {
-                debugServer = new DebugServer(debugPort)
-                consoleDomain = new ConsoleDomain(debugServer)
-                debugServer.registerDomain('Console', consoleDomain)
-                consoleDomain.start()
-                debugServer.start()
-            })
+        Promise.all([
+            import('./debug/server.js'),
+            import('./debug/console.js'),
+            import('./debug/dom.js'),
+            import('./debug/css.js'),
+        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }]) => {
+            debugServer = new DebugServer(debugPort)
+            consoleDomain = new ConsoleDomain(debugServer)
+            const debugCtx = {
+                root,
+                styles: () => lastStyles,
+                layout: () => lastLayout,
+                requestRender: () => { ctx.queue.setFullRecompute(); scheduleRender() },
+            }
+            debugServer.registerDomain('Console', consoleDomain)
+            debugServer.registerDomain('DOM', new DomDomain(debugCtx))
+            debugServer.registerDomain('CSS', new CssDomain(debugCtx))
+            consoleDomain.start()
+            debugServer.start()
         })
     }
 

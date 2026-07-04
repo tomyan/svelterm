@@ -1,6 +1,6 @@
 {
   "name": "@svelterm/core",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "description": "Svelte 5 components rendered to the terminal with real CSS",
   "type": "module",
   "exports": {
@@ -22,7 +22,8 @@
     }
   },
   "bin": {
-    "svelterm": "./dist/src/cli/main.js"
+    "svelterm": "./dist/src/cli/main.js",
+    "svt": "./dist/src/cli/svt-bin.js"
   },
   "main": "./dist/src/renderer/default.js",
   "types": "./dist/src/renderer/default.d.ts",

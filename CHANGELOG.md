@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.17.0 — 2026-07-04
+
+Debug tooling: a minimal DevTools for terminal apps.
+
+### Added
+
+- **DOM and CSS debug domains** — over the existing (opt-in) debug
+  WebSocket server: `DOM.getDocument` serialises the live node tree,
+  `DOM.querySelector` finds nodes by selector, `DOM.getBoxModel` reports
+  layout, `DOM.setAttribute`/`removeAttribute` mutate and repaint;
+  `CSS.getComputedStyle` returns the resolved style svelterm painted.
+- **`svt` CLI** (`svelterm inspect`) — a client for the protocol:
+  `svt tree | query <sel> | style <id> | box <id> | console | raw`,
+  JSON on stdout for `jq`. Point it at a `run(App, { debug: true })`
+  app.
+
 ## 0.16.0 — 2026-07-04
 
 ### Fixed
