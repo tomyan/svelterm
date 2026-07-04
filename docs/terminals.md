@@ -1,5 +1,30 @@
 # Terminal support
 
+## Support matrix
+
+"Verified" means exercised interactively (rendering, input, the feature
+columns below). "Expected" means the terminal advertises the required
+capabilities and svelterm's output round-trips against a terminal model
+in CI, but nobody has watched it run there yet — reports welcome.
+
+| Terminal | Status | Truecolor | DEC 2026 | Kitty keys | OSC 52 |
+|---|---|---|---|---|---|
+| Ghostty | verified | ✓ | ✓ | ✓ | ✓ |
+| tmux (3.4+) | verified | ✓ (with `tmux-256color`) | ✓ | pass-through | needs `set-clipboard on` |
+| kitty | expected | ✓ | ✓ | ✓ | ✓ |
+| WezTerm | expected | ✓ | ✓ | ✓ | ✓ |
+| iTerm2 | expected | ✓ | ✓ | ✗ (legacy keys) | ✓ |
+| Alacritty | expected | ✓ | ✗ | ✓ | ✓ |
+| Terminal.app | expected | ✗ (256) | ✗ | ✗ | ✗ |
+| Windows Terminal | unknown | ✓ | ✗ | ✗ | ✓ |
+| Linux console | unknown | ✗ (16) | ✗ | ✗ | ✗ |
+
+Every degradation path (truecolor → 256 → 16 → mono, sync output off,
+legacy keys) is tested in CI by round-tripping svelterm's emitted ANSI
+through a terminal model and asserting the resulting grid — so an
+"expected" terminal failing would mean a capability report bug, not a
+rendering one.
+
 svelterm adapts its output to the terminal it lands in. Detection runs in
 the background at startup; the first frame paints with today's most common
 defaults (truecolor, synchronized output) and re-paints if the terminal

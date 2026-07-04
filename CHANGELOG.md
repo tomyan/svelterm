@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.0 — 2026-07-04
+
+Terminal matrix evidence: proof the emitted bytes work, per terminal
+class.
+
+### Added
+
+- **Round-trip test suite** — svelterm's emitted ANSI (full frames,
+  incremental diffs, the inline live zone) replays through a terminal
+  model in CI and must reproduce the exact cell grid, at every colour
+  depth (truecolor / 256 / 16 / mono) and with wide glyphs.
+- **Support matrix** in `docs/terminals.md` — verified vs expected vs
+  unknown, per terminal, with the capability columns that matter
+  (truecolor, DEC 2026, kitty keys, OSC 52).
+
 ## 0.11.0 — 2026-07-04
 
 Unicode correctness: non-Latin text stops breaking layout.
