@@ -33,6 +33,8 @@ import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-rout
 import { detectCapabilities, type ColorDepth } from './terminal/capabilities.js'
 import { copyToClipboard } from './terminal/clipboard.js'
 import { SelectionController, applySelectionOverlay } from './input/selection.js'
+import { InlineScreen } from './render/inline.js'
+import { registerInlineHooks } from './framelog.js'
 import type { CSSStyleSheet } from './css/parser.js'
 import * as ansi from './render/ansi.js'
 import { emitFocusCursor } from './render/cursor-emit.js'
@@ -60,6 +62,14 @@ export interface RunOptions {
      * and the host already knows the scheme.
      */
     colorScheme?: 'dark' | 'light'
+    /**
+     * 'fullscreen' (default) uses the alternate screen buffer. 'inline'
+     * renders at the shell cursor in the main buffer: output above the
+     * live area scrolls into real scrollback, the live area sizes to its
+     * content, and all cursor movement is relative. Mouse reporting is
+     * disabled in inline mode.
+     */
+    mode?: 'fullscreen' | 'inline'
     /**
      * Override colour depth instead of detecting it (NO_COLOR/COLORTERM/
      * XTVERSION). Hex colours quantize to the terminal's palette at emit
@@ -104,8 +114,13 @@ export function run<Props extends Record<string, any>>(
     options?: RunOptions & ({} extends Props ? { props?: Props } : { props: Props }),
 ): RunHandle {
     const io = options?.io ?? new ProcessIO()
-    const fullscreen = options?.fullscreen ?? true
-    const mouseEnabled = options?.mouse ?? true
+    // `fullscreen: false` always meant "no alternate screen"; it now gets
+    // the inline renderer, which is what a main-buffer app actually needs.
+    const inline = options?.mode === 'inline' || options?.fullscreen === false
+    const fullscreen = !inline && (options?.fullscreen ?? true)
+    // Mouse coordinates are screen-absolute and the inline origin is
+    // unknown by design, so mouse reporting stays off in inline mode.
+    const mouseEnabled = inline ? false : (options?.mouse ?? true)
     const debugEnabled = options?.debug ?? false
     const debugPort = options?.debugPort ?? 9444
     const userCss = options?.css ?? [...registeredComponentCss].join('\n')
@@ -170,6 +185,10 @@ export function run<Props extends Record<string, any>>(
     let prevClean: CellBuffer | null = null
 
     const selection = new SelectionController(() => prevClean)
+    const inlineScreen = new InlineScreen()
+    if (inline) {
+        registerInlineHooks(root, { releaseTop: n => inlineScreen.releaseTop(n) })
+    }
 
     /** The buffer as displayed: the clean paint plus any selection. */
     const overlayed = (buffer: CellBuffer): CellBuffer => {
@@ -219,12 +238,17 @@ export function run<Props extends Record<string, any>>(
 
     const processQueue = () => {
         const snap = ctx.queue.snapshot()
+        const dirty = snap.paintOnly.size > 0 || snap.styleResolve.size > 0
+            || snap.layoutSubtree.size > 0 || snap.layoutBubble.size > 0
 
-        if (snap.fullRecompute || !lastStyles || !lastLayout) {
+        if (inline) {
+            // The live area is content-sized, so any change can move
+            // everything — always render fully.
+            if (snap.fullRecompute || dirty || !lastStyles) fullRender()
+        } else if (snap.fullRecompute || !lastStyles || !lastLayout) {
             // Full recompute — initial render, resize, or CSS reload
             fullRender()
-        } else if (snap.paintOnly.size > 0 || snap.styleResolve.size > 0
-            || snap.layoutSubtree.size > 0 || snap.layoutBubble.size > 0) {
+        } else if (dirty) {
             // Incremental render
             incrementalRender(snap)
         }
@@ -237,12 +261,10 @@ export function run<Props extends Record<string, any>>(
         io.write(syncOutput ? ansi.beginSyncUpdate() + data + ansi.endSyncUpdate() : data)
     }
 
-    const fullRender = () => {
-        const size = io.getSize()
-        // Set root dimensions so children can use percentage width/height
+    /** Resolve styles + layout for the current terminal size. */
+    const resolveForRender = (size: { width: number; height: number }) => {
         root.attributes.set('data-width', String(size.width))
         root.attributes.set('data-height', String(size.height))
-        const buffer = new CellBuffer(size.width, size.height)
         const media = { colorScheme: detectedScheme, displayMode: 'terminal' as const, width: size.width, height: size.height }
         lastFilteredStylesheet = stylesheet ? filterByMedia(stylesheet, media) : null
         // Passing `media` here threads colorScheme into computeStyle so
@@ -269,6 +291,13 @@ export function run<Props extends Record<string, any>>(
             syncLayoutCache(root, lastLayout)
             clampScrollPositions(root, lastLayout, io)
         }
+    }
+
+    const fullRender = () => {
+        if (inline) { inlineRender(); return }
+        const size = io.getSize()
+        const buffer = new CellBuffer(size.width, size.height)
+        resolveForRender(size)
         paint(root, buffer, lastStyles, lastLayout)
         prevClean = buffer
         const display = overlayed(buffer)
@@ -277,6 +306,39 @@ export function run<Props extends Record<string, any>>(
         prevBuffer = display
 
         // Register focusable elements after initial render
+        if (!initialRegistrationDone) {
+            registerFocusableNodes(root, focusManager)
+            initialRegistrationDone = true
+        }
+    }
+
+    /**
+     * Inline mode always renders fully: the live area is content-sized
+     * (clamped to the terminal height — archive to keep it short) and the
+     * InlineScreen driver emits relative-movement diffs.
+     */
+    const inlineRender = () => {
+        const size = io.getSize()
+        resolveForRender(size)
+        const rootBox = lastLayout?.get(root.id)
+        const extent = lastLayout && rootBox
+            ? contentExtent(root, lastLayout, rootBox)
+            : { width: size.width, height: 1 }
+        const height = Math.max(1, Math.min(extent.height, size.height))
+        const buffer = new CellBuffer(size.width, height)
+        paint(root, buffer, lastStyles, lastLayout)
+        prevClean = buffer
+
+        let output = inlineScreen.render(buffer)
+        const pos = focusManager.focused?.getCursorScreenPos()
+        if (pos && pos.inViewport && pos.y < height) {
+            output += inlineScreen.moveCursorTo(pos.x, pos.y)
+                + ansi.setCursorShape('bar') + ansi.showCursor()
+        } else {
+            output += ansi.hideCursor() + ansi.resetCursorShape()
+        }
+        if (output.length > 0) writeOutput(output)
+
         if (!initialRegistrationDone) {
             registerFocusableNodes(root, focusManager)
             initialRegistrationDone = true
@@ -576,9 +638,14 @@ export function run<Props extends Record<string, any>>(
         if (mouseEnabled) io.write(ansi.disableMouse())
         io.write(ansi.disableBracketedPaste())
         if (fullscreen) exitFullscreen(io)
-        // Show cursor *after* exitFullscreen so it targets the main screen,
-        // not the alt screen we're leaving behind.
-        io.write(ansi.showCursor())
+        if (inline) {
+            // Leave the rendered output in place; park the prompt below it.
+            io.write(inlineScreen.finish() + ansi.resetCursorShape())
+        } else {
+            // Show cursor *after* exitFullscreen so it targets the main
+            // screen, not the alt screen we're leaving behind.
+            io.write(ansi.showCursor() + ansi.resetCursorShape())
+        }
         io.disableRawMode()
         io.dispose()
     }
@@ -890,3 +957,4 @@ export { resolveStyles } from './css/compute.js'
 export { StdinRouter } from './terminal/stdin-router.js'
 export { type TerminalIO, ProcessIO, InProcessIO } from './terminal/io.js'
 export { copyToClipboard, osc52Copy } from './terminal/clipboard.js'
+export { FrameLog, createFrameLog } from './framelog.js'
