@@ -71,6 +71,16 @@ export class TermNode {
         }
     }
 
+    /** DOM compatibility — form control value as a property */
+    get value(): string {
+        return this.attributes.get('value') ?? ''
+    }
+
+    set value(newValue: string) {
+        if (this.ctx) this.ctx.onSetAttribute(this, 'value', newValue)
+        else this.attributes.set('value', newValue)
+    }
+
     /** DOM compatibility — checkbox/radio state as a property */
     get checked(): boolean {
         return hasBooleanAttribute(this, 'checked')

@@ -93,7 +93,10 @@ explicit size it fills the parent box like a replaced element.
 element matches `:focus`. `Enter` clicks the focused element (opens `href`
 on links, toggles `<details>`, cycles `<select>`); `Space` toggles
 checkboxes/radios and cycles selects. Mouse clicks focus, click, and
-activate the same defaults. `Ctrl+C` exits.
+activate the same defaults. Clicking a
+[`<label>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/label)
+activates its control — wrapping or `for="id"` association both work.
+`Ctrl+C` exits.
 
 ### Interaction model for form controls
 

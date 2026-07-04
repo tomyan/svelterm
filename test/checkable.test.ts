@@ -46,6 +46,20 @@ describe('checkable inputs', () => {
             // Then
             assert.deepEqual(seen, [true, false])
         })
+
+        it('includes the control value in change events, as e.target.value would', () => {
+            // Given
+            const radio = makeInput('radio', { value: 'team' })
+            const seen: string[] = []
+            radio.listeners.set('change', new Set([(e: any) => seen.push(e.data.value)]))
+
+            // When
+            toggleCheckable(radio)
+
+            // Then
+            assert.deepEqual(seen, ['team'])
+            assert.equal(radio.value, 'team') // DOM-compat property
+        })
     })
 
     describe('radio groups', () => {

@@ -52,8 +52,10 @@ function setChecked(node: TermNode, checked: boolean): void {
     } else {
         clearChecked(node)
     }
-    dispatchEvent(node, 'change', { checked })
-    dispatchEvent(node, 'input', { checked })
+    // Browsers expose the control's value on change (radio groups read it)
+    const detail = { checked, value: node.attributes.get('value') ?? '' }
+    dispatchEvent(node, 'change', detail)
+    dispatchEvent(node, 'input', detail)
 }
 
 function clearChecked(node: TermNode): void {

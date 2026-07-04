@@ -25,6 +25,7 @@ import { dispatchEvent } from './input/dispatch.js'
 import { isCheckableInput, toggleCheckable } from './input/checkable.js'
 import { toggleDetails } from './input/details.js'
 import { cycleSelect } from './input/select.js'
+import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import type { CSSStyleSheet } from './css/parser.js'
@@ -572,6 +573,14 @@ function handleMouse(
             }
             if (!event.defaultPrevented && target.tag === 'summary') toggleDetails(target)
             if (!event.defaultPrevented && target.tag === 'select') cycleSelect(target, 1)
+            // Clicking a label activates its control, as in browsers
+            if (!event.defaultPrevented) {
+                const control = labelledControl(target)
+                if (control && control !== target && !hasBooleanAttribute(control, 'disabled')) {
+                    if (FOCUSABLE_TAGS.has(control.tag ?? '')) focusManager.focusByNode(control)
+                    if (isCheckableInput(control)) toggleCheckable(control)
+                }
+            }
             scheduleRender()
         }
     } else if (mouse.button === 'scrollLeft' || mouse.button === 'scrollRight') {
