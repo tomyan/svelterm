@@ -23,8 +23,10 @@ jobs:
 
       - name: Build svelte custom renderer fork
         run: |
+          # tomyan/svelte tracks upstream svelte-custom-renderer plus the
+          # svelte/renderer mount export (sveltejs/svelte#18505)
           git clone --depth 1 -b svelte-custom-renderer \
-            https://github.com/paoloricciuti/svelte.git ../svelte-fork
+            https://github.com/tomyan/svelte.git ../svelte-fork
           cd ../svelte-fork
           pnpm install
           pnpm -C packages/svelte build

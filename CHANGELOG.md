@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.2.0 — 2026-07-04
+
+The browser-compatibility release: any HTML/CSS feature with a sensible
+cell-grid meaning now works as a browser author expects. Full support matrix
+in [`docs/reference.md`](docs/reference.md); manual in [`docs/`](docs/).
+
+**Requires** a Svelte fork with the custom renderer API. Until
+[sveltejs/svelte#18505](https://github.com/sveltejs/svelte/pull/18505) lands,
+use [`tomyan/svelte#svelte-custom-renderer`](https://github.com/tomyan/svelte/tree/svelte-custom-renderer)
+(upstream plus the `svelte/renderer` mount export svelterm needs on Node).
+
+### Added
+
+- **CSS grid** — column and row templates with `fr`/`repeat()`/`minmax()`,
+  `grid-column`/`grid-row` placement and spans, `grid-template-areas` with
+  named `grid-area`
+- **CSS tables** — `display: table*` including `inline-table`, sections and
+  captions, `colspan`/`rowspan`, `vertical-align`, `border-collapse` with
+  shared box-drawing grid lines, anonymous table boxes
+- **Animations & transitions** — `@keyframes` wired into the render loop
+  with RGB colour interpolation between stops, cell-stepped length
+  animation, discrete stepping for other properties; `transition` on style
+  changes
+- **Selectors** — attribute operators (`^=`, `$=`, `*=`, `~=`, `|=`),
+  `:is()`/`:where()`, the `:nth-child()` family, structural pseudo-classes
+  (`:empty`, `:first/last/only-of-type`, `:only-child`),
+  `:checked`/`:disabled`/`:enabled`, `::before`/`::after` with `content`
+- **Form controls** — checkboxes and radios, cycling `<select>`,
+  `<progress>`/`<meter>` block-glyph bars, `<details>`/`<summary>`,
+  labels activate their controls on click
+- **CSS values** — Color Level 4 syntax, `light-dark()`, inline `style`
+  attributes, `box-sizing`, `text-transform`, the `ch` unit as a `cell`
+  alias
+- **Scrolling** — viewport scrolling with overlay scrollbars, horizontal
+  scroll, scroll clamping on resize
+- **Borders** — block-character border styles with half-cell corner
+  treatment
+- **IO abstraction** — `ProcessIO` (with `/dev/tty` fallback when stdin is
+  piped) and `InProcessIO` for embedding; browser-compatible input parsing
+- **Dev mode** — `svelterm dev` CLI with Vite environments, HMR, and a
+  two-process WebSocket bridge
+- **Docs** — chaptered manual under `docs/` and a full feature support
+  matrix with MDN links in `docs/reference.md`
+
+### Changed
+
+- Tracks the upstream unified `mount({ renderer, target, props })` API from
+  the `svelte-custom-renderer` branch
+- Exact hex/computed colours are no longer remapped to nearest ANSI names
+- Flex `align-items: stretch` no longer overrides an explicit cross-axis
+  size
+
+### Fixed
+
+- Incremental repaint artifacts (borders, list markers), flex `min-height:
+  auto` shrinking per spec, nested `@media` inside selector blocks, inline
+  whitespace and list bullets, scroll position clamping after relayout
+
 ## 0.1.0
 
 Initial release — name reservation and early preview.
