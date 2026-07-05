@@ -9,6 +9,23 @@ type TermNodes = {
     comment: TermNode
 }
 
+/**
+ * Insert a node and notify the render context about what actually landed.
+ * A fragment's children move into the parent (the emptied fragment never
+ * joins the tree), so context notification — which drives incremental
+ * style resolution — must target those children, not the fragment.
+ */
+export function insertWithContext(parent: TermNode, node: TermNode, anchor: TermNode | null): void {
+    const inserted = flattenFragment(node)
+    parent.insertBefore(node, anchor)
+    for (const child of inserted) parent.ctx?.onInsert(parent, child)
+}
+
+function flattenFragment(node: TermNode): TermNode[] {
+    if (node.nodeType !== 'fragment') return [node]
+    return node.children.flatMap(flattenFragment)
+}
+
 export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<TermNodes>> {
     return svelteCreateRenderer<TermNodes>({
         createFragment(): TermNode {
@@ -95,8 +112,7 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
         },
 
         insert(parent: TermNode, node: TermNode, anchor: TermNode | null): void {
-            parent.insertBefore(node, anchor)
-            parent.ctx?.onInsert(parent, node)
+            insertWithContext(parent, node, anchor)
         },
 
         remove(node: TermNode): void {

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.27.2 — 2026-07-05
+
+### Fixed
+
+- **Dynamically inserted content now gets its styles.** Svelte appends
+  `{#if}`/`{#each}`/component content as a fragment whose children
+  move into the parent — but style resolution was enqueued for the
+  emptied fragment instead of the nodes that actually landed, so
+  everything inserted after mount rendered unstyled (dialogs without
+  borders, lists without selection colours). Insertion now notifies the
+  render context per inserted child.
+
+
 ## 0.27.1 — 2026-07-05
 
 ### Fixed
