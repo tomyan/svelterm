@@ -93,7 +93,7 @@ export interface ResolvedStyle {
     opacity: number
     textAlign: 'left' | 'center' | 'right'
     textTransform: 'none' | 'uppercase' | 'lowercase' | 'capitalize'
-    position: 'static' | 'relative' | 'absolute' | 'fixed'
+    position: 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky'
     top: number | null
     right: number | null
     bottom: number | null
@@ -632,7 +632,7 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             else style.textTransform = 'none'
             break
         case 'position':
-            if (value === 'relative' || value === 'absolute' || value === 'fixed') style.position = value
+            if (value === 'relative' || value === 'absolute' || value === 'fixed' || value === 'sticky') style.position = value
             else style.position = 'static'
             break
         case 'top': style.top = parseCellValue(value); break

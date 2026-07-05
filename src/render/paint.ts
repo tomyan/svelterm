@@ -69,7 +69,21 @@ function paintNode(
 
     const visuals = resolveVisuals(node, styles, inherited)
     const rawBox = layout?.get(node.id)
-    const box = rawBox ? applyScroll(rawBox, scroll) : undefined
+    let box = rawBox ? applyScroll(rawBox, scroll) : undefined
+
+    // position: sticky (top): when scrolled past inside a clipping
+    // container, pin to the container top + offset. Descendants follow
+    // via an adjusted child scroll; applied before culling so a stuck
+    // element scrolled far past its flow position still paints.
+    let stickyDelta = 0
+    if (box && clip && node.nodeType === 'element') {
+        const stickyStyle = styles?.get(node.id)
+        if (stickyStyle?.position === 'sticky' && stickyStyle.top !== null) {
+            const stuckY = Math.max(box.y, clip.y + (stickyStyle.top ?? 0))
+            stickyDelta = stuckY - box.y
+            if (stickyDelta > 0) box = { ...box, y: stuckY }
+        }
+    }
 
     // Skip nodes entirely outside the damage region
     if (damageClip && box && !boxesOverlap(box, damageClip)) return
@@ -164,8 +178,18 @@ function paintNode(
             childScroll = { x: scroll.x + node.scrollLeft, y: scroll.y + node.scrollTop }
         }
     }
+    // Descendants of a stuck element move with it
+    if (stickyDelta > 0) childScroll = { x: childScroll.x, y: childScroll.y - stickyDelta }
 
-    for (const child of childrenWithPseudos(node)) {
+    // Sticky children paint after in-flow siblings so scrolled content
+    // doesn't overpaint a stuck header (positioned elements stack above).
+    const kids = childrenWithPseudos(node)
+    const hasSticky = kids.some(c => c.nodeType === 'element' && styles?.get(c.id)?.position === 'sticky')
+    const ordered = hasSticky
+        ? [...kids.filter(c => styles?.get(c.id)?.position !== 'sticky'),
+           ...kids.filter(c => styles?.get(c.id)?.position === 'sticky')]
+        : kids
+    for (const child of ordered) {
         paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
     }
 
@@ -289,7 +313,11 @@ function fillBackground(
             const bg = bgHasAlpha
                 ? blendColor(buffer.getCell(col, row)?.bg ?? 'default', visuals.bg)
                 : visuals.bg
-            buffer.setCell(col, row, { bg })
+            // An opaque fill covers what's beneath — clear stale glyphs
+            // too, so overlapping paints (sticky, absolute) don't show
+            // earlier content through the background. The element's own
+            // text repaints after this fill.
+            buffer.setCell(col, row, { bg, char: ' ' })
         }
     }
 }

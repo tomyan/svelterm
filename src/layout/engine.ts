@@ -202,6 +202,15 @@ function layoutElement(
         return layoutAbsolute(node, styles, boxes, absX, absY, availWidth, availHeight, style)
     }
 
+    // position: relative — a visual shift of the box and its descendants;
+    // flow position and size behave as if unshifted (the return value,
+    // which advances the flow, is untouched). left beats right, top beats
+    // bottom, per LTR CSS.
+    if (style?.position === 'relative') {
+        x += style.left ?? -(style.right ?? 0)
+        y += style.top ?? -(style.bottom ?? 0)
+    }
+
     let margin = {
         top: resolvePadding(style?.marginTop, availWidth),
         right: resolvePadding(style?.marginRight, availWidth),

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.23.0 — 2026-07-05
+
+Positioning: `relative` offsets apply, and `sticky` arrives.
+
+### Added
+
+- **`position: relative`** — `top/right/bottom/left` now shift the box
+  and its descendants visually while flow position and size behave as if
+  unshifted, per spec (previously parsed and dropped).
+- **`position: sticky`** (top edge) — inside a scroll container the
+  element pins to the container top + `top` once scrolled past, painting
+  above in-flow content; descendants move with it. Deviations
+  (documented): top-only, no push-out at the containing-block end, and
+  hit-testing targets the flow position.
+
+### Fixed
+
+- **Opaque backgrounds now cover what's beneath** — an element's
+  background fill previously kept stale glyphs from earlier paints, so
+  overlapping paints (sticky, absolute) showed old content through the
+  background. Fills now clear covered cells.
+
 ## 0.22.0 — 2026-07-05
 
 ### Added

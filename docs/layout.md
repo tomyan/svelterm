@@ -92,8 +92,14 @@ cells has no baseline distinct from its top).
 
 `position: absolute` and `fixed` take elements out of flow and place them
 by `top`/`right`/`bottom`/`left` with `z-index` stacking. `position:
-relative` establishes context but **offsets are not applied** — a known
-gap. Sub-cell geometry (`transform`, floats) is out of scope; see
+relative` shifts the element (and its descendants) visually while the
+flow behaves as if it hadn't moved, per spec. `position: sticky` pins an
+element to the top of its scroll container once scrolled past
+(`top`-edge only; it doesn't yet push out at the end of its containing
+block, and hit-testing targets the flow position rather than the stuck
+one). A sticky element with a transparent background shows scrolled
+content through it — give it a background. Sub-cell geometry
+(`transform`, floats) is out of scope; see
 [compatibility](./compatibility.md).
 
 ## Sizing behaviours worth knowing
