@@ -9,9 +9,9 @@ its display default.
 Headings, paragraphs, lists (`ul`/`ol` with markers), `blockquote`,
 `pre`, `hr` (a `─` rule), `figure`, `dl`, and the text-level elements
 (`strong`/`b`, `em`/`i`, `u`, `s`/`del`, `mark`, `code`, `kbd`, `abbr`,
-`samp`, `var`) carry a browser-like UA stylesheet in cells. `img`,
-`video`, `canvas`, and `iframe` are not rendered (inline images are a
-planned, separate feature).
+`samp`, `var`) carry a browser-like UA stylesheet in cells. `img`
+renders (see [Images](#images) below); `video`, `canvas`, and `iframe`
+are not rendered.
 
 ## Images
 

@@ -137,7 +137,8 @@ block/inline box per its display default.
 | `select`/`option`/`optgroup` | cycling control (see above); `change`+`input` with the option value | [`<select>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select) |
 | `progress`, `meter` | block-glyph bars; `value`/`max` (+`min` for meter); no-value progress renders track only | [`<progress>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/progress), [`<meter>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meter) |
 | `details`/`summary` | ▶/▼ disclosure, `open` attribute, `toggle` event, focusable summary | [`<details>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details) |
-| `img`, `video`, `canvas`, `iframe` | **not rendered** (inline images are a planned separate feature) | — |
+| `img` | half-block pixels (▀) from PNG file paths / `data:image/png` URIs; real pixels via the kitty graphics protocol where supported; sized by CSS `width`/`height` | [`<img>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img) |
+| `video`, `canvas`, `iframe` | not rendered | — |
 
 ## CSS selectors
 
