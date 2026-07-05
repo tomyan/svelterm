@@ -74,9 +74,13 @@ support:
 .nav { grid-area: nav; }
 ```
 
-Deviations: auto-flow is row-based (`grid-auto-flow: column` is not
-implemented); `minmax()` minimums on `fr` tracks are enforced without
-redistribution; spanning content doesn't stretch individual tracks.
+`grid-auto-flow: column` fills down each column, wrapping to a new
+(implicit) column after the explicit row count; implicit columns take
+the last explicit column's width. `minmax()` minimums on `fr` tracks
+redistribute — a track clamped to its minimum leaves the pool and the
+freed space re-splits among the remaining `fr` tracks.
+
+Deviations: spanning content doesn't stretch individual tracks.
 
 ## Tables
 

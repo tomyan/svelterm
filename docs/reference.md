@@ -153,10 +153,14 @@ All standard matching semantics. Reference: [MDN selectors](https://developer.mo
   `:nth-of-type()`, `:nth-last-of-type()` (full An+B), `:not()`, `:is()`,
   `:where()`, `:checked`, `:disabled`, `:enabled`
 - Pseudo-elements: `::before`, `::after` (single-colon legacy accepted)
-  with `content:` strings, `attr(x)`, space-separated concatenation, and
-  `none`/`""`. `counter()` is not supported. Pseudo boxes are inline and
-  invisible to `:empty`/`:nth-*`. Known gap: pseudo-elements don't render
-  inside table-internal boxes.
+  with `content:` strings, `attr(x)`, `counter(name)` (with
+  `counter-reset` / `counter-increment`, including explicit amounts),
+  space-separated concatenation, and `none`/`""`. Counters use a flat
+  namespace — no per-scope nesting or `counters()` joining — and update
+  on full style resolution, so an incremental restyle can serve stale
+  numbers until the next full pass. Pseudo boxes are inline and invisible
+  to `:empty`/`:nth-*`. In table-internal boxes they render per §17.2.1:
+  a pseudo on a row or table box becomes an anonymous cell/row.
 - Specificity, source order, and inline-`style` precedence follow the
   [cascade](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Cascade).
 
@@ -171,7 +175,7 @@ adaptations. Lengths are cells (`cell`/`ch`, `%`, or `calc()`).
 | [Box model](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model) | `width`, `height`, `min/max-width`, `min/max-height`, `padding(-*)`, `margin(-*)` (incl. `auto` centring and margin collapse), `box-sizing`, `overflow` (`hidden`/`scroll`/`auto` with real scrolling + fading scrollbars) |
 | [Display & flow](https://developer.mozilla.org/en-US/docs/Web/CSS/display) | `display: block, inline, inline-block, flex, grid, none, contents`, all table display types |
 | [Flexbox](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout) | `flex-direction` (all four), `flex-wrap`, `flex`/`flex-grow`/`flex-shrink`/`flex-basis`, `gap`, `justify-content` (incl. `space-*`), `align-items`, `align-self`, `order` |
-| [Grid](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout) | `grid-template-columns/rows` (`cell`/`ch`/`%`/`fr`, `repeat()`, `minmax()`), `grid-template-areas` + `grid-area` (named and numeric), `grid-column`, `grid-row` (start / start‑end / `span n`), `gap`. Auto-flow is row-based; `grid-auto-flow: column` is not implemented. Fractional `minmax()` minimums are enforced without redistribution |
+| [Grid](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout) | `grid-template-columns/rows` (`cell`/`ch`/`%`/`fr`, `repeat()`, `minmax()`), `grid-template-areas` + `grid-area` (named and numeric), `grid-column`, `grid-row` (start / start‑end / `span n`), `gap`, `grid-auto-flow: row \| column` (column flow wraps at the explicit row count; implicit columns take the last explicit column's width). Fractional `minmax()` minimums redistribute: a track clamped to its minimum leaves the pool and the freed space re-splits among the rest |
 | [Positioning](https://developer.mozilla.org/en-US/docs/Web/CSS/position) | `position: static/relative/absolute/fixed/sticky` with `top/right/bottom/left`, `z-index`. Relative offsets shift visually without moving flow; sticky is top-edge only inside scroll containers (no push-out at the containing block end) |
 | [Tables](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_table) | `border-collapse`, `border-spacing`, `caption-side`, `table-layout`, `empty-cells`, `vertical-align` (`baseline` ≈ `top`) |
 | Borders | `border`/`border-style`/`border-color`/`border-corner` + per-side toggles (terminal values above) |

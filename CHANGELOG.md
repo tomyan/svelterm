@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.25.0 — 2026-07-05
+
+Grid and generated-content completeness.
+
+### Added
+
+- **`grid-auto-flow: column`** — auto-placed items fill down each
+  column, wrapping to a new (implicit) column after the explicit row
+  count; implicit columns take the last explicit column's width.
+- **`minmax()` redistribution** — a `fr` track clamped to its
+  `minmax()` minimum leaves the distribution pool and the freed space
+  re-splits among the remaining `fr` tracks (previously other tracks
+  kept their naive share, overflowing the container).
+- **`counter()` in `content:`** — `counter-reset` and
+  `counter-increment` (with optional amounts) resolve in document
+  order; flat namespace, no `counters()` nesting.
+- **Pseudo-elements in table-internal boxes** — `::before`/`::after`
+  now render on rows, row groups, and table boxes per CSS
+  anonymous-box rules (a row pseudo becomes a leading anonymous cell);
+  previously they were silently dropped.
+
 ## 0.24.0 — 2026-07-05
 
 Motion timing completeness: transitions and keyframes behave per spec.

@@ -4,6 +4,7 @@ import { matchesSelector, splitPseudoElement, type PseudoElement } from './selec
 import { computeSpecificity, compareSpecificity } from './specificity.js'
 import { resolveVar } from './variables.js'
 import { defaultStyle, applyDeclaration, type ResolvedStyle } from './compute.js'
+import type { CounterContext } from './counters.js'
 
 /**
  * Resolve ::before/::after for one element: build the pseudo's style from
@@ -15,9 +16,10 @@ export function resolvePseudoElements(
     styles: Map<number, ResolvedStyle>,
     vars: Map<string, string>,
     scheme: 'dark' | 'light',
+    counters?: CounterContext,
 ): void {
-    node.pseudoBefore = syncPseudo(node, node.pseudoBefore, 'before', stylesheet, styles, vars, scheme)
-    node.pseudoAfter = syncPseudo(node, node.pseudoAfter, 'after', stylesheet, styles, vars, scheme)
+    node.pseudoBefore = syncPseudo(node, node.pseudoBefore, 'before', stylesheet, styles, vars, scheme, counters)
+    node.pseudoAfter = syncPseudo(node, node.pseudoAfter, 'after', stylesheet, styles, vars, scheme, counters)
 }
 
 interface ScoredDeclaration {
@@ -31,9 +33,10 @@ function syncPseudo(
     host: TermNode, existing: TermNode | null, which: PseudoElement,
     stylesheet: CSSStyleSheet, styles: Map<number, ResolvedStyle>,
     vars: Map<string, string>, scheme: 'dark' | 'light',
+    counters?: CounterContext,
 ): TermNode | null {
     const declarations = collectPseudoDeclarations(host, which, stylesheet, vars)
-    const content = resolveContent(declarations, host)
+    const content = resolveContent(declarations, host, counters)
     if (content === null) {
         if (existing) styles.delete(existing.id)
         return null
@@ -86,22 +89,23 @@ function collectPseudoDeclarations(
  * The winning `content` value rendered to text, or null when the pseudo
  * generates no box (no content declaration, `none`/`normal`, or empty).
  */
-function resolveContent(declarations: ScoredDeclaration[], host: TermNode): string | null {
+function resolveContent(declarations: ScoredDeclaration[], host: TermNode, counters?: CounterContext): string | null {
     const winner = declarations.filter(d => d.property === 'content').pop()
     if (!winner) return null
-    const text = parseContentValue(winner.value, host)
+    const text = parseContentValue(winner.value, host, counters)
     return text === '' ? null : text
 }
 
-const CONTENT_TOKEN = /"([^"]*)"|'([^']*)'|attr\(\s*([^)\s]+)\s*\)/g
+const CONTENT_TOKEN = /"([^"]*)"|'([^']*)'|attr\(\s*([^)\s]+)\s*\)|counter\(\s*([a-zA-Z0-9_-]+)\s*(?:,[^)]*)?\)/g
 
-/** content: a space-separated sequence of quoted strings and attr() lookups. */
-function parseContentValue(value: string, host: TermNode): string {
+/** content: quoted strings, attr() lookups, and counter() values. */
+function parseContentValue(value: string, host: TermNode, counters?: CounterContext): string {
     const trimmed = value.trim()
     if (trimmed === 'none' || trimmed === 'normal') return ''
     let text = ''
     for (const match of trimmed.matchAll(CONTENT_TOKEN)) {
-        if (match[3] !== undefined) text += host.attributes.get(match[3]) ?? ''
+        if (match[4] !== undefined) text += String(counters?.value(match[4]) ?? 0)
+        else if (match[3] !== undefined) text += host.attributes.get(match[3]) ?? ''
         else text += match[1] ?? match[2] ?? ''
     }
     return text

@@ -1,6 +1,7 @@
 import { TermNode } from '../renderer/node.js'
 import { NodeMap } from '../utils/node-map.js'
 import { resolvePseudoElements } from './pseudo-elements.js'
+import { CounterContext } from './counters.js'
 
 export type StyleMap = NodeMap<ResolvedStyle>
 import { CSSStyleSheet } from './parser.js'
@@ -67,6 +68,9 @@ export interface ResolvedStyle {
     gridRowEnd: number | null
     gridRowSpan: number | null
     gridTemplateAreas: string | null
+    gridAutoFlow: 'row' | 'column'
+    counterReset: string | null
+    counterIncrement: string | null
     gridArea: string | null
     animationName: string | null
     animationDuration: number
@@ -151,7 +155,9 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         gridTemplateColumns: null, gridTemplateRows: null,
         gridColumnStart: null, gridColumnEnd: null, gridColumnSpan: null,
         gridRowStart: null, gridRowEnd: null, gridRowSpan: null,
-        gridTemplateAreas: null, gridArea: null,
+        gridTemplateAreas: null,
+        gridAutoFlow: 'row',
+        counterReset: null, counterIncrement: null, gridArea: null,
         animationName: null, animationDuration: 0, animationIterationCount: 1,
         animationTimingFunction: 'ease',
         transitionProperty: null, transitionDuration: 0,
@@ -336,6 +342,7 @@ export function resolveNode(
     styles: Map<number, ResolvedStyle>,
     variables: Map<number, Map<string, string>>,
     scheme: 'dark' | 'light' = 'dark',
+    counters: CounterContext = new CounterContext(),
 ): void {
     if (node.nodeType === 'element') {
         const vars = variables.get(node.id) ?? new Map()
@@ -344,10 +351,12 @@ export function resolveNode(
         styles.set(node.id, resolved)
         node.cache.resolvedStyle = resolved
         node.cache.classAttr = node.attributes.get('class') ?? ''
-        resolvePseudoElements(node, stylesheet, styles, vars, scheme)
+        // Counter effects apply in document order, before pseudo content
+        counters.enter(resolved)
+        resolvePseudoElements(node, stylesheet, styles, vars, scheme, counters)
     }
     for (const child of node.children) {
-        resolveNode(child, stylesheet, styles, variables, scheme)
+        resolveNode(child, stylesheet, styles, variables, scheme, counters)
     }
 }
 
@@ -589,6 +598,15 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
             style.gridTemplateAreas = value === 'none' ? null : value
             break
         case 'grid-area': parseGridArea(style, value); break
+        case 'grid-auto-flow':
+            style.gridAutoFlow = value.startsWith('column') ? 'column' : 'row'
+            break
+        case 'counter-reset':
+            style.counterReset = value === 'none' ? null : value
+            break
+        case 'counter-increment':
+            style.counterIncrement = value === 'none' ? null : value
+            break
         case 'animation': parseAnimationShorthand(style, value); break
         case 'transition': parseTransitionShorthand(style, value); break
         case 'transition-property':

@@ -614,7 +614,7 @@ function isRowLevelDisplay(display: string | undefined): boolean {
 }
 
 function cellsOfRow(trNode: TermNode, styles: Map<number, ResolvedStyle>): TermNode[] {
-    return trNode.children.filter(c => isCellContent(c, styles))
+    return childrenWithPseudos(trNode).filter(c => isCellContent(c, styles))
 }
 
 /**
@@ -663,13 +663,13 @@ function collectTableRows(children: TermNode[], styles: Map<number, ResolvedStyl
         const display = child.nodeType === 'element' ? styles.get(child.id)?.display : undefined
         if (display === 'table-header-group') {
             flushStray()
-            headerRows.push(...groupIntoRows(child.children, styles))
+            headerRows.push(...groupIntoRows(childrenWithPseudos(child), styles))
         } else if (display === 'table-footer-group') {
             flushStray()
-            footerRows.push(...groupIntoRows(child.children, styles))
+            footerRows.push(...groupIntoRows(childrenWithPseudos(child), styles))
         } else if (display === 'table-row-group') {
             flushStray()
-            bodyRows.push(...groupIntoRows(child.children, styles))
+            bodyRows.push(...groupIntoRows(childrenWithPseudos(child), styles))
         } else {
             // table-rows and stray cell content accumulate; captions/columns
             // are filtered out inside groupIntoRows.
@@ -892,7 +892,7 @@ function layoutTable(
     node: TermNode, styles: Map<number, ResolvedStyle>, boxes: Map<number, LayoutBox>,
     x: number, y: number, availW: number, availH: number,
 ): { width: number; height: number } {
-    return layoutTableChildren(node.children, styles.get(node.id), styles, boxes, x, y, availW, availH)
+    return layoutTableChildren(childrenWithPseudos(node), styles.get(node.id), styles, boxes, x, y, availW, availH)
 }
 
 /**
@@ -959,6 +959,10 @@ function layoutGrid(
     }
     const rowHeights = parseGridTemplate(style.gridTemplateRows ?? '', availH)
     const numCols = colWidths.length || 1
+    const columnFlow = style.gridAutoFlow === 'column'
+    // Column flow wraps at the explicit row count; implicit columns take
+    // the last explicit column's width.
+    const numRows = rowHeights.length || 1
     const gap = style.gap ?? 0
 
     // Pre-compute border-adjusted gaps for grid children
@@ -983,7 +987,12 @@ function layoutGrid(
     for (const child of children) {
         const childStyle = styles.get(child.id)
         const area = childStyle?.gridArea ? areas?.byName.get(childStyle.gridArea) : undefined
-        const placed = resolveGridPlacement(childStyle, area, cursor, numCols)
+        const placed = columnFlow
+            ? resolveGridPlacementColumn(childStyle, area, cursor, numRows)
+            : resolveGridPlacement(childStyle, area, cursor, numCols)
+        while (columnFlow && placed.col >= colWidths.length && colWidths.length > 0) {
+            colWidths.push(colWidths[colWidths.length - 1])
+        }
 
         const colW = trackSpanSize(colWidths, placed.col, placed.span, hGap)
         // Measure content height with unconstrained available height
@@ -1027,6 +1036,33 @@ function layoutGrid(
 }
 
 interface GridPlacement { child: TermNode; col: number; span: number; row: number; rowSpan: number }
+
+/**
+ * grid-auto-flow: column — auto-placed items fill down each column,
+ * wrapping to a new (implicit) column after the explicit row count.
+ * Explicit line placements behave as in row flow.
+ */
+function resolveGridPlacementColumn(
+    childStyle: ResolvedStyle | undefined,
+    area: GridArea | undefined,
+    cursor: GridCursor,
+    numRows: number,
+): { col: number; span: number; row: number; rowSpan: number } {
+    if (area) {
+        return {
+            col: area.colStart, span: area.colEnd - area.colStart,
+            row: area.rowStart, rowSpan: area.rowEnd - area.rowStart,
+        }
+    }
+    if (cursor.row >= numRows) { cursor.row = 0; cursor.col++ }
+    const col = childStyle?.gridColumnStart != null ? childStyle.gridColumnStart - 1 : cursor.col
+    const row = childStyle?.gridRowStart != null ? childStyle.gridRowStart - 1 : cursor.row
+    const span = childStyle?.gridColumnSpan ?? 1
+    const rowSpan = childStyle?.gridRowSpan ?? 1
+    cursor.col = col
+    cursor.row = row + rowSpan
+    return { col, span, row, rowSpan }
+}
 interface GridCursor { col: number; row: number }
 interface GridArea { rowStart: number; rowEnd: number; colStart: number; colEnd: number }
 
@@ -1194,12 +1230,34 @@ function resolveTrackSizes(parts: string[], availSize: number): number[] {
         }
     }
 
-    // Distribute remaining space to fr units, honouring minmax() minimums
+    // Distribute remaining space to fr units. minmax() minimums are
+    // honoured with redistribution: a track clamped to its minimum leaves
+    // the pool, and the freed space re-splits among the rest (iterate
+    // until no new clamps).
     if (frParts.length > 0) {
-        const totalFr = frParts.reduce((sum, p) => sum + p.fr, 0)
-        const remaining = Math.max(0, availSize - fixedTotal)
-        for (const { index, fr, min } of frParts) {
-            sizes[index] = Math.max(min, Math.floor(remaining * fr / totalFr))
+        let pool = Math.max(0, availSize - fixedTotal)
+        let flexible = [...frParts]
+        const clamped = new Set<number>()
+        while (true) {
+            const totalFr = flexible.reduce((sum, p) => sum + p.fr, 0)
+            let reclamped = false
+            for (const part of flexible) {
+                const share = totalFr > 0 ? Math.floor(pool * part.fr / totalFr) : 0
+                if (share < part.min) {
+                    sizes[part.index] = part.min
+                    pool -= part.min
+                    clamped.add(part.index)
+                    reclamped = true
+                }
+            }
+            flexible = flexible.filter(p => !clamped.has(p.index))
+            if (!reclamped) {
+                const finalFr = flexible.reduce((sum, p) => sum + p.fr, 0)
+                for (const part of flexible) {
+                    sizes[part.index] = finalFr > 0 ? Math.max(part.min, Math.floor(Math.max(0, pool) * part.fr / finalFr)) : part.min
+                }
+                break
+            }
         }
     }
 
