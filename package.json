@@ -73,5 +73,13 @@
     "renderer"
   ],
   "author": "Tom Yandell",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomyan/svelterm.git"
+  },
+  "homepage": "https://svelterm.dev",
+  "bugs": {
+    "url": "https://github.com/tomyan/svelterm/issues"
+  }
 }
