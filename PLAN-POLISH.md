@@ -1,5 +1,9 @@
 # Polish list
 
+**Executed 2026-07-05.** Items 1,2,3 shipped in the site (commit, deploy
+queued); items 5,6,7 shipped as @svelterm/core 0.21.0. Items 4 and 8
+remain for the user (npm publish / working-note triage).
+
 Post-feature polish sweep (2026-07-05). Smaller than a roadmap arc —
 each item is a self-contained refinement, not a new capability. Grouped
 by surface, tagged with a priority and whether I'll execute now or leave
