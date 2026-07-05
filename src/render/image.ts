@@ -60,11 +60,11 @@ function invalidate(node: TermNode, state: string): void {
 async function loadSource(src: string): Promise<DecodedImage> {
     if (src.startsWith('data:image/png;base64,')) {
         const base64 = src.slice('data:image/png;base64,'.length)
-        return decodePng(base64ToBytes(base64))
+        return await decodePng(base64ToBytes(base64))
     }
     if (src.startsWith('data:')) throw new Error('Only data:image/png URIs are supported')
     const fs = await import('node:fs/promises')
-    return decodePng(new Uint8Array(await fs.readFile(src)))
+    return await decodePng(new Uint8Array(await fs.readFile(src)))
 }
 
 function base64ToBytes(base64: string): Uint8Array {

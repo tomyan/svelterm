@@ -1,11 +1,18 @@
 /**
  * Minimal PNG decoder for <img>: 8-bit RGB/RGBA/greyscale/palette, no
- * interlace, inflate via node:zlib — no dependencies. Half-block
+ * interlace, inflate via the web-standard DecompressionStream (Node 18+
+ * and browsers) — no dependencies and no node:-scheme imports, so the
+ * module loads in browser hosts (embedded previews). Half-block
  * rendering needs pixels, not fidelity; anything fancier should be
  * converted before shipping to a terminal anyway.
  */
 
-import { inflateSync } from 'node:zlib'
+/** zlib-wrapped deflate, as PNG IDAT streams are. */
+async function inflate(data: Uint8Array): Promise<Uint8Array> {
+    const stream = new Blob([data as BlobPart]).stream()
+        .pipeThrough(new DecompressionStream('deflate'))
+    return new Uint8Array(await new Response(stream).arrayBuffer())
+}
 
 export interface DecodedImage {
     width: number
@@ -19,7 +26,7 @@ const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 /** Bytes per pixel for the colour types we support. */
 const CHANNELS: Record<number, number> = { 0: 1, 2: 3, 3: 1, 6: 4 }
 
-export function decodePng(data: Uint8Array): DecodedImage {
+export async function decodePng(data: Uint8Array): Promise<DecodedImage> {
     for (let i = 0; i < SIGNATURE.length; i++) {
         if (data[i] !== SIGNATURE[i]) throw new Error('Not a PNG file')
     }
@@ -55,7 +62,7 @@ export function decodePng(data: Uint8Array): DecodedImage {
     if (width === 0 || height === 0 || idat.length === 0) throw new Error('Truncated PNG')
 
     const channels = CHANNELS[colourType]
-    const raw = inflateSync(concat(idat))
+    const raw = await inflate(concat(idat))
     const stride = width * channels
     const unfiltered = unfilter(raw, width, height, channels)
 

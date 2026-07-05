@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.27.1 — 2026-07-05
+
+### Fixed
+
+- **PNG decoding no longer imports `node:zlib`** — the decoder now
+  inflates via the web-standard `DecompressionStream` (Node 18+ and
+  browsers), so the runtime module graph loads in browser hosts again
+  (embedded previews had failed at import time since 0.15.0).
+  `decodePng` is now async; both internal call sites already were.
+
+
 ## 0.27.0 — 2026-07-05
 
 Form control parity: password, maxlength, readonly.

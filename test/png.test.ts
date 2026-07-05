@@ -52,7 +52,7 @@ function crc32(buf: Buffer): number {
 
 describe('decodePng', () => {
 
-    it('decodes a 2x2 RGBA image', () => {
+    it('decodes a 2x2 RGBA image', async () => {
         // Given: red, green / blue, white
         const png = makePng(2, 2, [
             [255, 0, 0, 255], [0, 255, 0, 255],
@@ -60,7 +60,7 @@ describe('decodePng', () => {
         ])
 
         // When
-        const image = decodePng(png)
+        const image = await decodePng(png)
 
         // Then
         assert.equal(image.width, 2)
@@ -69,13 +69,13 @@ describe('decodePng', () => {
         assert.deepEqual([...image.rgba.slice(12, 16)], [255, 255, 255, 255])
     })
 
-    it('decodes RGB (no alpha) to opaque RGBA', () => {
+    it('decodes RGB (no alpha) to opaque RGBA', async () => {
         const png = makePng(1, 1, [[10, 20, 30]], 2)
-        const image = decodePng(png)
+        const image = await decodePng(png)
         assert.deepEqual([...image.rgba], [10, 20, 30, 255])
     })
 
-    it('handles sub and up filters', () => {
+    it('handles sub and up filters', async () => {
         // Given: hand-built two-row image using filter 1 (sub) and 2 (up)
         const raw = Buffer.from([
             1, /* sub */ 100, 0, 0, 255, /**/ 50, 0, 0, 0,   // second px = first + delta
@@ -101,14 +101,14 @@ describe('decodePng', () => {
         ])
 
         // When
-        const image = decodePng(png)
+        const image = await decodePng(png)
 
         // Then
         assert.deepEqual([...image.rgba.slice(0, 8)], [100, 0, 0, 255, 150, 0, 0, 255])
         assert.deepEqual([...image.rgba.slice(8, 12)], [100, 100, 0, 255])
     })
 
-    it('rejects non-PNG data', () => {
-        assert.throws(() => decodePng(Buffer.from('not a png')), /PNG/)
+    it('rejects non-PNG data', async () => {
+        await assert.rejects(() => decodePng(Buffer.from('not a png')), /PNG/)
     })
 })
