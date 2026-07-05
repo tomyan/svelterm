@@ -59,7 +59,7 @@ describe('flex minimum size for bordered elements', () => {
     it('gap between items stays fixed when container is too small', () => {
         // Given: content-sized items with gap in a tight container
         const root = new TermNode('element', 'root')
-        const css = `.app { display:flex; flex-direction:column; gap:1cell } .btn { border:single; width:10cell }`
+        const css = `.app { border-collapse:collapse; display:flex; flex-direction:column; gap:1cell } .btn { border:single; width:10cell }`
         const stylesheet = parseCSS(css)
         const app = addElement(root, 'div', 'app')
         const a = addElement(app, 'button', 'btn', 'A')

@@ -61,10 +61,17 @@ Browser values (`solid`, `dashed`…) are ignored.
 - `border-corner: h | v | none` biases which line wins at corners.
 - `border-color` is standard, including `currentColor`.
 - Tables support `border-collapse: collapse` with shared grid lines.
+- `border-collapse: collapse` extends beyond tables: on any container
+  (it inherits, so `:root` opts the whole app in), adjacent bordered
+  siblings — stacked blocks, flex items, grid items — share a single
+  border line, merging into junction glyphs (`├` `┬` `┼`) in the border's
+  family. Without it, sibling frames stay separate as in browsers.
+  `border-collapse: separate` on a child opts it back out.
 
 ```css
 .panel  { border: rounded; border-color: cyan; }
 .rule   { border-top: true; border-style: single; }  /* horizontal rule */
+.list   { border-collapse: collapse; }  /* children share dividers */
 ```
 
 ## Colour

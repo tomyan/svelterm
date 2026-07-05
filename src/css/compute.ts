@@ -369,6 +369,9 @@ interface ScoredDeclaration {
 
 function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<string, string>, parentStyle?: ResolvedStyle, scheme: 'dark' | 'light' = 'dark'): ResolvedStyle {
     const style = defaultStyle(node.tag)
+    // border-collapse is an inherited property (CSS 2.2 §17.6), so opting a
+    // container in flows down to the siblings the collapse applies between.
+    if (parentStyle) style.borderCollapse = parentStyle.borderCollapse
 
     // Collect all matching declarations with specificity
     const scored: ScoredDeclaration[] = []
@@ -440,6 +443,7 @@ function parseInlineStyle(text: string): { property: string; value: string }[] {
 }
 
 const INHERITABLE_PROPERTIES = new Set([
+    'border-collapse',
     'color', 'font-weight', 'font-style', 'text-decoration',
     'white-space', 'word-break', 'text-align', 'visibility', 'opacity',
 ])
@@ -452,6 +456,7 @@ function applyInherit(style: ResolvedStyle, property: string, parentStyle: Resol
         case 'font-style': style.italic = parentStyle.italic; break
         case 'text-decoration': style.underline = parentStyle.underline; style.strikethrough = parentStyle.strikethrough; break
         case 'white-space': style.whiteSpace = parentStyle.whiteSpace; break
+        case 'border-collapse': style.borderCollapse = parentStyle.borderCollapse; break
         case 'word-break': style.wordBreak = parentStyle.wordBreak; break
         case 'text-align': style.textAlign = parentStyle.textAlign; break
         case 'text-transform': style.textTransform = parentStyle.textTransform; break

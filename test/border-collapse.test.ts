@@ -39,7 +39,7 @@ describe('border collapse — gap adjustment', () => {
         // The gap should be adjusted by -1 because both have borders on the shared edge,
         // so the boxes end up adjacent (gap 0 in layout).
         const { layout, root } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:1cell } .box { border:single; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:1cell } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -62,7 +62,7 @@ describe('border collapse — gap adjustment', () => {
         // Given: two bordered boxes with gap:0
         // The gap should be adjusted to -1, causing the boxes to overlap by 1 row.
         const { layout, root } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -83,7 +83,7 @@ describe('border collapse — gap adjustment', () => {
     it('gap:2 between bordered siblings leaves 1 empty row', () => {
         // Given: gap:2, adjusted by -1 = effective gap of 1
         const { layout, root } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:2cell } .box { border:single; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:2cell } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -102,7 +102,7 @@ describe('border collapse — gap adjustment', () => {
 
     it('no adjustment when only first sibling has a border', () => {
         const { layout, root } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:1cell } .bordered { border:single; width:10cell; height:3cell } .plain { width:10cell; height:2cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:1cell } .bordered { border:single; width:10cell; height:3cell } .plain { width:10cell; height:2cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'bordered', 'A')
@@ -122,7 +122,7 @@ describe('border collapse — gap adjustment', () => {
     it('horizontal gap adjustment in flex row', () => {
         // Given: two bordered boxes in a flex row with gap:1
         const { layout, root } = renderWithCSS(
-            '.container { display:flex; flex-direction:row; gap:1cell } .box { border:single; width:6cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:row; gap:1cell } .box { border:single; width:6cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -145,7 +145,7 @@ describe('border collapse — gap adjustment', () => {
         // Block flow doesn't have explicit gap, but bordered siblings
         // should still get the -1 adjustment via margin/positioning
         const { layout, root } = renderWithCSS(
-            '.box { border:single; width:10cell; height:3cell }',
+            'root { border-collapse:collapse } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 addElement(root, 'div', 'box', 'A')
                 addElement(root, 'div', 'box', 'B')
@@ -167,7 +167,7 @@ describe('border collapse — junction rendering', () => {
 
     it('single border collapse renders T-junctions', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -187,7 +187,7 @@ describe('border collapse — junction rendering', () => {
 
     it('rounded border collapse uses single T-junctions', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:rounded; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:rounded; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -208,7 +208,7 @@ describe('border collapse — junction rendering', () => {
 
     it('double border collapse uses double T-junctions', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:double; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:double; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -222,7 +222,7 @@ describe('border collapse — junction rendering', () => {
 
     it('heavy border collapse uses heavy T-junctions', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:heavy; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:heavy; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -236,7 +236,7 @@ describe('border collapse — junction rendering', () => {
 
     it('three collapsed boxes have T-junctions at each seam', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:column; gap:0; align-items:start } .box { border:single; width:10cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -262,7 +262,7 @@ describe('border collapse — junction rendering', () => {
 
     it('horizontal collapse renders vertical T-junctions', () => {
         const { buffer } = renderWithCSS(
-            '.container { display:flex; flex-direction:row; gap:0; align-items:start } .box { border:single; width:6cell; height:3cell }',
+            '.container { border-collapse:collapse; display:flex; flex-direction:row; gap:0; align-items:start } .box { border:single; width:6cell; height:3cell }',
             (root) => {
                 const container = addElement(root, 'div', 'container')
                 addElement(container, 'div', 'box', 'A')
@@ -286,7 +286,7 @@ describe('border collapse — junction rendering', () => {
         //   │ C  │ D  │
         //   └────┴────┘
         const { buffer } = renderWithCSS(
-            `.grid { display:grid; grid-template-columns: 6cell 6cell; gap:0 }
+            `.grid { border-collapse:collapse; display:grid; grid-template-columns: 6cell 6cell; gap:0 }
              .box { border:single; height:3cell }`,
             (root) => {
                 const grid = addElement(root, 'div', 'grid')

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.26.0 — 2026-07-05
+
+Sibling border collapse becomes explicit.
+
+### Changed (breaking)
+
+- **Sibling border collapse is now opt-in.** Adjacent bordered siblings
+  (stacked blocks, flex items, grid items) previously always shared a
+  border line with junction glyphs (`├` `┬` `┼`). Now that happens only
+  under `border-collapse: collapse` — an extension of the CSS table
+  property to all boxes. It inherits per spec, so opt in once on the
+  container or app-wide:
+
+  ```css
+  :root { border-collapse: collapse; }
+  ```
+
+  Without it, sibling frames render separately, matching browsers.
+  `border-collapse: separate` on a child opts it back out.
+
+### Added
+
+- `border-collapse` now inherits (CSS 2.2 §17.6) — previously it was
+  only read from the table element itself.
+
 ## 0.25.0 — 2026-07-05
 
 Grid and generated-content completeness.

@@ -82,7 +82,7 @@ describe('incremental paint focus change', () => {
         root.insertBefore(btnB, null)
 
         const css = `
-            .app { display: flex; flex-direction: column; }
+            .app { border-collapse: collapse; display: flex; flex-direction: column; }
             button { border: single; border-color: gray; width: 8cell; height: 3cell; }
             button:focus { border-color: yellow; color: yellow; font-weight: bold; }
         `

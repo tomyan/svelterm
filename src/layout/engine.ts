@@ -11,9 +11,11 @@ import { resolveSize, constrain } from './size.js'
 import { parseCellLength } from '../css/values.js'
 
 /**
- * Check if two adjacent siblings both have borders on their shared edge.
- * Returns true if the gap between them should be reduced by 1 to account
- * for the visual spacing inherent in box-drawing border characters.
+ * Check if two adjacent siblings should share a single border line on
+ * their common edge (overlapping by 1 cell so the strokes merge into
+ * junction glyphs). Opt-in: both siblings must be under border-collapse:
+ * collapse — an inherited property, so setting it on the container (or
+ * :root) is enough — and both must have a border on the shared edge.
  */
 function shouldAdjustBorderGap(
     prevStyle: ResolvedStyle | undefined,
@@ -21,6 +23,7 @@ function shouldAdjustBorderGap(
     direction: 'vertical' | 'horizontal',
 ): boolean {
     if (!prevStyle || !nextStyle) return false
+    if (prevStyle.borderCollapse !== 'collapse' || nextStyle.borderCollapse !== 'collapse') return false
     if (prevStyle.borderStyle === 'none' || nextStyle.borderStyle === 'none') return false
     if (direction === 'vertical') {
         return prevStyle.borderBottom && nextStyle.borderTop

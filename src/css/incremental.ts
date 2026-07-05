@@ -11,7 +11,7 @@ const LAYOUT_PROPERTIES: (keyof ResolvedStyle)[] = [
     'width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight',
     'borderStyle', 'borderTop', 'borderRight', 'borderBottom', 'borderLeft',
     'position', 'top', 'right', 'bottom', 'left',
-    'overflow', 'whiteSpace',
+    'overflow', 'whiteSpace', 'borderCollapse',
 ]
 
 /**
