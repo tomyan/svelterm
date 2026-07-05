@@ -1,7 +1,7 @@
 import type { KeyframeStop, CSSDeclaration } from './parser.js'
 import { applyDeclaration, type ResolvedStyle } from './compute.js'
 import { resolveColor } from './color.js'
-import type { Easing } from './easing.js'
+import { parseEasing, type Easing } from './easing.js'
 import { lerpColor, lerpNumber } from './interpolate.js'
 import { parseCellLength } from './values.js'
 
@@ -44,7 +44,11 @@ export class AnimationRunner {
         const progress = this.getProgress(elapsedMs)
         const segment = this.segmentAt(progress)
         const { from, to } = segment
-        const localT = this.easing(segment.localT)
+        // A timing function declared inside a keyframe applies from that
+        // stop to the next, overriding the element-level easing (per CSS).
+        const override = from.declarations.find(d => d.property === 'animation-timing-function')
+        const easing = override ? (parseEasing(override.value) ?? this.easing) : this.easing
+        const localT = easing(segment.localT)
 
         // Hold the earlier stop's values, then interpolate toward the next
         for (const decl of from.declarations) {
@@ -92,6 +96,8 @@ export class AnimationRunner {
 }
 
 function applyAnimatedProperty(style: ResolvedStyle, decl: CSSDeclaration): void {
+    // Keyframe-level timing functions steer the runner, not the style
+    if (decl.property === 'animation-timing-function') return
     applyDeclaration(style, decl.property, decl.value)
 }
 

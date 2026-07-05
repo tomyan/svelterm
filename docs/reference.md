@@ -176,7 +176,7 @@ adaptations. Lengths are cells (`cell`/`ch`, `%`, or `calc()`).
 | [Tables](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_table) | `border-collapse`, `border-spacing`, `caption-side`, `table-layout`, `empty-cells`, `vertical-align` (`baseline` ≈ `top`) |
 | Borders | `border`/`border-style`/`border-color`/`border-corner` + per-side toggles (terminal values above) |
 | [Animation](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_animations) | `animation` shorthand, `animation-name/-duration/-iteration-count` (incl. `infinite`)/`-timing-function`, `@keyframes` (from/to/percentages, values resolve `var()`/`light-dark()`) |
-| [Transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transitions) | `transition` shorthand, `transition-property` (list or `all`), `transition-duration`, `transition-timing-function` |
+| [Transitions](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transitions) | `transition` shorthand with per-property comma groups; `transition-property`/`-duration`/`-timing-function` longhand lists paired per spec; interruptions continue from the current value |
 | [Easing](https://developer.mozilla.org/en-US/docs/Web/CSS/easing-function) | `linear`, `ease` (default), `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier()`, `steps()`, `step-start`, `step-end` |
 
 ### Animation & transition semantics on the grid
@@ -185,12 +185,14 @@ Colours interpolate in RGB at ~30fps; single cell/ch lengths interpolate
 to whole cells (movement steps cell by cell); every other supported
 property applies discretely, switching at the segment midpoint (the CSS
 rule for non-interpolable values). Layout-affecting animations re-flow
-each frame. Easing applies per keyframe segment; non-interpolable values
-switch when eased progress crosses the midpoint. Deviations: one duration
-and one timing function for all listed transition properties, interrupted
-transitions restart from the previous target value, keyframe
-`var()`/`light-dark()` resolves once at animation start, and per-keyframe
-`animation-timing-function` overrides are ignored.
+each frame. Easing applies per keyframe segment (a timing function
+declared inside a keyframe overrides the element's for that segment);
+non-interpolable values switch when eased progress crosses the midpoint.
+Transitions run per property with their own duration/timing;
+interruptions continue from the current blended value. Keyframe
+`var()`/`light-dark()` re-resolves on scheme/custom-property changes
+without restarting the animation. Deviation: no `transition-delay` /
+`animation-delay`.
 
 ## Values, functions and at-rules
 

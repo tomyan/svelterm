@@ -75,6 +75,11 @@ export interface ResolvedStyle {
     transitionProperty: string | null
     transitionDuration: number
     transitionTimingFunction: string
+    /** Longhand lists, paired cyclically per spec into `transitions`. */
+    transitionDurations: number[]
+    transitionTimings: string[]
+    /** Per-property transition config, resolved after cascade. */
+    transitions: Array<{ property: string; duration: number; timing: string }>
     borderStyle: 'none' | 'single' | 'double' | 'rounded' | 'heavy' | 'ascii'
         | 'eighth-cell-inner' | 'eighth-cell-outer'
         | 'half-cell-inner' | 'half-cell-outer'
@@ -151,6 +156,8 @@ export function defaultStyle(tag?: string): ResolvedStyle {
         animationTimingFunction: 'ease',
         transitionProperty: null, transitionDuration: 0,
         transitionTimingFunction: 'ease',
+        transitionDurations: [], transitionTimings: [],
+        transitions: [],
         borderStyle: 'none', borderColor: 'default', borderCorner: 'none',
         borderTop: true, borderRight: true, borderBottom: true, borderLeft: true,
         boxSizing: 'border-box',
@@ -405,6 +412,9 @@ function computeStyle(node: TermNode, stylesheet: CSSStyleSheet, vars: Map<strin
         }
     }
 
+    // Pair transition longhand lists now the cascade is complete
+    style.transitions = pairTransitions(style)
+
     return style
 }
 
@@ -584,8 +594,14 @@ export function applyDeclaration(style: ResolvedStyle, property: string, value: 
         case 'transition-property':
             style.transitionProperty = value === 'none' ? null : value
             break
-        case 'transition-duration': style.transitionDuration = parseDuration(value); break
-        case 'transition-timing-function': style.transitionTimingFunction = value; break
+        case 'transition-duration':
+            style.transitionDurations = value.split(',').map(v => parseDuration(v.trim()))
+            style.transitionDuration = style.transitionDurations[0] ?? 0
+            break
+        case 'transition-timing-function':
+            style.transitionTimings = splitTimingList(value)
+            style.transitionTimingFunction = style.transitionTimings[0] ?? 'ease'
+            break
         case 'animation-name': style.animationName = value === 'none' ? null : value; break
         case 'animation-duration': style.animationDuration = parseDuration(value); break
         case 'animation-timing-function': style.animationTimingFunction = value; break
@@ -774,31 +790,76 @@ function parseAnimationShorthand(style: ResolvedStyle, value: string): void {
     }
 }
 
-/** Parse `transition: <property> <duration> [...]`, comma-separated groups. */
+/** Split a timing-function list on commas, keeping function args intact. */
+function splitTimingList(value: string): string[] {
+    const out: string[] = []
+    let depth = 0
+    let current = ''
+    for (const ch of value) {
+        if (ch === '(') depth++
+        if (ch === ')') depth--
+        if (ch === ',' && depth === 0) { out.push(current.trim()); current = '' }
+        else current += ch
+    }
+    if (current.trim()) out.push(current.trim())
+    return out
+}
+
+/**
+ * Parse `transition: <property> <duration> <timing> [...]` — each
+ * comma-separated group configures one property (or `all`).
+ */
 function parseTransitionShorthand(style: ResolvedStyle, value: string): void {
     const trimmed = value.trim()
     if (trimmed === 'none') {
         style.transitionProperty = null
         style.transitionDuration = 0
+        style.transitionDurations = []
+        style.transitionTimings = []
         return
     }
-    const { easing, rest } = extractEasingFunction(trimmed)
-    if (easing) style.transitionTimingFunction = easing
     const properties: string[] = []
-    let duration = 0
-    for (const group of rest.split(',')) {
-        for (const token of group.trim().split(/\s+/)) {
+    const durations: number[] = []
+    const timings: string[] = []
+    for (const groupRaw of splitTimingList(trimmed)) {
+        const { easing, rest } = extractEasingFunction(groupRaw)
+        let property = 'all'
+        let duration = 0
+        let timing = easing ?? 'ease'
+        for (const token of rest.trim().split(/\s+/)) {
             if (/^\d*\.?\d+(ms|s)$/.test(token)) {
                 if (duration === 0) duration = parseDuration(token)
             } else if (TIMING_KEYWORDS.has(token)) {
-                style.transitionTimingFunction = token
+                timing = token
             } else if (token) {
-                properties.push(token)
+                property = token
             }
         }
+        properties.push(property)
+        durations.push(duration)
+        timings.push(timing)
     }
     style.transitionProperty = properties.length > 0 ? properties.join(',') : 'all'
-    style.transitionDuration = duration
+    style.transitionDurations = durations
+    style.transitionTimings = timings
+    style.transitionDuration = durations[0] ?? 0
+    style.transitionTimingFunction = timings[0] ?? 'ease'
+}
+
+/**
+ * Pair the transition lists per spec: durations/timings repeat
+ * cyclically to cover every listed property.
+ */
+export function pairTransitions(style: ResolvedStyle): Array<{ property: string; duration: number; timing: string }> {
+    if (!style.transitionProperty) return []
+    const properties = style.transitionProperty.split(',').map(p => p.trim()).filter(Boolean)
+    const durations = style.transitionDurations.length > 0 ? style.transitionDurations : [style.transitionDuration]
+    const timings = style.transitionTimings.length > 0 ? style.transitionTimings : [style.transitionTimingFunction]
+    return properties.map((property, i) => ({
+        property,
+        duration: durations[i % durations.length] ?? 0,
+        timing: timings[i % timings.length] ?? 'ease',
+    }))
 }
 
 function parseDuration(value: string): number {

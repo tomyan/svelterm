@@ -66,19 +66,20 @@ inline style updates, a `:checked` rule starts applying:
 `ms`/`s`. The same interpolation rules as animations apply. The initial
 style never transitions.
 
+Transitions are configured per property, per spec: comma-separated
+shorthand groups (`transition: color 150ms linear, width 400ms ease`)
+or longhand lists paired cyclically. An interrupted transition
+continues from its current blended value. A timing function declared
+*inside a keyframe* applies from that stop to the next, overriding the
+element's. Keyframe `var()`/`light-dark()` values re-resolve when the
+scheme or custom properties change mid-animation, retargeting without
+restarting.
+
 ## Deviations from browsers
 
-- One duration and one timing function apply to all listed transition
-  properties (per-property lists aren't split).
-- An interrupted transition restarts from its previous target value, not
-  the current blended value.
 - `opacity` doesn't interpolate (it applies discretely mid-animation) —
   animate colour toward the background for a smooth fade.
-- Keyframe `var()`/`light-dark()` resolution happens once when the
-  animation starts; changing a custom property doesn't retarget a
-  running animation.
-- Per-keyframe `animation-timing-function` overrides are ignored — the
-  element's timing function applies to every segment.
+- `transition-delay` / `animation-delay` are not implemented.
 
 ## Reduced motion
 

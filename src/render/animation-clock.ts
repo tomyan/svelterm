@@ -13,17 +13,6 @@ function easingFor(value: string): Easing {
     return parseEasing(value) ?? (t => t)
 }
 
-/** Parse a transition-property value into the tracked-property filter. */
-function transitionedProperties(value: string): { all: boolean; names: Set<string> } {
-    const names = new Set<string>()
-    for (const raw of value.split(',')) {
-        const name = raw.trim()
-        if (name === 'all') return { all: true, names }
-        names.add(name === 'background' ? 'background-color' : name)
-    }
-    return { all: false, names }
-}
-
 function cellValue(value: number | string | null): string | null {
     return typeof value === 'number' && value >= 0 ? `${value}cell` : null
 }
@@ -58,6 +47,8 @@ interface ActiveAnimation {
     name: string
     duration: number
     start: number
+    /** Fingerprint of var()/light-dark()-resolved stops, for retargeting. */
+    resolvedKey?: string
 }
 
 /**
@@ -68,7 +59,8 @@ interface ActiveAnimation {
  */
 export class AnimationClock {
     private active = new Map<number, ActiveAnimation>()
-    private transitions = new Map<number, ActiveAnimation>()
+    /** Per-property transition runners, keyed `nodeId:property`. */
+    private transitions = new Map<string, ActiveAnimation>()
     /** Last-seen target values per transitioned node, as CSS property → value. */
     private transitionTargets = new Map<number, Record<string, string>>()
     private timer: ClockTimer | null = null
@@ -93,8 +85,11 @@ export class AnimationClock {
 
     /** Whether this node's animation needs re-layout each frame (vs repaint only). */
     touchesLayout(node: TermNode): boolean {
-        return (this.active.get(node.id)?.runner.touchesLayout
-            || this.transitions.get(node.id)?.runner.touchesLayout) ?? false
+        if (this.active.get(node.id)?.runner.touchesLayout) return true
+        for (const anim of this.transitions.values()) {
+            if (anim.node.id === node.id && anim.runner.touchesLayout) return true
+        }
+        return false
     }
 
     /**
@@ -110,7 +105,9 @@ export class AnimationClock {
         for (const id of this.transitionTargets.keys()) {
             if (!seen.has(id)) {
                 this.transitionTargets.delete(id)
-                this.transitions.delete(id)
+                for (const key of this.transitions.keys()) {
+                    if (key.startsWith(`${id}:`)) this.transitions.delete(key)
+                }
             }
         }
         this.updateTimer()
@@ -143,18 +140,18 @@ export class AnimationClock {
         return dirty
     }
 
-    private applyEntries(
-        entries: Map<number, ActiveAnimation>,
+    private applyEntries<K>(
+        entries: Map<K, ActiveAnimation>,
         styles: Map<number, ResolvedStyle>,
         dirty: { node: TermNode; touchesLayout: boolean }[],
     ): void {
-        for (const [id, anim] of entries) {
-            const style = styles.get(id)
+        for (const [key, anim] of entries) {
+            const style = styles.get(anim.node.id)
             if (!style) continue
             const elapsed = this.now() - anim.start
             anim.runner.apply(style, elapsed)
             dirty.push({ node: anim.node, touchesLayout: anim.runner.touchesLayout })
-            if (anim.runner.isFinished(elapsed)) entries.delete(id)
+            if (anim.runner.isFinished(elapsed)) entries.delete(key)
         }
     }
 
@@ -176,10 +173,11 @@ export class AnimationClock {
             const stops = name ? keyframes.get(name) : undefined
             if (style && name && stops && style.animationDuration > 0) {
                 const existing = this.active.get(node.id)
+                const resolved = resolution
+                    ? resolveKeyframeStops(stops, resolution, node.id)
+                    : stops
+                const resolvedKey = JSON.stringify(resolved)
                 if (!existing || existing.name !== name || existing.duration !== style.animationDuration) {
-                    const resolved = resolution
-                        ? resolveKeyframeStops(stops, resolution, node.id)
-                        : stops
                     this.active.set(node.id, {
                         node,
                         runner: new AnimationRunner(
@@ -188,7 +186,16 @@ export class AnimationClock {
                         name,
                         duration: style.animationDuration,
                         start: this.now(),
+                        resolvedKey,
                     })
+                } else if (existing.resolvedKey !== undefined && existing.resolvedKey !== resolvedKey) {
+                    // var()/light-dark() re-resolved to new values (scheme
+                    // flip, custom property change): retarget the runner
+                    // without restarting — the original start time holds.
+                    existing.runner = new AnimationRunner(
+                        resolved, style.animationDuration, style.animationIterationCount,
+                        easingFor(style.animationTimingFunction))
+                    existing.resolvedKey = resolvedKey
                 }
                 seen.add(node.id)
             }
@@ -203,7 +210,7 @@ export class AnimationClock {
         const subtreeResolved = parentResolved || (resolvedIds?.has(node.id) ?? false)
         if (node.nodeType === 'element') {
             const style = styles.get(node.id)
-            if (style?.transitionProperty && style.transitionDuration > 0) {
+            if (style && style.transitions.some(t => t.duration > 0)) {
                 seen.add(node.id)
                 if (subtreeResolved) this.trackTransitionTargets(node, style)
             }
@@ -213,12 +220,22 @@ export class AnimationClock {
         }
     }
 
-    /** Snapshot the node's target values; start a transition on any change. */
+    /**
+     * Snapshot the node's target values; start a per-property transition
+     * runner on any change, each with its own duration and timing. An
+     * interrupted transition continues from its current blended value
+     * rather than restarting from the previous target.
+     */
     private trackTransitionTargets(node: TermNode, style: ResolvedStyle): void {
-        const included = transitionedProperties(style.transitionProperty!)
+        const configFor = (css: string) =>
+            style.transitions.find(t => t.property === css
+                || (t.property === 'background' && css === 'background-color'))
+            ?? style.transitions.find(t => t.property === 'all')
+
         const targets: Record<string, string> = {}
         for (const prop of TRANSITIONABLE) {
-            if (!included.all && !included.names.has(prop.css)) continue
+            const config = configFor(prop.css)
+            if (!config || config.duration <= 0) continue
             const value = prop.read(style)
             if (value !== null) targets[prop.css] = value
         }
@@ -226,28 +243,40 @@ export class AnimationClock {
         this.transitionTargets.set(node.id, targets)
         if (!previous) return // first sight — the initial style never transitions
 
-        const fromDecls: CSSDeclaration[] = []
-        const toDecls: CSSDeclaration[] = []
         for (const [property, target] of Object.entries(targets)) {
             const before = previous[property]
-            if (before !== undefined && before !== target) {
-                fromDecls.push({ property, value: before })
-                toDecls.push({ property, value: target })
+            if (before === undefined || before === target) continue
+            const config = configFor(property)!
+            const key = `${node.id}:${property}`
+
+            // Interrupted mid-flight? Continue from the current value.
+            let from = before
+            const inFlight = this.transitions.get(key)
+            if (inFlight) {
+                const current = this.currentValue(inFlight, style, property)
+                if (current !== null) from = current
             }
+
+            const stops: KeyframeStop[] = [
+                { offset: 0, declarations: [{ property, value: from }] },
+                { offset: 1, declarations: [{ property, value: target }] },
+            ]
+            this.transitions.set(key, {
+                node,
+                runner: new AnimationRunner(stops, config.duration, 1,
+                    easingFor(config.timing)),
+                name: property,
+                duration: config.duration,
+                start: this.now(),
+            })
         }
-        if (fromDecls.length === 0) return
-        const stops: KeyframeStop[] = [
-            { offset: 0, declarations: fromDecls },
-            { offset: 1, declarations: toDecls },
-        ]
-        this.transitions.set(node.id, {
-            node,
-            runner: new AnimationRunner(stops, style.transitionDuration, 1,
-                easingFor(style.transitionTimingFunction)),
-            name: '',
-            duration: style.transitionDuration,
-            start: this.now(),
-        })
+    }
+
+    /** Evaluate an in-flight transition's value for one property, now. */
+    private currentValue(anim: ActiveAnimation, base: ResolvedStyle, property: string): string | null {
+        const scratch: ResolvedStyle = { ...base }
+        anim.runner.apply(scratch, this.now() - anim.start)
+        return TRANSITIONABLE.find(p => p.css === property)?.read(scratch) ?? null
     }
 
     private updateTimer(): void {

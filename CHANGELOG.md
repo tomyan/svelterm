@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.24.0 — 2026-07-05
+
+Motion timing completeness: transitions and keyframes behave per spec.
+
+### Added
+
+- **Per-property transitions** — `transition: color 150ms linear, width
+  400ms ease` runs each property on its own duration and timing;
+  longhand lists pair cyclically per spec. (Previously the first
+  duration and one timing function applied to everything.)
+- **Interrupted transitions continue** — a retargeted transition starts
+  from its current blended value instead of jumping back to the previous
+  target (reversals no longer flash).
+- **Per-keyframe `animation-timing-function`** — a timing function
+  declared inside a keyframe applies from that stop to the next.
+- **Keyframe `var()`/`light-dark()` re-resolution** — scheme flips and
+  custom-property changes retarget a running animation in place, without
+  restarting it.
+
 ## 0.23.0 — 2026-07-05
 
 Positioning: `relative` offsets apply, and `sticky` arrives.
