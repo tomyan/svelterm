@@ -430,7 +430,11 @@ function paintInput(
     node: TermNode, buffer: CellBuffer, box: LayoutBox,
     visuals: InheritedVisuals, clip: ClipRect | null,
 ): void {
-    const value = node.attributes.get('value') ?? ''
+    const rawValue = node.attributes.get('value') ?? ''
+    // Password values paint as bullets; layout and scrolling use the
+    // masked string, which has the same length as the real value.
+    const value = node.attributes.get('type') === 'password'
+        ? '•'.repeat(rawValue.length) : rawValue
     const isFocused = node.attributes.has('data-focused')
     const cursor = node.textBuffer?.cursor ?? value.length
 

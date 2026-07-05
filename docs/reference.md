@@ -130,7 +130,8 @@ block/inline box per its display default.
 | `strong`/`b`, `em`/`i`, `u`, `s`/`del`, `mark`, `kbd`, `abbr`, `samp`, `var` | text attributes (bold/italic/underline/strikethrough/colour) | — |
 | `a` | underlined, focusable; Enter/click opens `href` in the local browser | [`<a>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) |
 | `table` and friends | full table layout: colspan/rowspan, header/footer groups, caption, `colgroup`/`col` width hints, collapse/separate borders, `empty-cells` | [`<table>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/table) |
-| `input` (text) | single-line editor with cursor, `value`, `input` events | [`<input>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) |
+| `input` (text) | single-line editor with cursor, `value`, `input` events; `maxlength`, `readonly` | [`<input>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) |
+| `input type="password"` | value masked as `•` bullets; editing as text | [password](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/password) |
 | `input type="checkbox" / "radio"` | glyph toggles; `checked` attribute/property; `change`+`input` events | [checkbox](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/checkbox), [radio](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/radio) |
 | `textarea` | multi-line editing | [`<textarea>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea) |
 | `button` | focusable, centred text, `click` on Enter/click | [`<button>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button) |

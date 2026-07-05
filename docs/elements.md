@@ -37,8 +37,9 @@ unprevented, the `href` opens in the local browser.
 
 | Control | Rendering | Interaction |
 |---|---|---|
-| `input` (text) | one-row editor on the grid | readline-style editing with a real cursor; `input` events carry `{ value, cursor }` |
-| `textarea` | multi-line editor | as above |
+| `input` (text) | one-row editor on the grid | readline-style editing with a real cursor; `input` events carry `{ value, cursor }`; `maxlength` caps typing and paste; `readonly` blocks edits but keeps caret movement |
+| `input type="password"` | as text, value painted as `•` bullets | editing as text inputs; the real value stays in `value` |
+| `textarea` | multi-line editor | as text inputs, including `maxlength`/`readonly` |
 | `input type="checkbox"` | `[x]` / `[ ]` (3×1) | `Space` or click toggles; `change`/`input` carry `{ checked, value }` |
 | `input type="radio"` | `(•)` / `( )` | selecting unchecks same-`name` radios across the tree; never untoggles itself |
 | `select` + `option`/`optgroup` | selected label + `▾`, sized to the longest option | popup-less cycling: `ArrowUp`/`ArrowDown` move with wraparound, `Space`/`Enter`/click advance; `change` carries `{ value }` |

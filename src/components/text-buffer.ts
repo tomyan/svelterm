@@ -4,6 +4,10 @@ import { nextGraphemeBoundary, prevGraphemeBoundary } from '../layout/unicode.js
 export class TextBuffer {
     private _text: string
     private _cursor: number
+    /** Insertion cap in code units, as HTML maxlength counts them. */
+    maxLength: number | null = null
+    /** Blocks all mutation while leaving caret movement live. */
+    readOnly = false
 
     constructor(initial: string = '') {
         this._text = initial
@@ -19,17 +23,25 @@ export class TextBuffer {
     }
 
     insert(chars: string): void {
+        if (this.readOnly) return
+        if (this.maxLength !== null) {
+            const room = Math.max(0, this.maxLength - this._text.length)
+            chars = chars.slice(0, room)
+        }
+        if (chars.length === 0) return
         this._text = this._text.substring(0, this._cursor) + chars + this._text.substring(this._cursor)
         this._cursor += chars.length
     }
 
     delete(): void {
+        if (this.readOnly) return
         if (this._cursor >= this._text.length) return
         const end = nextGraphemeBoundary(this._text, this._cursor)
         this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
     }
 
     backspace(): void {
+        if (this.readOnly) return
         if (this._cursor <= 0) return
         const start = prevGraphemeBoundary(this._text, this._cursor)
         this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
@@ -42,11 +54,13 @@ export class TextBuffer {
     end(): void { this._cursor = this._text.length }
 
     clearToStart(): void {
+        if (this.readOnly) return
         this._text = this._text.substring(this._cursor)
         this._cursor = 0
     }
 
     clearToEnd(): void {
+        if (this.readOnly) return
         this._text = this._text.substring(0, this._cursor)
     }
 

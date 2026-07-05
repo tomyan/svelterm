@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.27.0 — 2026-07-05
+
+Form control parity: password, maxlength, readonly.
+
+### Added
+
+- **`input type="password"`** — the value paints as `•` bullets; layout,
+  scrolling, and cursor behave as for text inputs and the real value
+  stays in `value`.
+- **`maxlength`** on `input`/`textarea` — caps typing and paste at the
+  limit (counted in code units, as in HTML). An over-long initial value
+  is kept and can be edited down, matching browsers.
+- **`readonly`** on `input`/`textarea` — blocks all edits (typing,
+  deletion, Ctrl+U/K, paste) while the caret still moves; the control
+  remains focusable.
+
+### Fixed
+
+- `input` events now fire only when the value changes — caret-movement
+  keys (arrows, Home/End) no longer dispatch spurious `input` events.
+
 ## 0.26.0 — 2026-07-05
 
 Sibling border collapse becomes explicit.

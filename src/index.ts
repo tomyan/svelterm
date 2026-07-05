@@ -29,6 +29,7 @@ import { toggleDetails } from './input/details.js'
 import { cycleSelect } from './input/select.js'
 import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
+import { syncEditConstraints } from './input/edit-constraints.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import { detectCapabilities, matchCPR, parseCPRRow, type ColorDepth } from './terminal/capabilities.js'
 import { copyToClipboard } from './terminal/clipboard.js'
@@ -548,6 +549,8 @@ export function run<Props extends Record<string, any>>(
         const focused = focusManager.focused
         if (focused && (focused.tag === 'input' || focused.tag === 'textarea') && !isCheckableInput(focused)) {
             if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            syncEditConstraints(focused)
+            const oldValue = focused.textBuffer.text
             if (focused.textBuffer.handleKey(key)) {
                 const newValue = focused.textBuffer.text
                 focused.attributes.set('value', newValue)
@@ -555,7 +558,10 @@ export function run<Props extends Record<string, any>>(
                 if (textChild) ctx.onSetText(textChild, newValue)
                 // Enqueue the input element itself for repaint (cursor may have moved)
                 ctx.queue.enqueuePaintOnly(focused)
-                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                // input fires on value change, not caret movement (per spec)
+                if (newValue !== oldValue) {
+                    dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                }
                 scheduleRender()
                 return
             }
@@ -583,12 +589,16 @@ export function run<Props extends Record<string, any>>(
         const focused = focusManager.focused
         if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
             if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            syncEditConstraints(focused)
+            const oldValue = focused.textBuffer.text
             focused.textBuffer.insert(text)
             const newValue = focused.textBuffer.text
             focused.attributes.set('value', newValue)
             const textChild = focused.children.find(c => c.nodeType === 'text')
             if (textChild) ctx.onSetText(textChild, newValue)
-            dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+            if (newValue !== oldValue) {
+                dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+            }
             scheduleRender()
         } else {
             const target = focused ?? findFirstElement(root)
