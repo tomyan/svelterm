@@ -4,6 +4,7 @@ import { resolveKeyframeStops, type KeyframeResolution } from '../css/animation.
 import { parseEasing, type Easing } from '../css/easing.js'
 import type { KeyframeStop, CSSDeclaration } from '../css/parser.js'
 import type { ResolvedStyle } from '../css/compute.js'
+import { systemClock, clockFromNow, type Clock, type ClockTimer } from './clock.js'
 
 export type { KeyframeResolution } from '../css/animation.js'
 
@@ -70,10 +71,21 @@ export class AnimationClock {
     private transitions = new Map<number, ActiveAnimation>()
     /** Last-seen target values per transitioned node, as CSS property → value. */
     private transitionTargets = new Map<number, Record<string, string>>()
-    private timer: ReturnType<typeof setInterval> | null = null
+    private timer: ClockTimer | null = null
+    private clock: Clock
     onFrame?: () => void
 
-    constructor(private now: () => number = Date.now) {}
+    /**
+     * Accepts a Clock (time source + scheduler) or, for convenience and
+     * backward compatibility, a bare `() => number` time function.
+     */
+    constructor(clock: Clock | (() => number) = systemClock) {
+        this.clock = typeof clock === 'function' ? clockFromNow(clock) : clock
+    }
+
+    private now(): number {
+        return this.clock.now()
+    }
 
     get activeCount(): number {
         return this.active.size + this.transitions.size
@@ -148,7 +160,7 @@ export class AnimationClock {
 
     stop(): void {
         if (this.timer !== null) {
-            clearInterval(this.timer)
+            this.clock.clearInterval(this.timer)
             this.timer = null
         }
     }
@@ -240,7 +252,7 @@ export class AnimationClock {
 
     private updateTimer(): void {
         if (this.activeCount > 0 && this.timer === null) {
-            this.timer = setInterval(() => this.onFrame?.(), FRAME_INTERVAL_MS)
+            this.timer = this.clock.setInterval(() => this.onFrame?.(), FRAME_INTERVAL_MS)
         } else if (this.activeCount === 0) {
             this.stop()
         }

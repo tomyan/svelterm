@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.22.0 — 2026-07-05
+
+### Added
+
+- **`Clock` seam for deterministic animation tests** — the animation
+  engine's time source *and* its frame scheduler now go through a
+  `Clock` interface. `TestClock` (exported) lets tests set time and
+  advance it, firing the frame timer at each tick — so the animation and
+  transition frame lifecycle is exact, not `setInterval`/`Date.now`
+  dependent. `run()` uses the real `systemClock` by default.
+
+### Fixed
+
+- **Docs: `<img>` rendering** — `reference.md` still listed `img` as
+  "not rendered", and `elements.md`'s intro contradicted its own Images
+  section. Both now describe the half-block + kitty-graphics rendering
+  shipped in 0.15.0 / 0.19.0.
+
 ## 0.21.0 — 2026-07-05
 
 DevTools polish.
