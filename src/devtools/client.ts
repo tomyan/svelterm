@@ -23,6 +23,10 @@ export interface FlatNode {
     depth: number
     /** A one-line label: `<div.card#main>` / `"text"` / `<!--comment-->`. */
     label: string
+    /** True if this node has children (so it can collapse). */
+    hasChildren: boolean
+    /** True if collapsed — its subtree is hidden from the flattened list. */
+    collapsed: boolean
 }
 
 /** Connect to a debug server on 127.0.0.1:port. */
@@ -57,11 +61,20 @@ export async function connectDebugClient(port: number): Promise<DebugClient> {
     }
 }
 
-/** Flatten the tree depth-first into indented, labelled rows. */
-export function flattenTree(root: SerialNode): FlatNode[] {
+/**
+ * Flatten the tree depth-first into indented, labelled rows. Nodes whose
+ * id is in `collapsed` render but their subtrees are hidden.
+ */
+export function flattenTree(root: SerialNode, collapsed: Set<number> = new Set()): FlatNode[] {
     const out: FlatNode[] = []
     const walk = (node: SerialNode, depth: number) => {
-        out.push({ node, depth, label: labelFor(node) })
+        const isCollapsed = collapsed.has(node.nodeId)
+        out.push({
+            node, depth, label: labelFor(node),
+            hasChildren: node.children.length > 0,
+            collapsed: isCollapsed,
+        })
+        if (isCollapsed) return
         for (const child of node.children) walk(child, depth + 1)
     }
     walk(root, 0)

@@ -54,4 +54,19 @@ describe('flattenTree', () => {
         const flat = flattenTree(tree)
         assert.equal(flat[1].node.nodeId, 2)
     })
+
+    it('flags nodes that have children', () => {
+        const flat = flattenTree(tree)
+        assert.equal(flat[0].hasChildren, true)   // root
+        assert.equal(flat[3].hasChildren, false)  // text node
+    })
+
+    it('hides the subtree of a collapsed node', () => {
+        // When: collapse the div (nodeId 2)
+        const flat = flattenTree(tree, new Set([2]))
+
+        // Then: root and div show, but the div's descendants don't
+        assert.deepEqual(flat.map(f => f.node.nodeId), [1, 2])
+        assert.equal(flat[1].collapsed, true)
+    })
 })

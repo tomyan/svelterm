@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.21.0 — 2026-07-05
+
+DevTools polish.
+
+### Changed
+
+- **Collapsible tree** — ← / → (or Enter) fold and unfold subtrees in
+  `svelterm devtools`; nodes with children show a ▸/▾ marker.
+- **Fuller style panel** — the selected node's panel now lists every
+  non-default resolved value, instead of a fixed subset of keys.
+- **Clearer connect error** — `svt` and `devtools` both name the exact
+  call to enable debugging (`run(App, { debug: true })`) when they can't
+  reach a server.
+
 ## 0.20.0 — 2026-07-05
 
 DevTools: a terminal inspector, itself a svelterm app.

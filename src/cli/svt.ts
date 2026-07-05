@@ -54,7 +54,7 @@ function request(port: number, command: Command): Promise<unknown> {
         })
         ws.on('error', () => {
             clearTimeout(timer)
-            reject(new Error(`cannot connect on port ${port} — is the app running with { debug: true }?`))
+            reject(new Error(`cannot connect on port ${port} — run the target app with run(App, { debug: true })`))
         })
     })
 }

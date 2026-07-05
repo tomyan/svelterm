@@ -23,8 +23,11 @@ svelterm devtools --port 9500   # a non-default port
   `<div#id.class>` / `"text"` / `<!--comment-->`.
 - **Right pane** — the selected node's computed style (the values
   svelterm actually painted) and its layout box.
-- **↑ / ↓** move the selection, **r** refreshes the tree, **Ctrl+C**
-  quits.
+- **↑ / ↓** move the selection, **← / →** collapse / expand a subtree
+  (Enter toggles), **r** refreshes the tree, **Ctrl+C** quits.
+
+The style panel lists every non-default resolved value for the selected
+element.
 
 It talks the same JSON protocol as the [`svt`](./svt.md) one-shot client
 (the `DOM` and `CSS` domains), so it works against any app that opens a

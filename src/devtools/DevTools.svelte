@@ -4,22 +4,33 @@
     let { port = 9444 } = $props()
 
     let status = $state('connecting…')
-    let rows = $state([])
+    let doc = $state(null)
+    let collapsed = $state(new Set())
     let selected = $state(0)
     let detail = $state(null)
     let client = null
 
+    let rows = $derived(doc ? flattenTree(doc.root, collapsed) : [])
+
     async function refresh() {
         if (!client) return
         try {
-            const doc = await client.request('DOM.getDocument')
-            rows = flattenTree(doc.root)
+            doc = await client.request('DOM.getDocument').then((r) => r)
             if (selected >= rows.length) selected = Math.max(0, rows.length - 1)
             status = `${rows.length} nodes`
             await loadDetail()
         } catch (err) {
             status = 'error: ' + (err?.message ?? err)
         }
+    }
+
+    function toggleCollapse(row, force) {
+        if (!row?.hasChildren) return
+        const next = new Set(collapsed)
+        const shouldCollapse = force ?? !next.has(row.node.nodeId)
+        if (shouldCollapse) next.add(row.node.nodeId)
+        else next.delete(row.node.nodeId)
+        collapsed = next
     }
 
     async function loadDetail() {
@@ -37,19 +48,30 @@
         }
     }
 
+    // Style keys that are always their default and would just be noise.
+    const HIDE = new Set(['animationName', 'transitionProperty'])
+
     function styleLines(style) {
         if (!style) return []
-        const keys = ['fg', 'bg', 'bold', 'italic', 'underline', 'width', 'height',
-            'display', 'borderStyle', 'padding', 'flexDirection']
-        return keys
-            .filter((k) => style[k] !== undefined && style[k] !== null && style[k] !== '' && style[k] !== false)
+        return Object.keys(style)
+            .filter((k) => !HIDE.has(k))
+            .filter((k) => {
+                const v = style[k]
+                return v !== undefined && v !== null && v !== '' && v !== false
+                    && v !== 'default' && v !== 'none' && v !== 0 && v !== 'static'
+                    && v !== 'visible' && v !== 'normal'
+            })
             .map((k) => `${k}: ${style[k]}`)
     }
 
     function onkeydown(event) {
         const key = event.data?.key ?? event.key
+        const row = rows[selected]
         if (key === 'ArrowDown') { selected = Math.min(rows.length - 1, selected + 1); loadDetail() }
         else if (key === 'ArrowUp') { selected = Math.max(0, selected - 1); loadDetail() }
+        else if (key === 'ArrowLeft') { toggleCollapse(row, true) }
+        else if (key === 'ArrowRight') { toggleCollapse(row, false) }
+        else if (key === 'Enter') { toggleCollapse(row) }
         else if (key === 'r') refresh()
     }
 
@@ -59,7 +81,7 @@
             status = 'connected'
             await refresh()
         } catch (err) {
-            status = `cannot connect on ${port} — run the app with { debug: true }`
+            status = `cannot connect on ${port} — run the target app with run(App, { debug: true })`
         }
         el.focus?.()
         return () => client?.close()
@@ -67,12 +89,12 @@
 </script>
 
 <div class="devtools" {onkeydown}>
-    <div class="header">svelterm devtools · {status} · ↑↓ select · r refresh · Ctrl+C quit</div>
+    <div class="header">svelterm devtools · {status} · ↑↓ select · ←→ fold · r refresh · Ctrl+C quit</div>
     <div class="panes">
         <div class="tree" {@attach connect} tabindex="0">
             {#each rows as row, index}
                 <div class="node" class:sel={index === selected} style="padding-left: {row.depth * 2}cell;">
-                    {row.label}
+                    <span class="marker">{row.hasChildren ? (row.collapsed ? '▸' : '▾') : ' '}</span>{row.label}
                 </div>
             {/each}
             {#if rows.length === 0}<div class="empty">no nodes</div>{/if}
@@ -120,6 +142,10 @@
 
     .node {
         color: light-dark(#333333, #cccccc);
+    }
+
+    .marker {
+        color: light-dark(#999999, #777777);
     }
 
     .node.sel {
