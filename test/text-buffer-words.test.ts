@@ -59,14 +59,14 @@ describe('TextBuffer word ops', () => {
         })
     })
 
-    describe('deleteWordLeft', () => {
+    describe('killWordLeft', () => {
         it('deletes the word before the cursor', () => {
             // Given (mirrors sumi TestKillWord)
             const buf = new TextBuffer('hello world')
             buf.cursor = 11
 
             // When
-            buf.deleteWordLeft()
+            buf.killWordLeft()
 
             // Then
             assert.equal(buf.text, 'hello ')
@@ -75,7 +75,7 @@ describe('TextBuffer word ops', () => {
 
         it('deletes trailing spaces along with the word', () => {
             const buf = new TextBuffer('hello   ')
-            buf.deleteWordLeft()
+            buf.killWordLeft()
             assert.equal(buf.text, '')
             assert.equal(buf.cursor, 0)
         })
@@ -83,26 +83,26 @@ describe('TextBuffer word ops', () => {
         it('does nothing at start of text', () => {
             const buf = new TextBuffer('hello')
             buf.cursor = 0
-            buf.deleteWordLeft()
+            buf.killWordLeft()
             assert.equal(buf.text, 'hello')
         })
 
         it('is blocked by readOnly', () => {
             const buf = new TextBuffer('hello world')
             buf.readOnly = true
-            buf.deleteWordLeft()
+            buf.killWordLeft()
             assert.equal(buf.text, 'hello world')
         })
     })
 
-    describe('deleteWordRight', () => {
+    describe('killWordRight', () => {
         it('deletes leading spaces and the word after the cursor', () => {
             // Given (mirrors sumi TestKillWordForward)
             const buf = new TextBuffer('hello world')
             buf.cursor = 0
 
             // When
-            buf.deleteWordRight()
+            buf.killWordRight()
 
             // Then
             assert.equal(buf.text, ' world')
@@ -112,14 +112,14 @@ describe('TextBuffer word ops', () => {
         it('deletes the space-separated next word from a word end', () => {
             const buf = new TextBuffer('hello world')
             buf.cursor = 5
-            buf.deleteWordRight()
+            buf.killWordRight()
             assert.equal(buf.text, 'hello')
             assert.equal(buf.cursor, 5)
         })
 
         it('does nothing at end of text', () => {
             const buf = new TextBuffer('hello')
-            buf.deleteWordRight()
+            buf.killWordRight()
             assert.equal(buf.text, 'hello')
         })
 
@@ -127,7 +127,7 @@ describe('TextBuffer word ops', () => {
             const buf = new TextBuffer('hello world')
             buf.cursor = 0
             buf.readOnly = true
-            buf.deleteWordRight()
+            buf.killWordRight()
             assert.equal(buf.text, 'hello world')
         })
     })
@@ -143,7 +143,7 @@ describe('TextBuffer word ops', () => {
         it('deletes a whole emoji word', () => {
             const buf = new TextBuffer('\u{1F44D}\u{1F3FD} x')
             buf.cursor = 4 // after the emoji cluster
-            buf.deleteWordLeft()
+            buf.killWordLeft()
             assert.equal(buf.text, ' x')
             assert.equal(buf.cursor, 0)
         })

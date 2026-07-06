@@ -1,6 +1,7 @@
 import type { KeyEvent } from '../input/keyboard.js'
 import { nextGraphemeBoundary, prevGraphemeBoundary } from '../layout/unicode.js'
 import { handleBufferKey } from './text-buffer-keymap.js'
+import { KillRing } from './kill-ring.js'
 
 function isSpace(ch: string): boolean {
     return /\s/.test(ch)
@@ -11,6 +12,9 @@ export class TextBuffer {
     private _cursor: number
     private _anchor: number | null = null
     private _clipboard: string | null = null
+    private killRing = new KillRing()
+    private _lastYank = false
+    private _lastYankLength = 0
     /** Insertion cap in code units, as HTML maxlength counts them. */
     maxLength: number | null = null
     /** Blocks all mutation while leaving caret movement live. */
@@ -29,16 +33,20 @@ export class TextBuffer {
         this._cursor = Math.max(0, Math.min(value, this._text.length))
     }
 
-    insert(chars: string): void {
-        if (this.readOnly) return
+    /** Inserts at the cursor, replacing any selection. Returns the code
+     *  units actually inserted (maxLength may truncate). */
+    insert(chars: string): number {
+        if (this.readOnly) return 0
         this.deleteSelection()
+        this._lastYank = false
         if (this.maxLength !== null) {
             const room = Math.max(0, this.maxLength - this._text.length)
             chars = chars.slice(0, room)
         }
-        if (chars.length === 0) return
+        if (chars.length === 0) return 0
         this._text = this._text.substring(0, this._cursor) + chars + this._text.substring(this._cursor)
         this._cursor += chars.length
+        return chars.length
     }
 
     delete(): void {
@@ -58,40 +66,89 @@ export class TextBuffer {
         this._cursor = start
     }
 
-    moveLeft(): void { this._cursor = prevGraphemeBoundary(this._text, this._cursor) }
-    moveRight(): void { this._cursor = nextGraphemeBoundary(this._text, this._cursor) }
-    home(): void { this._cursor = 0 }
-    end(): void { this._cursor = this._text.length }
+    moveLeft(): void { this._lastYank = false; this._cursor = prevGraphemeBoundary(this._text, this._cursor) }
+    moveRight(): void { this._lastYank = false; this._cursor = nextGraphemeBoundary(this._text, this._cursor) }
+    home(): void { this._lastYank = false; this._cursor = 0 }
+    end(): void { this._lastYank = false; this._cursor = this._text.length }
 
-    wordLeft(): void { this._cursor = this.scanWordLeft(this._cursor) }
-    wordRight(): void { this._cursor = this.scanWordRight(this._cursor) }
+    wordLeft(): void { this._lastYank = false; this._cursor = this.scanWordLeft(this._cursor) }
+    wordRight(): void { this._lastYank = false; this._cursor = this.scanWordRight(this._cursor) }
 
-    deleteWordLeft(): void {
+    // --- Kills (deleted text lands on the kill ring) ---
+
+    killWordLeft(): void {
         if (this.readOnly) return
         if (this.deleteSelection()) return
         const start = this.scanWordLeft(this._cursor)
+        this.killRing.push(this._text.substring(start, this._cursor))
+        this._lastYank = false
         this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
         this._cursor = start
     }
 
-    deleteWordRight(): void {
+    killWordRight(): void {
         if (this.readOnly) return
         if (this.deleteSelection()) return
         const end = this.scanWordRight(this._cursor)
+        this.killRing.push(this._text.substring(this._cursor, end))
+        this._lastYank = false
         this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
     }
 
-    clearToStart(): void {
+    killToStart(): void {
         if (this.readOnly) return
         this.collapseSelection()
+        this.killRing.push(this._text.substring(0, this._cursor))
+        this._lastYank = false
         this._text = this._text.substring(this._cursor)
         this._cursor = 0
     }
 
-    clearToEnd(): void {
+    killToEnd(): void {
         if (this.readOnly) return
         this.collapseSelection()
+        this.killRing.push(this._text.substring(this._cursor))
+        this._lastYank = false
         this._text = this._text.substring(0, this._cursor)
+    }
+
+    // --- Yank ---
+
+    /** Insert the most recent kill at the cursor (Ctrl+Y). */
+    yank(): void {
+        if (this.readOnly) return
+        const text = this.killRing.current()
+        if (text === null) return
+        const inserted = this.insert(text)
+        this._lastYank = true
+        this._lastYankLength = inserted
+    }
+
+    /** Replace a just-yanked text with the previous kill (Alt+Y). */
+    yankPop(): void {
+        if (this.readOnly) return
+        if (!this._lastYank || this.killRing.size < 2) return
+        const start = Math.max(0, this._cursor - this._lastYankLength)
+        this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
+        this._cursor = start
+        const inserted = this.insert(this.killRing.cyclePrev()!)
+        this._lastYank = true
+        this._lastYankLength = inserted
+    }
+
+    /** Swap the graphemes around the cursor (Ctrl+T); at the end, the two before it. */
+    transposeChars(): void {
+        if (this.readOnly) return
+        this._lastYank = false
+        const len = this._text.length
+        const pos = this._cursor >= len ? prevGraphemeBoundary(this._text, len) : this._cursor
+        if (pos < 1) return
+        const aStart = prevGraphemeBoundary(this._text, pos)
+        const bEnd = nextGraphemeBoundary(this._text, pos)
+        const a = this._text.substring(aStart, pos)
+        const b = this._text.substring(pos, bEnd)
+        this._text = this._text.substring(0, aStart) + b + a + this._text.substring(bEnd)
+        this._cursor = aStart + b.length + a.length
     }
 
     // --- Selection ---
@@ -120,6 +177,7 @@ export class TextBuffer {
     /** Select the whitespace-delimited word around a code-unit offset. */
     selectWordAt(offset: number): void {
         if (this._text.length === 0) return
+        this._lastYank = false
         const at = Math.max(0, Math.min(offset, this._text.length - 1))
         if (isSpace(this._text[at])) return
         let start = at
@@ -138,10 +196,11 @@ export class TextBuffer {
         return true
     }
 
-    /** Cut the selection for the clipboard. */
+    /** Cut the selection for the clipboard and the kill ring. */
     cutSelection(): boolean {
         if (this.readOnly) return false
         if (!this.copySelection()) return false
+        this.killRing.push(this.selectedText())
         this.deleteSelection()
         return true
     }
@@ -157,6 +216,7 @@ export class TextBuffer {
         const range = this.selectionRange()
         this._anchor = null
         if (!range) return false
+        this._lastYank = false
         this._text = this._text.substring(0, range.start) + this._text.substring(range.end)
         this._cursor = range.start
         return true

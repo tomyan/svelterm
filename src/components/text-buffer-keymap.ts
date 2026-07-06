@@ -45,10 +45,16 @@ function handleCtrl(buf: TextBuffer, key: string): boolean {
     switch (key) {
         case 'a': buf.collapseSelection(); buf.home(); return true
         case 'e': buf.collapseSelection(); buf.end(); return true
-        case 'u': buf.clearToStart(); return true
-        case 'k': buf.clearToEnd(); return true
+        case 'b': buf.collapseSelection(); buf.moveLeft(); return true
+        case 'f': buf.collapseSelection(); buf.moveRight(); return true
+        case 'h': buf.backspace(); return true
+        case 'd': buf.delete(); return true
+        case 'u': buf.killToStart(); return true
+        case 'k': buf.killToEnd(); return true
+        case 't': buf.transposeChars(); return true
+        case 'y': buf.yank(); return true
         case 'w':
-            if (!buf.cutSelection()) buf.deleteWordLeft()
+            if (!buf.cutSelection()) buf.killWordLeft()
             return true
         default: return false
     }
@@ -58,9 +64,10 @@ function handleMeta(buf: TextBuffer, key: string): boolean {
     switch (key) {
         case 'b': buf.collapseSelection(); buf.wordLeft(); return true
         case 'f': buf.collapseSelection(); buf.wordRight(); return true
-        case 'd': buf.deleteWordRight(); return true
+        case 'd': buf.killWordRight(); return true
+        case 'y': buf.yankPop(); return true
         case 'w': buf.copySelection(); return true
-        case 'Backspace': buf.deleteWordLeft(); return true
+        case 'Backspace': buf.killWordLeft(); return true
         default: return false
     }
 }
