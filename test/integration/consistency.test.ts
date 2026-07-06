@@ -45,9 +45,12 @@ function compareStyles(
         const incStyle = inc.get(id)
         if (!incStyle) continue
         for (const key of Object.keys(fullStyle)) {
-            assert.equal(
+            // Deep comparison: array-valued properties (e.g.
+            // transitionDurations) are fresh instances per resolve, so
+            // identity can never match — content equality is the contract.
+            assert.deepStrictEqual(
                 incStyle[key], fullStyle[key],
-                `${label}: node ${id} .${key} — incremental=${incStyle[key]} vs full=${fullStyle[key]}`,
+                `${label}: node ${id} .${key} — incremental=${JSON.stringify(incStyle[key])} vs full=${JSON.stringify(fullStyle[key])}`,
             )
         }
     }
