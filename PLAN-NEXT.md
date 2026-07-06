@@ -1,103 +1,83 @@
 # PLAN-NEXT — @svelterm/core after 0.28.0
 
-Written 2026-07-06, immediately after the inline-formatting-context arc
-(DESIGN-inline-flow.md, 0.28.0). This is the consolidated backlog of
-everything known to be left on base svelterm, ordered by recommended
-value. Work each arc with the usual loop: design doc → carpaccio
-slices → red/green/refactor → commit+push per slice → re-validate the
-next slice.
+Written 2026-07-06 after the inline-formatting-context arc
+(DESIGN-inline-flow.md, 0.28.0); design questions settled with Tom the
+same day — every arc below is unblocked and can be executed without
+stopping for decisions. Work each arc with the usual loop: design doc →
+carpaccio slices → red/green/refactor → commit+push per slice.
 
-## Arc 1 — Text selection + clipboard (port of sumi D5)
+## Corrections to the first draft of this plan
 
-The recommended next arc. Sumi shipped global text selection + clipboard
-in commit 05b89b7 (`~/projects/sumi/runtime/layout/click_fragment_test.go`
-neighbourhood; selection maps ranges onto the per-line fragments).
-Svelterm 0.28.0's `LayoutBox.fragments` were designed with this in mind,
-and OSC 52 clipboard plumbing exists since 0.6.0.
+- **Selection + clipboard: already done — no arc.** Svelterm has had
+  screen-space global selection since 0.6.0 (`src/input/selection.ts`:
+  drag ribbon, double-click word, triple-click line, inverse-video
+  paint, OSC 52 + platform clipboard tool). Sumi's D5 (05b89b7) was the
+  port of svelterm's model TO sumi, not the reverse.
+- **border-title: not a core feature (Tom, 2026-07-06).** It feels like
+  UI-library territory rather than core, and is skipped entirely for
+  now — no core CSS property, no near-term work. If it returns, it
+  returns as an @svelterm/ui panel-with-title component. (Sumi keeps its
+  own core `border-title` property; the frameworks deliberately diverge
+  here.)
 
-Value: mouse-drag selection over wrapped/styled text, visible highlight,
-copy to system clipboard — table stakes for TUIs that show logs/output.
+## Arc 1 — text-editing parity in input/textarea
 
-Proposed slices (validate against sumi's actual D5 design before
-committing to these):
+**Decision (Tom, 2026-07-06): mirror sumi's textedit wholesale.** Same
+keymap and semantics; where a chord conflicts with an existing svelterm
+binding, resolve in sumi's favour where possible. Copy the concrete
+bindings from sumi's implementation (`~/projects/sumi/runtime/layout/
+cursor_editable.go`, `directwrite.go`, textedit tests) — do not
+redesign them.
 
-1. **Selection model + anchor/extent from mouse** — drag start/move/end
-   → a document-order range (node id + offset pairs). Hit-testing already
-   resolves fragments; extend it to return character offsets within a
-   fragment. RED: drag across two wrapped lines yields the right range.
-2. **Highlight painting** — selected cells get inverse/selection colours
-   at paint time (a paint-layer concern, not layout). RED: highlight
-   follows fragments across a wrapped span, not the union rect.
-3. **Copy** — selection → plain text (fragment text joined with
-   newlines/spaces per line boxes) → OSC 52. Keyboard: a copy chord;
-   terminal conventions to decide with Tom (sumi chose its own — check).
-4. **Selection in scrollback/scroll containers** — ranges survive
-   scrolling; auto-scroll on drag at edges (check what sumi did; possibly
-   defer).
-5. **Docs + changelog + version bump.**
+Scope beyond 0.27.0's attribute slice: undo/redo stacks, kill buffer
+(Ctrl+K/Ctrl+Y), word-boundary ops, shift+movement selection,
+double-click word select, cut/copy integration with the existing
+clipboard plumbing.
 
-Design questions to settle with Tom up front: selection colours
-(::selection support vs fixed inverse?), whether word/line snap
-(double/triple click) is in scope, and inline-mode behaviour.
+Slices:
+1. Word-boundary ops (word left/right, delete word) — RED against
+   sumi's boundary semantics.
+2. Shift+movement selection + cut/copy of the field selection.
+3. Kill buffer (Ctrl+K/Ctrl+Y) sharing the selection/clipboard code.
+4. Undo/redo stacks (chords as in sumi).
+5. Docs + changelog + version bump.
 
-## Arc 2 — border-title (joint design with sumi)
+## Arc 2 — scenario-driven E2E protocol
 
-Deliberately deferred by Tom until it could be designed jointly for both
-frameworks. Sumi now has a working implementation
-(`~/projects/sumi/runtime/layout/layout_bordertitle_test.go`,
-`rendertree_bordertitle_test.go`) to use as the concrete reference.
-No CSS standard exists — the design conversation must pick the authoring
-surface (a `border-title` property, an attribute, or a pseudo-element
-mechanism) and it should be the SAME answer in both frameworks.
+**Decision (Tom, 2026-07-06): extend the existing debug server** (0.17.0
+svt CLI / 0.20.0 devtools plumbing) rather than adding a sumi-style
+second control socket. One protocol serves tree inspection AND scripted
+interaction.
 
-**Design-first: do not start slices without the joint design session.**
+Shape: harness sends input events + waits for a frame + asserts on the
+emulated screen (headless rendering already exists). Slices:
+1. Debug-server commands: inject key/mouse events into the run loop.
+2. Frame synchronisation: "step until next paint settles" + screen
+   snapshot over the socket.
+3. Assertion helpers in the test harness (screen text/cell queries).
+4. One end-to-end scenario test of a real demo as the acceptance proof.
 
-## Arc 3 — text-editing parity in input/textarea
+## Arc 3 — IFC v1 limits (only if something real trips on them)
 
-0.27.0 took only the attribute slice (password masking, maxlength,
-readonly). Sumi's textedit engine still has: undo/redo stacks, kill
-buffer (Ctrl+K/Ctrl+Y), word-boundary ops, shift+movement selection,
-double-click word select, cut/copy. Reference:
-`~/projects/sumi/runtime/layout/cursor_editable.go` and textedit tests.
-Slices roughly: word ops → shift-selection (+ integrates with Arc 1's
-clipboard) → undo/redo → kill buffer.
+Deliberate scope cuts in DESIGN-inline-flow.md, matching sumi's v1 —
+don't build speculatively; promote when a real component or demo hits
+one, and port sumi's approach if it lifts a limit first:
 
-## Arc 4 — IFC v1 limits (only if real components hit them)
-
-Both were deliberate scope cuts in DESIGN-inline-flow.md, matching
-sumi's v1:
-
-- `display:inline` elements are style-only — border/padding/horizontal
-  margin are ignored inside an IFC.
-- Text with `white-space: nowrap|pre` leaves the IFC and stacks
-  block-level (so a nowrap span inside a paragraph gets its own line
-  rather than flowing unwrapped).
-
-Don't build speculatively; promote to an arc when a real component or
-site demo trips on one. If sumi lifts a limit first, port the approach.
-
-## Arc 5 — scenario-driven E2E protocol
-
-Sumi exposes a control socket (info/step/quit) so a harness can drive a
-running app deterministically and assert on the emulated screen frame by
-frame. Svelterm has headless rendering and the debug server (0.17.0 svt
-CLI, 0.20.0 devtools) — the missing piece is scripted multi-step
-interaction. Natural home: extend the existing debug-server protocol
-rather than a second socket. Would also make site-demo regression tests
-possible.
+- `display:inline` elements are style-only in an IFC (border/padding/
+  horizontal margin ignored).
+- `white-space: nowrap|pre` text leaves the IFC and stacks block-level.
 
 ## Housekeeping (small, any time)
 
-- **Refresh PROPOSED-FEATURES.md** — written 2026-07-05, now half-stale:
-  relative/sticky offsets, sibling border-collapse, grid-auto-flow
-  column, minmax redistribution, password/maxlength/readonly, and the
-  0.24.0 motion-timing items have all shipped. Strike them, fold what
-  remains into this file, or delete it in favour of this plan.
+- **PROPOSED-FEATURES.md is superseded by this file** — a banner at its
+  top says so; the still-relevant items were folded in here, everything
+  else in it had already shipped (0.23.0–0.28.0).
 - **Svelte fork**: drop the local fork commit when Paolo ships the
   custom-renderer export condition (upstream #18505 closed in favour of
-  that; he wants a Discord chat — see memory [[upstream-prs]]).
-- **Demos** (PLAN.md wishlist, good Arc-1 showcases): file browser,
-  markdown viewer, colour palette, svmux multiplexer, sveditor.
+  it; he wants a Discord chat — see memory).
+- **Demos** (PLAN.md wishlist): file browser, markdown viewer, colour
+  palette, svmux multiplexer, sveditor. Good showcases for Arc 1's
+  editing work.
 - **Docs/community**: architecture blog post; "why CSS for terminals".
 
 ## Pending user-side actions (not code)
@@ -106,6 +86,6 @@ possible.
   disclaimer README; workflow staged it 2026-07-06).
 - Deploy svelterm-site (`aws sso login --profile tyanroot`; `build/` is
   current: light-theme lift + UI surfaces hidden from production).
-- Optional: re-run or ignore the failed v0.28.0 publish workflow run
+- Optional: ignore or delete the failed v0.28.0 publish workflow run
   (expected conflict — 0.28.0 was already live; guard added in 6724b98
   applies to future tags).

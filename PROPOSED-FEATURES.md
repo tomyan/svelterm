@@ -1,5 +1,13 @@
 # Proposed features for svelterm
 
+> **Superseded by [PLAN-NEXT.md](PLAN-NEXT.md) (2026-07-06).** Most items
+> below shipped in 0.23.0–0.28.0 (relative/sticky offsets, sibling
+> border-collapse, grid-auto-flow column, minmax redistribution, form
+> attributes, motion timing, and the whole inline-flow arc); selection
+> already existed (0.6.0); border-title was decided OUT of core. The
+> few still-open items were folded into PLAN-NEXT.md. Kept for the
+> original side-by-side analysis notes only.
+
 Written 2026-07-05, from a side-by-side comparison with sumi (the Go sibling
 framework; see `~/projects/sumi/COMPARISON-svelterm.md` for the full analysis).
 Three sources: features sumi has that svelterm lacks, gaps svelterm's own docs
