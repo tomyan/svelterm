@@ -67,6 +67,12 @@ describe('parseKeyEvent', () => {
             assert.equal(key?.key, 'z')
             assert.equal(key?.ctrl, true)
         })
+
+        it('parses Ctrl+_ (0x1f)', () => {
+            const key = parseKeyEvent(Buffer.from([0x1f]))
+            assert.equal(key?.key, '_')
+            assert.equal(key?.ctrl, true)
+        })
     })
 
     describe('arrow keys', () => {

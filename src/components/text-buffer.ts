@@ -7,6 +7,12 @@ function isSpace(ch: string): boolean {
     return /\s/.test(ch)
 }
 
+/** Point-in-time editing state for undo/redo, as in sumi's snapshot. */
+interface Snapshot {
+    value: string
+    cursor: number
+}
+
 export class TextBuffer {
     private _text: string
     private _cursor: number
@@ -15,6 +21,8 @@ export class TextBuffer {
     private killRing = new KillRing()
     private _lastYank = false
     private _lastYankLength = 0
+    private undoStack: Snapshot[] = []
+    private redoStack: Snapshot[] = []
     /** Insertion cap in code units, as HTML maxlength counts them. */
     maxLength: number | null = null
     /** Blocks all mutation while leaving caret movement live. */
@@ -37,6 +45,11 @@ export class TextBuffer {
      *  units actually inserted (maxLength may truncate). */
     insert(chars: string): number {
         if (this.readOnly) return 0
+        return this.recordUndo(() => this.rawInsert(chars))
+    }
+
+    /** Insert without an undo entry — yank-pop swaps text outside undo. */
+    private rawInsert(chars: string): number {
         this.deleteSelection()
         this._lastYank = false
         if (this.maxLength !== null) {
@@ -51,19 +64,23 @@ export class TextBuffer {
 
     delete(): void {
         if (this.readOnly) return
-        if (this.deleteSelection()) return
-        if (this._cursor >= this._text.length) return
-        const end = nextGraphemeBoundary(this._text, this._cursor)
-        this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+        this.recordUndo(() => {
+            if (this.deleteSelection()) return
+            if (this._cursor >= this._text.length) return
+            const end = nextGraphemeBoundary(this._text, this._cursor)
+            this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+        })
     }
 
     backspace(): void {
         if (this.readOnly) return
-        if (this.deleteSelection()) return
-        if (this._cursor <= 0) return
-        const start = prevGraphemeBoundary(this._text, this._cursor)
-        this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
-        this._cursor = start
+        this.recordUndo(() => {
+            if (this.deleteSelection()) return
+            if (this._cursor <= 0) return
+            const start = prevGraphemeBoundary(this._text, this._cursor)
+            this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
+            this._cursor = start
+        })
     }
 
     moveLeft(): void { this._lastYank = false; this._cursor = prevGraphemeBoundary(this._text, this._cursor) }
@@ -78,38 +95,46 @@ export class TextBuffer {
 
     killWordLeft(): void {
         if (this.readOnly) return
-        if (this.deleteSelection()) return
-        const start = this.scanWordLeft(this._cursor)
-        this.killRing.push(this._text.substring(start, this._cursor))
-        this._lastYank = false
-        this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
-        this._cursor = start
+        this.recordUndo(() => {
+            if (this.deleteSelection()) return
+            const start = this.scanWordLeft(this._cursor)
+            this.killRing.push(this._text.substring(start, this._cursor))
+            this._lastYank = false
+            this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
+            this._cursor = start
+        })
     }
 
     killWordRight(): void {
         if (this.readOnly) return
-        if (this.deleteSelection()) return
-        const end = this.scanWordRight(this._cursor)
-        this.killRing.push(this._text.substring(this._cursor, end))
-        this._lastYank = false
-        this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+        this.recordUndo(() => {
+            if (this.deleteSelection()) return
+            const end = this.scanWordRight(this._cursor)
+            this.killRing.push(this._text.substring(this._cursor, end))
+            this._lastYank = false
+            this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+        })
     }
 
     killToStart(): void {
         if (this.readOnly) return
-        this.collapseSelection()
-        this.killRing.push(this._text.substring(0, this._cursor))
-        this._lastYank = false
-        this._text = this._text.substring(this._cursor)
-        this._cursor = 0
+        this.recordUndo(() => {
+            this.collapseSelection()
+            this.killRing.push(this._text.substring(0, this._cursor))
+            this._lastYank = false
+            this._text = this._text.substring(this._cursor)
+            this._cursor = 0
+        })
     }
 
     killToEnd(): void {
         if (this.readOnly) return
-        this.collapseSelection()
-        this.killRing.push(this._text.substring(this._cursor))
-        this._lastYank = false
-        this._text = this._text.substring(0, this._cursor)
+        this.recordUndo(() => {
+            this.collapseSelection()
+            this.killRing.push(this._text.substring(this._cursor))
+            this._lastYank = false
+            this._text = this._text.substring(0, this._cursor)
+        })
     }
 
     // --- Yank ---
@@ -124,14 +149,15 @@ export class TextBuffer {
         this._lastYankLength = inserted
     }
 
-    /** Replace a just-yanked text with the previous kill (Alt+Y). */
+    /** Replace a just-yanked text with the previous kill (Alt+Y). The swap
+     *  happens outside undo, as in sumi — undo steps over the whole yank. */
     yankPop(): void {
         if (this.readOnly) return
         if (!this._lastYank || this.killRing.size < 2) return
         const start = Math.max(0, this._cursor - this._lastYankLength)
         this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
         this._cursor = start
-        const inserted = this.insert(this.killRing.cyclePrev()!)
+        const inserted = this.rawInsert(this.killRing.cyclePrev()!)
         this._lastYank = true
         this._lastYankLength = inserted
     }
@@ -139,16 +165,59 @@ export class TextBuffer {
     /** Swap the graphemes around the cursor (Ctrl+T); at the end, the two before it. */
     transposeChars(): void {
         if (this.readOnly) return
+        this.recordUndo(() => {
+            this._lastYank = false
+            const len = this._text.length
+            const pos = this._cursor >= len ? prevGraphemeBoundary(this._text, len) : this._cursor
+            if (pos < 1) return
+            const aStart = prevGraphemeBoundary(this._text, pos)
+            const bEnd = nextGraphemeBoundary(this._text, pos)
+            const a = this._text.substring(aStart, pos)
+            const b = this._text.substring(pos, bEnd)
+            this._text = this._text.substring(0, aStart) + b + a + this._text.substring(bEnd)
+            this._cursor = aStart + b.length + a.length
+        })
+    }
+
+    // --- Undo / Redo ---
+
+    /** Revert to the state before the last mutation (Ctrl+_). */
+    undo(): void {
+        if (this.readOnly) return
+        const prev = this.undoStack.pop()
+        if (!prev) return
+        this.redoStack.push({ value: this._text, cursor: this._cursor })
+        this.restore(prev)
+    }
+
+    /** Reapply the last undone change. Unbound, as in sumi — readline has
+     *  no redo chord (Ctrl+Y is yank); provided for programmatic use. */
+    redo(): void {
+        if (this.readOnly) return
+        const next = this.redoStack.pop()
+        if (!next) return
+        this.undoStack.push({ value: this._text, cursor: this._cursor })
+        this.restore(next)
+    }
+
+    private restore(snapshot: Snapshot): void {
+        this._text = snapshot.value
+        this._cursor = snapshot.cursor
+        this._anchor = null
         this._lastYank = false
-        const len = this._text.length
-        const pos = this._cursor >= len ? prevGraphemeBoundary(this._text, len) : this._cursor
-        if (pos < 1) return
-        const aStart = prevGraphemeBoundary(this._text, pos)
-        const bEnd = nextGraphemeBoundary(this._text, pos)
-        const a = this._text.substring(aStart, pos)
-        const b = this._text.substring(pos, bEnd)
-        this._text = this._text.substring(0, aStart) + b + a + this._text.substring(bEnd)
-        this._cursor = aStart + b.length + a.length
+    }
+
+    /** Run a mutation, pushing the pre-state onto the undo stack when the
+     *  text actually changed (cursor-only moves never create entries). */
+    private recordUndo<T>(fn: () => T): T {
+        const value = this._text
+        const cursor = this._cursor
+        const result = fn()
+        if (this._text !== value) {
+            this.undoStack.push({ value, cursor })
+            this.redoStack = []
+        }
+        return result
     }
 
     // --- Selection ---
@@ -201,7 +270,7 @@ export class TextBuffer {
         if (this.readOnly) return false
         if (!this.copySelection()) return false
         this.killRing.push(this.selectedText())
-        this.deleteSelection()
+        this.recordUndo(() => this.deleteSelection())
         return true
     }
 

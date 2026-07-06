@@ -44,6 +44,9 @@ export function parseKeyEvent(data: Buffer | Uint8Array): KeyEvent | null {
     // Backspace
     if (byte === 0x7f) return { key: 'Backspace', ctrl: false, shift: false, meta: false }
 
+    // Ctrl+_ (undo in readline)
+    if (byte === 0x1f) return { key: '_', ctrl: true, shift: false, meta: false }
+
     // Escape sequence
     if (byte === 0x1b) return parseEscapeSequence(data)
 

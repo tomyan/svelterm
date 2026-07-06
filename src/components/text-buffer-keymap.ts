@@ -53,6 +53,7 @@ function handleCtrl(buf: TextBuffer, key: string): boolean {
         case 'k': buf.killToEnd(); return true
         case 't': buf.transposeChars(); return true
         case 'y': buf.yank(); return true
+        case '_': buf.undo(); return true
         case 'w':
             if (!buf.cutSelection()) buf.killWordLeft()
             return true
