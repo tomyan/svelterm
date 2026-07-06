@@ -118,3 +118,47 @@ describe('diffBuffers with scroll optimisation', () => {
         assert.equal(screen.rowText(19), 'r20')
     })
 })
+
+describe('detectVerticalShift rejects degenerate translations', () => {
+
+    it('a lone blank-row coincidence at near-full height is not a scroll', () => {
+        // Given: an app screen where one row's content changed (an animated
+        // bar) and the only "translated" evidence is blank row 0 matching
+        // blank row 18 — shifting 18 of 19 rows repaints almost everything
+        // and tears the display; a plain cell diff is strictly better.
+        const rows = (bar: string) => [
+            '', 'HEADER', '', 'status line', '', 'loading', bar,
+            '', 'FOOTER', '', '', '', '', '', '', '', '', '', '',
+        ]
+        const prev = buffer(rows('####      '))
+        const next = buffer(rows('#####     '))
+
+        // When / Then
+        assert.equal(detectVerticalShift(prev, next), null)
+    })
+
+    it('requires the retained rows to be the majority of the screen', () => {
+        // Given: only 1 of 4 rows would be reused (delta 3)
+        const prev = buffer(['aaa', 'bbb', 'ccc', 'ddd'])
+        const next = buffer(['ddd', '111', '222', '333'])
+
+        // When / Then: shifting 3/4 of the screen saves nothing
+        assert.equal(detectVerticalShift(prev, next), null)
+    })
+
+    it('a translation of only blank rows is not a scroll', () => {
+        // Given: content changed in place; the "matching" retained rows
+        // are all blank, so they are no evidence of movement
+        const prev = buffer(['aaa', '', '', ''])
+        const next = buffer(['bbb', '', '', ''])
+
+        // When / Then
+        assert.equal(detectVerticalShift(prev, next), null)
+    })
+
+    it('still detects a genuine one-row scroll of real content', () => {
+        const prev = buffer(['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff'])
+        const next = buffer(['bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg'])
+        assert.deepEqual(detectVerticalShift(prev, next), { delta: 1, enteringRows: [5] })
+    })
+})

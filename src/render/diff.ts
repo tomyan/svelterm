@@ -10,13 +10,18 @@ export interface VerticalShift {
 
 /**
  * Detect whether `next` is `prev` translated vertically by ±N rows over
- * the full width — a scroll. Returns null unless the retained rows match
- * exactly and at least one row is reused (so a scroll command saves work).
+ * the full width — a scroll. The shift must reuse a MAJORITY of rows
+ * (else a plain cell diff is cheaper than scrolling and repainting most
+ * of the screen) and at least one retained row must contain real
+ * content — blank rows matching blank rows are no evidence of movement,
+ * and treating them as one made every animation frame of a mostly-blank
+ * screen emit a full-height scroll, tearing the display.
  */
 export function detectVerticalShift(prev: CellBuffer, next: CellBuffer): VerticalShift | null {
     if (prev.width !== next.width || prev.height !== next.height) return null
     const height = next.height
-    for (let delta = 1; delta < height; delta++) {
+    const maxDelta = Math.floor(height / 2)
+    for (let delta = 1; delta <= maxDelta; delta++) {
         if (rowsMatchShifted(prev, next, delta)) {
             return { delta, enteringRows: range(height - delta, height) }
         }
@@ -30,18 +35,27 @@ export function detectVerticalShift(prev: CellBuffer, next: CellBuffer): Vertica
 /**
  * Do next's retained rows equal prev shifted up (delta>0) or down
  * (delta<0)? next row R comes from prev row R+delta; rows whose source
- * falls off the buffer are the entering rows and aren't compared.
+ * falls off the buffer are the entering rows and aren't compared. Only
+ * a match containing at least one non-blank retained row counts.
  */
 function rowsMatchShifted(prev: CellBuffer, next: CellBuffer, delta: number): boolean {
     const height = next.height
-    let comparedAny = false
+    let evidence = false
     for (let row = 0; row < height; row++) {
         const sourceRow = row + delta
         if (sourceRow < 0 || sourceRow >= height) continue // an entering row
-        comparedAny = true
         if (!rowsEqual(prev, next, sourceRow, row)) return false
+        if (!evidence && !rowIsBlank(next, row)) evidence = true
     }
-    return comparedAny
+    return evidence
+}
+
+function rowIsBlank(buffer: CellBuffer, row: number): boolean {
+    for (let col = 0; col < buffer.width; col++) {
+        const cell = buffer.getCell(col, row)
+        if (cell && (cell.char !== ' ' && cell.char !== '' || cell.bg !== undefined)) return false
+    }
+    return true
 }
 
 function rowsEqual(a: CellBuffer, b: CellBuffer, aRow: number, bRow: number): boolean {

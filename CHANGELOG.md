@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.27.3 — 2026-07-06
+
+### Fixed
+
+- **Animated screens no longer tear on small terminals.** The DECSTBM
+  scroll-diff (0.18.0) accepted a degenerate "translation" evidenced
+  by a single blank row matching another blank row, so on narrow
+  viewports every frame of a layout animation emitted a near-full-height
+  scroll plus a repaint of almost every row — the animations demo's
+  loading bar flickered invisible for most of each cycle. A shift now
+  requires a majority of rows to be reused and at least one retained row
+  to contain real content.
+
+
 ## 0.27.2 — 2026-07-05
 
 ### Fixed
