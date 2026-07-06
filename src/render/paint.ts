@@ -113,7 +113,10 @@ function paintNode(
     if (node.nodeType === 'element' && box && !isHidden) {
         const hideEmptyCell = ownStyle?.emptyCells === 'hide'
             && ownStyle.display === 'table-cell' && isEmptyCell(node)
-        if (!hideEmptyCell) {
+        // Union boxes (inline elements in an IFC) bound their fragments
+        // but paint nothing themselves — background reaches the text
+        // per fragment via the visuals cascade.
+        if (!hideEmptyCell && !box.union) {
             fillBackground(buffer, box, visuals, clip, ownStyle)
             if (ownStyle && ownStyle.borderStyle !== 'none') {
                 renderBorder(buffer, box, ownStyle)
@@ -273,7 +276,7 @@ function boxesOverlap(a: LayoutBox, b: ClipRect): boolean {
 
 function applyScroll(box: LayoutBox, scroll: ScrollOffset): LayoutBox {
     if (scroll.x === 0 && scroll.y === 0) return box
-    return { x: box.x - scroll.x, y: box.y - scroll.y, width: box.width, height: box.height }
+    return { ...box, x: box.x - scroll.x, y: box.y - scroll.y }
 }
 
 function paintText(

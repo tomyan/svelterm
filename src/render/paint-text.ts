@@ -39,6 +39,15 @@ export function paintTextContent(
     if (!text) return
     if (box.width === 0 && box.height === 0) return
 
+    // IFC-laid text: wrapping, whitespace collapse, text-transform and
+    // text-align already happened at layout — paint the fragments.
+    if (box.fragments) {
+        for (const fragment of box.fragments) {
+            paintGlyphRun(fragment.text, box.x + fragment.x, box.y + fragment.y, buffer, visuals, clip)
+        }
+        return
+    }
+
     // <svt-ansi> content is pre-styled — its own SGR codes win
     if (node.parent?.tag === 'svt-ansi') {
         paintAnsiContent(text, buffer, box, clip)
@@ -88,36 +97,44 @@ export function paintTextContent(
         }
     }
 
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        paintGlyphRun(lines[lineIdx], startX, box.y + lineIdx, buffer, visuals, clip)
+    }
+}
+
+/** Paint one run of styled glyphs starting at (startX, y). */
+function paintGlyphRun(
+    text: string, startX: number, y: number,
+    buffer: CellBuffer, visuals: TextVisuals,
+    clip?: { x: number; y: number; width: number; height: number } | null,
+): void {
     const fgHasAlpha = visuals.fg.startsWith('#') && visuals.fg.length === 9
     const bgHasAlpha = visuals.bg.startsWith('#') && visuals.bg.length === 9
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const y = box.y + lineIdx
-        let cx = startX
-        for (const glyph of graphemes(lines[lineIdx])) {
-            const width = Math.max(1, charWidth(glyph))
-            const cells: Array<{ x: number; char: string }> = [{ x: cx, char: glyph }]
-            // A wide glyph owns its neighbour cell via an empty continuation
-            for (let extra = 1; extra < width; extra++) cells.push({ x: cx + extra, char: '' })
-            for (const { x, char } of cells) {
-                if (clip && (x < clip.x || x >= clip.x + clip.width || y < clip.y || y >= clip.y + clip.height)) continue
-                // An alpha bg was already composited by the ancestor's fill —
-                // the cell beneath holds the blended value; don't blend twice.
-                const under = buffer.getCell(x, y)?.bg ?? 'default'
-                const bg = bgHasAlpha ? under : visuals.bg
-                buffer.setCell(x, y, {
-                    char,
-                    fg: fgHasAlpha ? blendColor(bg !== 'default' ? bg : under, visuals.fg) : visuals.fg,
-                    bg,
-                    bold: visuals.bold,
-                    italic: visuals.italic,
-                    underline: visuals.underline,
-                    strikethrough: visuals.strikethrough,
-                    dim: visuals.dim,
-                    hyperlink: visuals.hyperlink,
-                })
-            }
-            cx += width
+    let cx = startX
+    for (const glyph of graphemes(text)) {
+        const width = Math.max(1, charWidth(glyph))
+        const cells: Array<{ x: number; char: string }> = [{ x: cx, char: glyph }]
+        // A wide glyph owns its neighbour cell via an empty continuation
+        for (let extra = 1; extra < width; extra++) cells.push({ x: cx + extra, char: '' })
+        for (const { x, char } of cells) {
+            if (clip && (x < clip.x || x >= clip.x + clip.width || y < clip.y || y >= clip.y + clip.height)) continue
+            // An alpha bg was already composited by the ancestor's fill —
+            // the cell beneath holds the blended value; don't blend twice.
+            const under = buffer.getCell(x, y)?.bg ?? 'default'
+            const bg = bgHasAlpha ? under : visuals.bg
+            buffer.setCell(x, y, {
+                char,
+                fg: fgHasAlpha ? blendColor(bg !== 'default' ? bg : under, visuals.fg) : visuals.fg,
+                bg,
+                bold: visuals.bold,
+                italic: visuals.italic,
+                underline: visuals.underline,
+                strikethrough: visuals.strikethrough,
+                dim: visuals.dim,
+                hyperlink: visuals.hyperlink,
+            })
         }
+        cx += width
     }
 }
 

@@ -5,7 +5,7 @@ import { RenderContext } from '../src/render/context.js'
 
 describe('TermNode ctx-aware mutations', () => {
     describe('nodeValue setter routes through ctx', () => {
-        it('enqueues paint when nodeValue changes with same length', () => {
+        it('enqueues layout when nodeValue changes with same length', () => {
             // Given
             const ctx = new RenderContext()
             const root = new TermNode('element', 'root')
@@ -19,7 +19,7 @@ describe('TermNode ctx-aware mutations', () => {
 
             // Then
             assert.equal(text.text, 'xyz')
-            assert.ok(ctx.queue.paintOnly.has(text))
+            assert.ok(ctx.queue.layoutBubble.has(text))
         })
 
         it('enqueues layout bubble when nodeValue changes length', () => {
@@ -52,7 +52,7 @@ describe('TermNode ctx-aware mutations', () => {
     })
 
     describe('textContent setter routes through ctx', () => {
-        it('enqueues paint when textContent changes on text node', () => {
+        it('enqueues layout when textContent changes on text node', () => {
             // Given
             const ctx = new RenderContext()
             const root = new TermNode('element', 'root')
@@ -66,7 +66,7 @@ describe('TermNode ctx-aware mutations', () => {
 
             // Then
             assert.equal(text.text, 'xyz')
-            assert.ok(ctx.queue.paintOnly.has(text))
+            assert.ok(ctx.queue.layoutBubble.has(text))
         })
     })
 })

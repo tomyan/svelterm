@@ -13,16 +13,18 @@ import { diffBuffers } from '../../src/render/diff.js'
 
 describe('integration: mutations and incremental render', () => {
 
-    it('text change same length produces correct incremental output', () => {
+    it('text change re-layouts then paints incrementally', () => {
         // Given: initial render
         const tree = el('div', {}, [text('AAA')])
-        const { buffer, styles, layout, root } = render(tree, {
+        const { buffer, styles, root } = render(tree, {
             css: '', width: 20, height: 3,
         })
 
-        // When: change text and do incremental paint
+        // When: change text, re-layout (text is a layout input — inline
+        // fragments bake broken lines), then incremental paint
         const textNode = tree.children[0]
         textNode.text = 'BBB'
+        const layout = computeLayout(root, styles, 20, 3)
 
         const newBuffer = buffer.clone()
         paintNodes(new Set([textNode]), newBuffer, styles, layout, root)

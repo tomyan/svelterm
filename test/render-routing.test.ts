@@ -6,14 +6,15 @@ import { TermNode } from '../src/renderer/node.js'
 
 describe('RenderContext mutation routing', () => {
 
-    it('setText with same length enqueues paint-only', () => {
+    it('setText enqueues layout-bubble even at the same length', () => {
+        // Inline fragments bake broken lines at layout time, so any
+        // text change is a layout input.
         const ctx = new RenderContext()
         const node = new TermNode('text', 'Hello')
         node.cache.layoutBox = { x: 0, y: 0, width: 5, height: 1 }
 
         ctx.onSetText(node, 'World')
-        assert.ok(ctx.queue.paintOnly.has(node))
-        assert.ok(!ctx.queue.layoutBubble.has(node))
+        assert.ok(ctx.queue.layoutBubble.has(node))
     })
 
     it('setText with different length enqueues layout-bubble', () => {

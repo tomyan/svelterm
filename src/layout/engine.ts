@@ -9,6 +9,7 @@ import { measureAnsiText } from '../render/ansi-text.js'
 import { imageIntrinsicSize } from '../render/image.js'
 import { resolveSize, constrain } from './size.js'
 import { parseCellLength } from '../css/values.js'
+import { isInlineLevel, absorbsIntoInlineRun, layoutInlineRun } from './inline.js'
 
 /**
  * Check if two adjacent siblings should share a single border line on
@@ -100,11 +101,26 @@ function flattenContents(children: TermNode[], styles: Map<number, ResolvedStyle
     return result
 }
 
+/** One line-rectangle of an IFC text run, relative to the owning box's
+ * origin (it moves with the box through subtree shifts and scrolling). */
+export interface TextFragment {
+    x: number
+    y: number
+    width: number
+    text: string
+}
+
 export interface LayoutBox {
     x: number
     y: number
     width: number
     height: number
+    /** Per-line fragments of a text node laid out by an inline
+     * formatting context; paint renders these instead of re-wrapping. */
+    fragments?: TextFragment[]
+    /** Union rect of an inline element's descendants — the element
+     * paints no background/border of its own. */
+    union?: boolean
 }
 
 export function computeLayout(
@@ -448,9 +464,7 @@ function layoutBlockFlow(
         }
     }
 
-    let cursorX = x
     let cursorY = y
-    let lineHeight = 0
     let maxWidth = 0
     let prevBlockMarginBottom = 0
     let prevBlockStyle: ResolvedStyle | undefined
@@ -470,11 +484,6 @@ function layoutBlockFlow(
         if (isTableInternal(child, styles)) {
             const { run, end } = gatherTableRun(flatChildren, i, styles)
             i = end
-            if (cursorX > x) {
-                cursorY += lineHeight
-                cursorX = x
-                lineHeight = 0
-            }
             const size = layoutTableChildren(run, undefined, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
             cursorY += size.height
             maxWidth = Math.max(maxWidth, size.width)
@@ -483,48 +492,46 @@ function layoutBlockFlow(
             continue
         }
 
-        const isInline = child.nodeType === 'text' || s?.display === 'inline'
-            || s?.display === 'inline-block' || s?.display === 'inline-table'
-
-        if (isInline) {
-            // Flow horizontally
-            const size = layoutNode(child, styles, boxes, cursorX, cursorY, availW - (cursorX - x), availH)
-            cursorX += size.width
-            lineHeight = Math.max(lineHeight, size.height)
-            maxWidth = Math.max(maxWidth, cursorX - x)
-            prevBlockMarginBottom = 0
-        } else {
-            // Block element — new line first if we have inline content
-            if (cursorX > x) {
-                cursorY += lineHeight
-                cursorX = x
-                lineHeight = 0
-            }
-
-            // Margin collapsing: adjacent vertical margins collapse to the larger
-            const childMarginTop = resolvePadding(s?.marginTop, availW)
-            if (prevBlockMarginBottom > 0 && childMarginTop > 0) {
-                const collapsed = Math.max(prevBlockMarginBottom, childMarginTop)
-                const overlap = prevBlockMarginBottom + childMarginTop - collapsed
-                cursorY -= overlap
-            }
-
-            // Border collapse: adjacent bordered blocks overlap by 1
-            if (shouldAdjustBorderGap(prevBlockStyle, s, 'vertical')) {
-                cursorY -= 1
-            }
-
-            const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
+        if (isInlineLevel(child, styles)) {
+            // Consecutive inline-level children form one inline
+            // formatting context, laid out as a unit.
+            let end = i + 1
+            while (end < flatChildren.length && absorbsIntoInlineRun(flatChildren[end], styles)) end++
+            const run = flatChildren.slice(i, end)
+            i = end - 1
+            const size = layoutInlineRun(run, styles, boxes, x, cursorY, availW, availH - (cursorY - y),
+                (n, cx, cy, w, h) => layoutNode(n, styles, boxes, cx, cy, w, h))
             cursorY += size.height
             maxWidth = Math.max(maxWidth, size.width)
-            prevBlockMarginBottom = resolvePadding(s?.marginBottom, availW)
-            prevBlockStyle = s
+            // A whitespace-only run vanishes; it must not reset the
+            // margin-collapse context between the blocks around it.
+            if (size.height > 0) {
+                prevBlockMarginBottom = 0
+                prevBlockStyle = undefined
+            }
+            continue
         }
-    }
 
-    // Account for trailing inline content
-    if (cursorX > x) {
-        cursorY += lineHeight
+        // Block-level child (includes text excluded from inline flow,
+        // e.g. white-space: pre)
+        // Margin collapsing: adjacent vertical margins collapse to the larger
+        const childMarginTop = resolvePadding(s?.marginTop, availW)
+        if (prevBlockMarginBottom > 0 && childMarginTop > 0) {
+            const collapsed = Math.max(prevBlockMarginBottom, childMarginTop)
+            const overlap = prevBlockMarginBottom + childMarginTop - collapsed
+            cursorY -= overlap
+        }
+
+        // Border collapse: adjacent bordered blocks overlap by 1
+        if (shouldAdjustBorderGap(prevBlockStyle, s, 'vertical')) {
+            cursorY -= 1
+        }
+
+        const size = layoutNode(child, styles, boxes, x, cursorY, availW, availH - (cursorY - y))
+        cursorY += size.height
+        maxWidth = Math.max(maxWidth, size.width)
+        prevBlockMarginBottom = resolvePadding(s?.marginBottom, availW)
+        prevBlockStyle = s
     }
 
     return { width: maxWidth, height: cursorY - y }

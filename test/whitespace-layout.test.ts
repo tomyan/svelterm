@@ -61,24 +61,40 @@ describe('whitespace text node handling in layout', () => {
         assert.equal(rowText(buffer, 4), 'Third')
     })
 
-    it('space-only text as sole child is preserved (game board row)', () => {
-        // Given: a span containing only spaces (like a game grid row)
+    it('space-only text as sole child collapses to nothing (CSS white-space: normal)', () => {
+        // Given: a span containing only spaces
         const tree = el('div', { class: 'board' }, [])
-        for (let i = 0; i < 3; i++) {
-            tree.insertBefore(el('span', { class: 'row' }, [text('          ')]), null)
-        }
+        tree.insertBefore(el('span', { class: 'row' }, [text('          ')]), null)
 
         const { layout } = render(tree, {
             css: '.board { display: flex; flex-direction: column; } .row { display: block; }',
             width: 20, height: 10,
         })
 
-        // Then: each row has height 1 (spaces preserved as content)
+        // Then: the whitespace collapses away, as in a browser
+        const box = layout.get(tree.children[0].children[0].id)!
+        assert.equal(box.height, 0)
+        assert.equal(box.width, 0)
+    })
+
+    it('space-only text is preserved under white-space: pre (game board row)', () => {
+        // Given: game grid rows of spaces, opted out of collapsing
+        const tree = el('div', { class: 'board' }, [])
+        for (let i = 0; i < 3; i++) {
+            tree.insertBefore(el('span', { class: 'row' }, [text('          ')]), null)
+        }
+
+        const { layout } = render(tree, {
+            css: '.board { display: flex; flex-direction: column; }'
+                + '.row { display: block; white-space: pre; }',
+            width: 20, height: 10,
+        })
+
+        // Then: each row keeps its 10 space cells
         for (const child of tree.children) {
-            const textChild = child.children[0]
-            const box = layout.get(textChild.id)!
-            assert.equal(box.height, 1, `space-only text should have height 1`)
-            assert.equal(box.width, 10, `space-only text should have width 10`)
+            const box = layout.get(child.children[0].id)!
+            assert.equal(box.height, 1, 'space-only pre text should have height 1')
+            assert.equal(box.width, 10, 'space-only pre text should have width 10')
         }
     })
 

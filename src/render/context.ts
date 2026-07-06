@@ -11,14 +11,11 @@ export class RenderContext {
     onScheduleRender?: () => void
 
     onSetText(node: TermNode, newText: string): void {
-        const oldText = node.text ?? ''
         node.text = newText
-
-        if (oldText.length === newText.length) {
-            this.queue.enqueuePaintOnly(node)
-        } else {
-            this.queue.enqueueLayoutBubble(node)
-        }
+        // Text is a layout input: inline-flow fragments bake the broken
+        // lines at layout time, so even a same-length change must
+        // re-layout before paint.
+        this.queue.enqueueLayoutBubble(node)
         this.onScheduleRender?.()
     }
 

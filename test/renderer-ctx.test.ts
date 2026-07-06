@@ -15,7 +15,7 @@ describe('renderer with node-owned ctx', () => {
     }
 
     describe('setText', () => {
-        it('enqueues paint when text length unchanged and node has ctx', () => {
+        it('enqueues layout when text changes at the same length and node has ctx', () => {
             // Given
             const { root, ctx } = rootWithCtx()
             const text = renderer.createTextNode('abc')
@@ -25,9 +25,10 @@ describe('renderer with node-owned ctx', () => {
             // When
             renderer.setText(text, 'xyz')
 
-            // Then
+            // Then — text is a layout input (inline fragments bake
+            // broken lines), so same-length changes still re-layout
             assert.equal(text.text, 'xyz')
-            assert.ok(ctx.queue.paintOnly.has(text))
+            assert.ok(ctx.queue.layoutBubble.has(text))
         })
 
         it('enqueues layout bubble when text length changes and node has ctx', () => {

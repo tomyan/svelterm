@@ -43,10 +43,9 @@ export function computeLayoutIncremental(
         // Merge subtree layout into result, adjusting positions
         for (const [id, box] of subtreeLayout) {
             result.set(id, {
+                ...box,
                 x: box.x + boundaryBox.x,
                 y: box.y + boundaryBox.y,
-                width: box.width,
-                height: box.height,
             })
         }
         // The boundary itself keeps its original position
