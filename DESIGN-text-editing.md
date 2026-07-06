@@ -93,13 +93,50 @@ promote later if wanted.
 - **readOnly** blocks mutation, movement stays live (existing TextBuffer
   rule; matches constraints.go).
 
-## Beyond sumi (from PLAN-NEXT scope)
+## Beyond sumi (from PLAN-NEXT scope): field selection — slice 2
 
-Slice 2 adds field-local selection, which sumi's edit package doesn't
-have yet: shift+movement extends a selection, double-click selects a
-word, cut/copy route through the existing clipboard plumbing
-(`src/input/selection.ts` OSC 52 path). Detailed design lands in this
-file when slice 2 starts, after slice 1 validation.
+Sumi's edit package has no selection, so this slice follows standard
+browser input semantics, with region chords from the same readline/
+emacs family the rest of the keymap mirrors.
+
+**Model.** `TextBuffer` gains `selectionAnchor: number | null`; the
+selection is `[min(anchor, cursor), max(anchor, cursor))` in code
+units, empty when the anchor is null or equals the cursor.
+
+**Keyboard.** Shift+←/→/Home/End extends (anchor set to the cursor
+position before the first extending move); Shift+Ctrl/Alt+arrows
+extends by word. Any unshifted movement collapses the selection.
+Typing and paste replace an active selection; Backspace/Delete and the
+word deletes remove the selection only. Alt+B/F never extend (no
+shifted form in terminals).
+
+**Cut/copy chords** (Ctrl+C is svelterm exit, Ctrl+X unused — emacs
+region chords keep us in the readline family):
+
+| Chord | Op |
+|---|---|
+| Ctrl+W | with selection: cut it; without: kill word back (emacs/readline duality) |
+| Alt+W | copy selection (emacs kill-ring-save); selection stays |
+
+**Clipboard.** TextBuffer stays IO-free: cut/copy park the text and the
+caller drains it (`drainClipboardText()`) into the existing
+`copyToClipboard` (OSC 52 + platform tool). Slice 3 additionally pushes
+cuts onto the kill ring.
+
+**Mouse.** A left press that hits an editable input places the caret
+(column → offset via padding/border inset + scrollLeft); double-click
+selects the clicked word in the field and copies it (matching the
+global selection's copy-on-select). Presses landing on editable inputs
+suppress the global screen-space selection so the two highlights never
+fight; everywhere else the global controller is untouched.
+
+**Paint.** `paintInput` inverts the visible selected span while the
+element is focused.
+
+**v1 limits.** Textarea gets the keyboard selection model (shared
+TextBuffer) but no painted highlight or mouse caret — its value renders
+as a plain text child with no dedicated paint path yet. readOnly blocks
+cut (copy still works), as it blocks all mutation.
 
 ## Slices (carpaccio, one commit each)
 

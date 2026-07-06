@@ -1,5 +1,6 @@
 import type { KeyEvent } from '../input/keyboard.js'
 import { nextGraphemeBoundary, prevGraphemeBoundary } from '../layout/unicode.js'
+import { handleBufferKey } from './text-buffer-keymap.js'
 
 function isSpace(ch: string): boolean {
     return /\s/.test(ch)
@@ -8,6 +9,8 @@ function isSpace(ch: string): boolean {
 export class TextBuffer {
     private _text: string
     private _cursor: number
+    private _anchor: number | null = null
+    private _clipboard: string | null = null
     /** Insertion cap in code units, as HTML maxlength counts them. */
     maxLength: number | null = null
     /** Blocks all mutation while leaving caret movement live. */
@@ -28,6 +31,7 @@ export class TextBuffer {
 
     insert(chars: string): void {
         if (this.readOnly) return
+        this.deleteSelection()
         if (this.maxLength !== null) {
             const room = Math.max(0, this.maxLength - this._text.length)
             chars = chars.slice(0, room)
@@ -39,6 +43,7 @@ export class TextBuffer {
 
     delete(): void {
         if (this.readOnly) return
+        if (this.deleteSelection()) return
         if (this._cursor >= this._text.length) return
         const end = nextGraphemeBoundary(this._text, this._cursor)
         this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
@@ -46,6 +51,7 @@ export class TextBuffer {
 
     backspace(): void {
         if (this.readOnly) return
+        if (this.deleteSelection()) return
         if (this._cursor <= 0) return
         const start = prevGraphemeBoundary(this._text, this._cursor)
         this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
@@ -62,6 +68,7 @@ export class TextBuffer {
 
     deleteWordLeft(): void {
         if (this.readOnly) return
+        if (this.deleteSelection()) return
         const start = this.scanWordLeft(this._cursor)
         this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
         this._cursor = start
@@ -69,8 +76,94 @@ export class TextBuffer {
 
     deleteWordRight(): void {
         if (this.readOnly) return
+        if (this.deleteSelection()) return
         const end = this.scanWordRight(this._cursor)
         this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+    }
+
+    clearToStart(): void {
+        if (this.readOnly) return
+        this.collapseSelection()
+        this._text = this._text.substring(this._cursor)
+        this._cursor = 0
+    }
+
+    clearToEnd(): void {
+        if (this.readOnly) return
+        this.collapseSelection()
+        this._text = this._text.substring(0, this._cursor)
+    }
+
+    // --- Selection ---
+
+    /** Code-unit range [start, end), or null when nothing is selected. */
+    selectionRange(): { start: number; end: number } | null {
+        if (this._anchor === null || this._anchor === this._cursor) return null
+        return {
+            start: Math.min(this._anchor, this._cursor),
+            end: Math.max(this._anchor, this._cursor),
+        }
+    }
+
+    selectedText(): string {
+        const range = this.selectionRange()
+        return range ? this._text.substring(range.start, range.end) : ''
+    }
+
+    /** Anchor the selection at the cursor unless one is already growing. */
+    beginExtend(): void {
+        if (this._anchor === null) this._anchor = this._cursor
+    }
+
+    collapseSelection(): void { this._anchor = null }
+
+    /** Select the whitespace-delimited word around a code-unit offset. */
+    selectWordAt(offset: number): void {
+        if (this._text.length === 0) return
+        const at = Math.max(0, Math.min(offset, this._text.length - 1))
+        if (isSpace(this._text[at])) return
+        let start = at
+        while (start > 0 && !isSpace(this._text[start - 1])) start--
+        let end = at
+        while (end < this._text.length && !isSpace(this._text[end])) end++
+        this._anchor = start
+        this._cursor = end
+    }
+
+    /** Copy the selection for the clipboard; the selection stays. */
+    copySelection(): boolean {
+        const text = this.selectedText()
+        if (text === '') return false
+        this._clipboard = text
+        return true
+    }
+
+    /** Cut the selection for the clipboard. */
+    cutSelection(): boolean {
+        if (this.readOnly) return false
+        if (!this.copySelection()) return false
+        this.deleteSelection()
+        return true
+    }
+
+    /** Text parked by cut/copy, handed over once for the clipboard write. */
+    drainClipboardText(): string | null {
+        const text = this._clipboard
+        this._clipboard = null
+        return text
+    }
+
+    private deleteSelection(): boolean {
+        const range = this.selectionRange()
+        this._anchor = null
+        if (!range) return false
+        this._text = this._text.substring(0, range.start) + this._text.substring(range.end)
+        this._cursor = range.start
+        return true
+    }
+
+    handleKey(key: KeyEvent): boolean {
+        return handleBufferKey(this, key)
     }
 
     /** Words are whitespace-delimited: skip spaces, then the word. The
@@ -88,61 +181,5 @@ export class TextBuffer {
         while (i < this._text.length && isSpace(this._text[i])) i++
         while (i < this._text.length && !isSpace(this._text[i])) i++
         return i
-    }
-
-    clearToStart(): void {
-        if (this.readOnly) return
-        this._text = this._text.substring(this._cursor)
-        this._cursor = 0
-    }
-
-    clearToEnd(): void {
-        if (this.readOnly) return
-        this._text = this._text.substring(0, this._cursor)
-    }
-
-    handleKey(key: KeyEvent): boolean {
-        if (key.ctrl) return this.handleCtrl(key.key)
-        if (key.meta) return this.handleMeta(key.key)
-
-        switch (key.key) {
-            case 'Backspace': this.backspace(); return true
-            case 'Delete': this.delete(); return true
-            case 'ArrowLeft': this.moveLeft(); return true
-            case 'ArrowRight': this.moveRight(); return true
-            case 'Home': this.home(); return true
-            case 'End': this.end(); return true
-            default:
-                if (key.key.length === 1) {
-                    this.insert(key.key)
-                    return true
-                }
-                return false
-        }
-    }
-
-    private handleCtrl(key: string): boolean {
-        switch (key) {
-            case 'a': this.home(); return true
-            case 'e': this.end(); return true
-            case 'u': this.clearToStart(); return true
-            case 'k': this.clearToEnd(); return true
-            case 'w': this.deleteWordLeft(); return true
-            case 'ArrowLeft': this.wordLeft(); return true
-            case 'ArrowRight': this.wordRight(); return true
-            default: return false
-        }
-    }
-
-    private handleMeta(key: string): boolean {
-        switch (key) {
-            case 'b': this.wordLeft(); return true
-            case 'f': this.wordRight(); return true
-            case 'd': this.deleteWordRight(); return true
-            case 'Backspace': this.deleteWordLeft(); return true
-            case 'ArrowLeft': this.wordLeft(); return true
-            case 'ArrowRight': this.wordRight(); return true
-            default: return false
-        }
     }
 }

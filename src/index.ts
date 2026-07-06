@@ -30,6 +30,7 @@ import { cycleSelect } from './input/select.js'
 import { labelledControl } from './input/label.js'
 import { TextBuffer } from './components/text-buffer.js'
 import { syncEditConstraints } from './input/edit-constraints.js'
+import { caretOffsetForClick, ClickCounter } from './input/field-caret.js'
 import { StdinRouter, matchOSC11, parseOSC11Scheme } from './terminal/stdin-router.js'
 import { detectCapabilities, matchCPR, parseCPRRow, type ColorDepth } from './terminal/capabilities.js'
 import { copyToClipboard } from './terminal/clipboard.js'
@@ -552,6 +553,8 @@ export function run<Props extends Record<string, any>>(
             syncEditConstraints(focused)
             const oldValue = focused.textBuffer.text
             if (focused.textBuffer.handleKey(key)) {
+                const copied = focused.textBuffer.drainClipboardText()
+                if (copied) copyToClipboard(copied, data => io.write(data))
                 const newValue = focused.textBuffer.text
                 focused.attributes.set('value', newValue)
                 const textChild = focused.children.find(c => c.nodeType === 'text')
@@ -798,6 +801,34 @@ export function run<Props extends Record<string, any>>(
     return { cleanup: doCleanup, setColorScheme }
 }
 
+const fieldClicks = new ClickCounter()
+
+function isEditableField(node: TermNode): boolean {
+    return node.tag === 'input' && !isCheckableInput(node) && !hasBooleanAttribute(node, 'disabled')
+}
+
+/** Caret placement and double-click word selection inside an editable input. */
+function handleFieldClick(
+    target: TermNode, box: LayoutBox, mouse: MouseEvent,
+    ctx: RenderContext, io: TerminalIO,
+): void {
+    if (!target.textBuffer) target.textBuffer = new TextBuffer(target.attributes.get('value') ?? '')
+    syncEditConstraints(target)
+    const buf = target.textBuffer
+    const offset = caretOffsetForClick(target, box, mouse.col)
+    const clicks = fieldClicks.click(target.id, mouse.col, mouse.row, Date.now())
+    if (clicks === 2) {
+        buf.selectWordAt(offset)
+        // Copy-on-select, matching the screen-space double-click behaviour
+        const word = buf.selectedText()
+        if (word) copyToClipboard(word, data => io.write(data))
+    } else {
+        buf.collapseSelection()
+        buf.cursor = offset
+    }
+    ctx.queue.enqueuePaintOnly(target)
+}
+
 const SCROLLBAR_VISIBLE_MS = 600
 const SCROLLBAR_FADE_MS = 400
 const SCROLLBAR_FADE_FRAMES = 16
@@ -843,10 +874,18 @@ function handleMouse(
     if (mouse.type !== 'press' && mouse.type !== 'scroll') return
 
     if (mouse.button === 'left') {
-        const hadSelection = selection.range() !== null
-        selection.onPress(mouse.col, mouse.row)
-        if (hadSelection || selection.range() !== null) redrawSelection()
         const target = hitTest(root, layout, mouse.col, mouse.row)
+        const fieldBox = target && isEditableField(target) ? layout.get(target.id) : undefined
+        if (target && fieldBox) {
+            // Clicks in an editable field drive the field caret/selection;
+            // the screen-space selection clears so highlights don't fight.
+            if (selection.clear()) redrawSelection()
+            handleFieldClick(target, fieldBox, mouse, ctx, io)
+        } else {
+            const hadSelection = selection.range() !== null
+            selection.onPress(mouse.col, mouse.row)
+            if (hadSelection || selection.range() !== null) redrawSelection()
+        }
         if (target) {
             // Disabled interactive elements swallow the click, as in browsers
             if (FOCUSABLE_TAGS.has(target.tag ?? '') && hasBooleanAttribute(target, 'disabled')) return

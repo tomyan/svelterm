@@ -487,6 +487,21 @@ function paintInput(
         buffer.setCell(cx, contentY, { char: value[charIdx], fg: visuals.fg })
     }
 
+    // Selected span paints inverted while the field is focused
+    if (isFocused) {
+        const range = node.textBuffer?.selectionRange()
+        if (range) {
+            for (let i = 0; i < contentW; i++) {
+                const charIdx = scrollOffset + i
+                if (charIdx < range.start) continue
+                if (charIdx >= range.end) break
+                const cx = contentX + i
+                if (clip && !inClip(cx, contentY, clip)) continue
+                buffer.setCell(cx, contentY, { inverse: true })
+            }
+        }
+    }
+
     // Overflow indicators (faint ellipsis on top of first/last char)
     if (hasOverflowLeft) {
         const cx = contentX
