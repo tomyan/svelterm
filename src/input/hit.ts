@@ -1,4 +1,4 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, childrenWithPseudos } from '../renderer/node.js'
 import { LayoutBox } from '../layout/engine.js'
 
 export function hitTest(
@@ -38,7 +38,34 @@ function hitTestNode(
         if (hit) return hit
     }
 
+    // A union box (inline element in an IFC) bounds its fragments but
+    // only occupies cells its descendants' content covers — ragged
+    // line-end cells fall through to the container.
+    if (box.union && !occupiesCell(node, layout, layoutCol, layoutRow)) return null
+
     return node
+}
+
+/** Whether the node's own content covers the cell: fragment boxes only
+ * their line rectangles, union boxes only where a descendant does,
+ * everything else its whole rect. */
+function occupiesCell(
+    node: TermNode,
+    layout: Map<number, LayoutBox>,
+    col: number,
+    row: number,
+): boolean {
+    if (node.nodeType === 'comment') return false
+    const box = layout.get(node.id)
+    if (!box || !isInBox(col, row, box)) return false
+    if (box.union) {
+        return childrenWithPseudos(node).some(child => occupiesCell(child, layout, col, row))
+    }
+    if (box.fragments) {
+        return box.fragments.some(f =>
+            row === box.y + f.y && col >= box.x + f.x && col < box.x + f.x + f.width)
+    }
+    return true
 }
 
 function isInBox(col: number, row: number, box: LayoutBox): boolean {

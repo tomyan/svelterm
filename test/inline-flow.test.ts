@@ -6,6 +6,7 @@ import { parseCSS } from '../src/css/parser.js'
 import { resolveStyles } from '../src/css/compute.js'
 import { computeLayout } from '../src/layout/engine.js'
 import { paint } from '../src/render/paint.js'
+import { hitTest } from '../src/input/hit.js'
 
 function render(css: string, buildTree: (root: TermNode) => void, width = 10, height = 6) {
     const root = new TermNode('element', 'root')
@@ -187,6 +188,45 @@ describe('inline formatting context', () => {
         // Then the margins collapse to the larger of the two
         assert.equal(layout.get(a.id)?.y, 0)
         assert.equal(layout.get(b.id)?.y, 4)
+    })
+
+    it('hit-tests a wrapped inline element via its fragments', () => {
+        // Given a span that wraps onto a second line
+        const span = el('span', text('bb cc'))
+        const p = el('p', text('aaaa '), span)
+        let root!: TermNode
+
+        // When laid out in an 8-cell-wide container
+        // (span fragments: "bb" at (5,0), "cc" at (0,1))
+        const { layout, root: r } = render('', (rootNode) => {
+            rootNode.insertBefore(p, null)
+            root = rootNode
+        }, 8)
+
+        // Then a point on the continuation-line fragment hits the span…
+        assert.equal(hitTest(root, layout, 0, 1), span)
+        assert.equal(hitTest(root, layout, 5, 0), span)
+        // …plain sibling text hits the paragraph…
+        assert.equal(hitTest(root, layout, 1, 0), p)
+        // …and a ragged cell inside the union rect falls through to the
+        // paragraph, not the span
+        assert.equal(hitTest(root, layout, 3, 1), p)
+    })
+
+    it('still hit-tests a block element on its padding cells', () => {
+        // Given a padded block
+        const div = el('div', text('x'))
+        div.attributes.set('class', 'pad')
+        let root!: TermNode
+
+        // When laid out
+        const { layout, root: r } = render('.pad{padding:1ch}', (rootNode) => {
+            rootNode.insertBefore(div, null)
+            root = rootNode
+        }, 10)
+
+        // Then its padding cell still hits the block itself
+        assert.equal(hitTest(root, layout, 0, 0), div)
     })
 
     it('wraps an inline-block whole when it does not fit the line', () => {
