@@ -118,6 +118,39 @@ describe('parseKeyEvent', () => {
         })
     })
 
+    describe('Alt+key (ESC prefix)', () => {
+        it('parses Alt+B (ESC b)', () => {
+            const key = parseKeyEvent(Buffer.from([0x1b, 0x62]))
+            assert.equal(key?.key, 'b')
+            assert.equal(key?.meta, true)
+            assert.equal(key?.ctrl, false)
+        })
+
+        it('parses Alt+F (ESC f)', () => {
+            const key = parseKeyEvent(Buffer.from([0x1b, 0x66]))
+            assert.equal(key?.key, 'f')
+            assert.equal(key?.meta, true)
+        })
+
+        it('parses Alt+Backspace (ESC DEL)', () => {
+            const key = parseKeyEvent(Buffer.from([0x1b, 0x7f]))
+            assert.equal(key?.key, 'Backspace')
+            assert.equal(key?.meta, true)
+        })
+
+        it('parses Alt+Left (ESC[1;3D)', () => {
+            const key = parseKeyEvent(Buffer.from('\x1b[1;3D'))
+            assert.equal(key?.key, 'ArrowLeft')
+            assert.equal(key?.meta, true)
+        })
+
+        it('parses Ctrl+Right (ESC[1;5C)', () => {
+            const key = parseKeyEvent(Buffer.from('\x1b[1;5C'))
+            assert.equal(key?.key, 'ArrowRight')
+            assert.equal(key?.ctrl, true)
+        })
+    })
+
     describe('edge cases', () => {
         it('returns null for empty buffer', () => {
             const key = parseKeyEvent(Buffer.from([]))

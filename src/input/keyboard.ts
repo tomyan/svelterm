@@ -66,6 +66,15 @@ function parseEscapeSequence(data: Buffer | Uint8Array): KeyEvent {
         return parseCSI(data)
     }
 
+    // Alt+key: ESC followed by a printable character or DEL
+    const second = data[1]
+    if (second === 0x7f) {
+        return { key: 'Backspace', ctrl: false, shift: false, meta: true }
+    }
+    if (second >= 0x20 && second <= 0x7e) {
+        return { key: String.fromCharCode(second), ctrl: false, shift: false, meta: true }
+    }
+
     return { key: 'Escape', ctrl: false, shift: false, meta: false }
 }
 

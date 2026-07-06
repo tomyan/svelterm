@@ -1,6 +1,10 @@
 import type { KeyEvent } from '../input/keyboard.js'
 import { nextGraphemeBoundary, prevGraphemeBoundary } from '../layout/unicode.js'
 
+function isSpace(ch: string): boolean {
+    return /\s/.test(ch)
+}
+
 export class TextBuffer {
     private _text: string
     private _cursor: number
@@ -53,6 +57,39 @@ export class TextBuffer {
     home(): void { this._cursor = 0 }
     end(): void { this._cursor = this._text.length }
 
+    wordLeft(): void { this._cursor = this.scanWordLeft(this._cursor) }
+    wordRight(): void { this._cursor = this.scanWordRight(this._cursor) }
+
+    deleteWordLeft(): void {
+        if (this.readOnly) return
+        const start = this.scanWordLeft(this._cursor)
+        this._text = this._text.substring(0, start) + this._text.substring(this._cursor)
+        this._cursor = start
+    }
+
+    deleteWordRight(): void {
+        if (this.readOnly) return
+        const end = this.scanWordRight(this._cursor)
+        this._text = this._text.substring(0, this._cursor) + this._text.substring(end)
+    }
+
+    /** Words are whitespace-delimited: skip spaces, then the word. The
+     *  result lands beside whitespace or at an end of the text, both of
+     *  which are grapheme boundaries, so code-unit scanning is safe. */
+    private scanWordLeft(from: number): number {
+        let i = from
+        while (i > 0 && isSpace(this._text[i - 1])) i--
+        while (i > 0 && !isSpace(this._text[i - 1])) i--
+        return i
+    }
+
+    private scanWordRight(from: number): number {
+        let i = from
+        while (i < this._text.length && isSpace(this._text[i])) i++
+        while (i < this._text.length && !isSpace(this._text[i])) i++
+        return i
+    }
+
     clearToStart(): void {
         if (this.readOnly) return
         this._text = this._text.substring(this._cursor)
@@ -66,6 +103,7 @@ export class TextBuffer {
 
     handleKey(key: KeyEvent): boolean {
         if (key.ctrl) return this.handleCtrl(key.key)
+        if (key.meta) return this.handleMeta(key.key)
 
         switch (key.key) {
             case 'Backspace': this.backspace(); return true
@@ -89,6 +127,21 @@ export class TextBuffer {
             case 'e': this.end(); return true
             case 'u': this.clearToStart(); return true
             case 'k': this.clearToEnd(); return true
+            case 'w': this.deleteWordLeft(); return true
+            case 'ArrowLeft': this.wordLeft(); return true
+            case 'ArrowRight': this.wordRight(); return true
+            default: return false
+        }
+    }
+
+    private handleMeta(key: string): boolean {
+        switch (key) {
+            case 'b': this.wordLeft(); return true
+            case 'f': this.wordRight(); return true
+            case 'd': this.deleteWordRight(); return true
+            case 'Backspace': this.deleteWordLeft(); return true
+            case 'ArrowLeft': this.wordLeft(); return true
+            case 'ArrowRight': this.wordRight(); return true
             default: return false
         }
     }
