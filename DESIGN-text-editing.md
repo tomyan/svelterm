@@ -1,5 +1,7 @@
 # DESIGN — text-editing parity in input/textarea
 
+**COMPLETE — shipped as 0.29.0 (2026-07-07), all five slices.**
+
 Arc 1 of PLAN-NEXT.md. Decision (Tom, 2026-07-06): mirror sumi's text
 editing wholesale — same keymap and semantics, no redesign. Where a
 chord conflicts with an existing svelterm binding, resolve in sumi's

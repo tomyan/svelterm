@@ -98,6 +98,34 @@ activate the same defaults. Clicking a
 activates its control — wrapping or `for="id"` association both work.
 `Ctrl+C` exits.
 
+### Text editing
+
+Focused `input`/`textarea` fields have readline-style editing (the same
+keymap as sumi's editable elements):
+
+| Keys | Action |
+|---|---|
+| `←`/`→`, `Ctrl+B`/`Ctrl+F` | move by character |
+| `Alt+B`/`Alt+F`, `Ctrl+←`/`Ctrl+→`, `Alt+←`/`Alt+→` | move by word |
+| `Home`/`End`, `Ctrl+A`/`Ctrl+E` | start / end |
+| `Backspace`/`Ctrl+H`, `Delete`/`Ctrl+D` | delete char (`Ctrl+D` exits instead when `exitOn` includes it) |
+| `Ctrl+K` / `Ctrl+U` | kill to end / to start |
+| `Ctrl+W`, `Alt+Backspace` | cut the selection if one is active, else kill the word before the cursor |
+| `Alt+D` | kill the word after the cursor |
+| `Ctrl+Y` / `Alt+Y` | yank the last kill / cycle older kills right after a yank |
+| `Ctrl+T` | transpose the characters around the cursor |
+| `Ctrl+_` | undo (`Ctrl+Z` suspends, as in a shell) |
+| `Shift`+movement | extend the selection (word variants included) |
+| `Alt+W` | copy the selection |
+
+Kills feed a kill ring; cut/copy also write the system clipboard (OSC 52
+plus the platform tool). Typing, `Enter`, or paste replaces an active
+selection; `Backspace`/`Delete` remove it. Clicking an input places the
+caret; double-click selects the clicked word and copies it, like the
+screen-space selection. Words are whitespace-delimited. The selection
+highlight paints on `input` fields; `textarea` shares the keyboard model
+but has no painted highlight yet.
+
 ### Interaction model for form controls
 
 - **Checkbox** renders `[x]` / `[ ]`; **radio** renders `(•)` / `( )`

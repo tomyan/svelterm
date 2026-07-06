@@ -20,7 +20,7 @@ carpaccio slices → red/green/refactor → commit+push per slice.
   own core `border-title` property; the frameworks deliberately diverge
   here.)
 
-## Arc 1 — text-editing parity in input/textarea
+## Arc 1 — text-editing parity in input/textarea — DONE (0.29.0, DESIGN-text-editing.md)
 
 **Decision (Tom, 2026-07-06): mirror sumi's textedit wholesale.** Same
 keymap and semantics; where a chord conflicts with an existing svelterm

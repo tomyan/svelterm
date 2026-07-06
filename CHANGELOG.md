@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.29.0 — 2026-07-07
+
+### Added
+
+- **Readline editing parity in `input`/`textarea`** (mirrors sumi's
+  editable-element keymap): word movement (`Alt+B`/`Alt+F`,
+  `Ctrl`/`Alt`+arrows), word kills (`Ctrl+W`, `Alt+Backspace`, `Alt+D`),
+  a kill ring with yank and yank-pop (`Ctrl+Y`, `Alt+Y`), transpose
+  (`Ctrl+T`), `Ctrl+B`/`F`/`H`/`D` chord aliases, and undo on `Ctrl+_`
+  with snapshot stacks (redo is programmatic).
+- **Field selection**: `Shift`+movement extends (word variants too),
+  typing/paste replaces, deletes remove the selection only. `Ctrl+W`
+  cuts an active selection, `Alt+W` copies — both through the OSC 52 +
+  platform-tool clipboard path. The selected span paints inverted on
+  focused inputs.
+- **Mouse caret**: clicking an editable input places the caret at the
+  clicked column (border/padding/scroll aware); double-click selects the
+  clicked word and copies it. Field presses clear the screen-space
+  selection so the highlights never fight.
+- Key parser: legacy `ESC`-prefixed Alt chords (`ESC b`, `ESC DEL`, …)
+  now decode as `meta` key events instead of bare `Escape`; `0x1f`
+  decodes as `Ctrl+_`.
+
 ## 0.28.0 — 2026-07-06
 
 ### Changed (breaking)
