@@ -47,5 +47,14 @@ jobs:
       - name: Build (tsc + precompile devtools)
         run: npm run build
 
+      # Idempotent: a release for a version that was already published
+      # (e.g. out-of-band with an OTP) skips cleanly instead of failing
+      # on the registry conflict.
       - name: Publish
-        run: npm stage publish --provenance --access public
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$(npm view "@svelterm/core@$version" version 2>/dev/null)" = "$version" ]; then
+            echo "@svelterm/core@$version is already on the registry — skipping"
+            exit 0
+          fi
+          npm stage publish --provenance --access public
