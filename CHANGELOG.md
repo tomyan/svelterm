@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.28.0 — 2026-07-06
+
+### Changed (breaking)
+
+- **Real inline formatting context.** Consecutive inline-level children
+  of a block container now lay out as one unit, matching browser text
+  flow: text runs gather across inline element boundaries, so
+  `a <strong>b</strong> c` wraps as a single paragraph with lines
+  breaking mid-element and continuation lines returning to the
+  container's left edge (previously each inline child wrapped
+  independently at a cursor). Words spanning element boundaries stay
+  unbreakable; `inline-block`s flow on the line as atomic units.
+- **CSS whitespace collapsing.** `white-space: normal` now collapses as
+  in a browser: runs of spaces/tabs/newlines become one space,
+  leading/trailing whitespace per line is stripped, and the breaking
+  space is consumed at a wrap. Space-only text collapses away — rows
+  built from bare spaces (e.g. game boards) now need
+  `white-space: pre`.
+- **Per-line `text-align`.** Alignment shifts each line box
+  independently at layout time; previously every line was shifted by
+  the first line's width.
+- **Inline elements are style-only.** A `display: inline` element in an
+  IFC contributes styling to its text but no longer applies border,
+  padding, or margin; its layout box is the union rect of its
+  fragments. `inline-block` keeps the full box model.
+- Text changes always re-layout: the same-length `setText` paint-only
+  fast path is gone (fragments bake broken lines at layout time).
+
+### Added
+
+- Fragment-aware hit testing: clicking or hovering a wrapped inline
+  element targets it on any of its lines, while ragged line-end cells
+  inside its bounding rect fall through to the container.
+
+
 ## 0.27.3 — 2026-07-06
 
 ### Fixed

@@ -1,6 +1,9 @@
 # Inline formatting context — port of sumi's B4 text-layout arc
 
-Status: IN PROGRESS 2026-07-06.
+Status: COMPLETE 2026-07-06 (commits 52776ef, d53a7fd + docs/version
+sweep). Slices 1–3 landed as one commit: existing inline-block tests
+required atoms from the start, and existing text-align tests required
+per-line alignment, so neither could ship separately.
 Source: sumi B4 arc (`~/projects/sumi/design-b4-block-inline.md`, commits
 6bcf73d..edfb18e + 0899350). All design decisions were resolved with Tom
 during the sumi work; this port mirrors them. Reference implementation:

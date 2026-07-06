@@ -31,9 +31,17 @@ scrolled one line is ~13× less output, which shows on slow links.
 ## Display and flow
 
 `display: block, inline, inline-block, flex, grid, none, contents` and
-the full set of table display types. Inline elements flow horizontally
-and wrap; whitespace between inline siblings is preserved, between block
-siblings collapsed — matching browser text flow.
+the full set of table display types. Consecutive inline-level children
+form an inline formatting context, as in a browser: text flows across
+inline element boundaries (`a <strong>b</strong> c` wraps as one
+paragraph, with lines breaking mid-element where needed), whitespace
+collapses per `white-space: normal` (runs of spaces and newlines become
+one space, leading/trailing whitespace on each line is stripped), and
+`text-align` shifts each line box independently. Use `white-space: pre`
+to preserve spacing exactly — including rows built entirely of spaces,
+such as game boards. Inline elements are style-only (no border, padding,
+or margin); `inline-block` keeps the full box model and flows on the
+line as an unbreakable unit.
 
 ## Flexbox
 
