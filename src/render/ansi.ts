@@ -110,6 +110,8 @@ function sgrColor(color: string, names: Record<string, number>, extended: 38 | 4
 const ANSI_FG: Record<string, number> = {
     black: 30, red: 31, green: 32, yellow: 33,
     blue: 34, magenta: 35, cyan: 36, white: 37,
+    brightblack: 90, brightred: 91, brightgreen: 92, brightyellow: 93,
+    brightblue: 94, brightmagenta: 95, brightcyan: 96, brightwhite: 97,
     default: 39,
 }
 
@@ -188,5 +190,7 @@ export function endSyncUpdate(): string {
 const ANSI_BG: Record<string, number> = {
     black: 40, red: 41, green: 42, yellow: 43,
     blue: 44, magenta: 45, cyan: 46, white: 47,
+    brightblack: 100, brightred: 101, brightgreen: 102, brightyellow: 103,
+    brightblue: 104, brightmagenta: 105, brightcyan: 106, brightwhite: 107,
     default: 49,
 }

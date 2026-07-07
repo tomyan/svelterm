@@ -25,7 +25,7 @@ after(() => {
 
 test('all palette sections render', async () => {
     const screen = await h.waitForText('Grayscale ramp', 5000)
-    assert.match(screen, /ANSI colours/)
+    assert.match(screen, /16 ANSI colours/)
     assert.match(screen, /256-colour cube/)
     assert.match(screen, /24-bit hue sweep/)
 })
@@ -39,15 +39,18 @@ async function rowBackgrounds(y: number, width = 60): Promise<string[]> {
 test('swatch cells carry background colours', async () => {
     // Given — the ANSI swatch row
     const lines = (await h.screenText()).split('\n')
-    const ansiY = lines.findIndex(line => line.includes('ANSI colours')) + 1
+    const ansiY = lines.findIndex(line => line.includes('16 ANSI colours')) + 1
 
-    // Then — the eight named backgrounds appear in order
-    const bgs = await rowBackgrounds(ansiY)
+    // Then — the eight base then eight bright named backgrounds in order
+    const bgs = await rowBackgrounds(ansiY, 70)
     const named = bgs.filter(bg => bg !== 'default')
-    assert.deepEqual([...new Set(named)],
-        ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'])
+    assert.deepEqual([...new Set(named)], [
+        'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+        'brightblack', 'brightred', 'brightgreen', 'brightyellow',
+        'brightblue', 'brightmagenta', 'brightcyan', 'brightwhite',
+    ])
     // Each swatch is two cells wide
-    assert.equal(named.length, 16)
+    assert.equal(named.length, 32)
 
     // And — the truecolor sweep uses concrete rgb backgrounds
     const sweepY = lines.findIndex(line => line.includes('24-bit hue sweep')) + 1

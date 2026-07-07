@@ -9,6 +9,11 @@ describe('resolveColor', () => {
         it('resolves "black" to "black"', () => assert.equal(resolveColor('black'), 'black'))
         it('is case-insensitive', () => assert.equal(resolveColor('RED'), 'red'))
         it('is case-insensitive for mixed case', () => assert.equal(resolveColor('Cyan'), 'cyan'))
+        it('resolves bright variants to themselves', () => {
+            assert.equal(resolveColor('brightred'), 'brightred')
+            assert.equal(resolveColor('brightBlack'), 'brightblack')
+            assert.equal(resolveColor('BRIGHTWHITE'), 'brightwhite')
+        })
     })
 
     describe('exact-primary hexes stay truecolor (keywords are themeable, hex is exact)', () => {

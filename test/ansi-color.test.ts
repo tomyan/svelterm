@@ -22,6 +22,13 @@ describe('ansi color output', () => {
 
     it('handles named ANSI colors', () => {
         assert.equal(fgColor('red'), '\x1b[31m')
+    })
+
+    it('emits bright ANSI names as SGR 90-97 / 100-107', () => {
+        assert.equal(fgColor('brightred'), '\x1b[91m')
+        assert.equal(fgColor('brightblack'), '\x1b[90m')
+        assert.equal(bgColor('brightblue'), '\x1b[104m')
+        assert.equal(bgColor('brightwhite'), '\x1b[107m')
         assert.equal(bgColor('blue'), '\x1b[44m')
     })
 

@@ -32,10 +32,13 @@
     <span class="title">Colour palettes</span>
 
     <div class="section">
-        <span class="label">ANSI colours (named, depth-independent)</span>
+        <span class="label">16 ANSI colours (named, depth-independent)</span>
         <div class="row">
             {#each ANSI as name (name)}
                 <span class="swatch" style={`background: ${name}`}>{'  '}</span>
+            {/each}
+            {#each ANSI as name (name)}
+                <span class="swatch" style={`background: bright${name}`}>{'  '}</span>
             {/each}
         </div>
     </div>

@@ -403,6 +403,10 @@ function toHex(n: number): string {
 const ANSI_COLORS: Record<string, string> = {
     black: 'black', red: 'red', green: 'green', yellow: 'yellow',
     blue: 'blue', magenta: 'magenta', cyan: 'cyan', white: 'white',
+    brightblack: 'brightblack', brightred: 'brightred',
+    brightgreen: 'brightgreen', brightyellow: 'brightyellow',
+    brightblue: 'brightblue', brightmagenta: 'brightmagenta',
+    brightcyan: 'brightcyan', brightwhite: 'brightwhite',
 }
 
 // --- CSS named colours (all 148) ---
