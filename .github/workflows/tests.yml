@@ -1,0 +1,59 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Resolve svelte fork revision
+        id: fork
+        run: |
+          sha=$(git ls-remote https://github.com/tomyan/svelte.git refs/heads/svelte-custom-renderer | cut -f1)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Cache built svelte fork
+        id: fork-cache
+        uses: actions/cache@v4
+        with:
+          path: ../svelte-fork
+          key: svelte-fork-${{ steps.fork.outputs.sha }}
+
+      - name: Build svelte custom renderer fork
+        if: steps.fork-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b svelte-custom-renderer \
+            https://github.com/tomyan/svelte.git ../svelte-fork
+          cd ../svelte-fork
+          pnpm install
+          pnpm -C packages/svelte build
+
+      - name: Install dependencies and link svelte fork
+        run: |
+          npm install --ignore-scripts
+          npm install ../svelte-fork/packages/svelte --no-save
+          # node-pty ships no linux prebuilds and --ignore-scripts skipped
+          # its build — compile it for the svmux E2E scenario
+          npm rebuild node-pty
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: E2E scenarios
+        run: npm run test:e2e
