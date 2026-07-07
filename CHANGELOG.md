@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.31.0 — 2026-07-07
+
+### Added
+
+- **Keyboard scrolling as a keydown default action**: unconsumed
+  arrows and PageUp/PageDown scroll the pane around the focused
+  element (else the first scroll pane, else the root), with the same
+  clamping and scrollbar fade as the wheel. Arrows stay with a focused
+  text field; `preventDefault()` on keydown suppresses it.
+- **Bright ANSI colour keywords** `brightblack` … `brightwhite`,
+  emitted as SGR 90-97/100-107 — depth-independent like the base eight.
+- **Orphan-proof scenario harness**: `launch(entry)` spawns an app on
+  an OS-assigned debug port (`SVELTERM_DEBUG_PORT=0` +
+  `SVELTERM_DEBUG_PORT_FILE` announcement), pid-verifies the
+  connection (`Runtime.info`, `connect({ pid })`), and the app exits
+  by itself when the controlling process dies
+  (`SVELTERM_EXIT_ON_STDIN_END=1` — stdin EOF).
+
+### Fixed
+
+- **Flex items with non-visible overflow shrink without an explicit
+  main size** (their §4.5 auto min-size is 0), so an `overflow: scroll`
+  + `flex-grow: 1` pane in a fixed column finally has something to
+  scroll. Shrink distribution is now §9.7-shaped: iterative, weighted
+  by scaled shrink factor, redistributing what clamped items can't
+  absorb. Plain content-sized items still never shrink.
+- Programmatic writes work for demos bundled with the repo vite config:
+  `node:`-prefixed builtins were shimmed to browser stubs (silently
+  disabling the OSC 52 platform tool and `/dev/tty` reopening).
+
 ## 0.30.1 — 2026-07-07
 
 ### Added

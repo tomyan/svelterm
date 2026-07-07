@@ -100,6 +100,14 @@ The terminal's own scheme is detected by polling OSC 11 (override with
 [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark)
 is usually the shortest way to theme a component for both schemes.
 
+## Named terminal colours
+
+The sixteen ANSI names — `black`, `red`, `green`, `yellow`, `blue`,
+`magenta`, `cyan`, `white` and their `bright*` variants
+(`brightblack` … `brightwhite`) — emit palette escape codes rather
+than truecolor, so they follow the user's terminal theme at any colour
+depth. All other CSS named colours resolve to their hex values.
+
 ## Alpha and opacity
 
 Terminals have no alpha layer, so svelterm composites at paint time:
