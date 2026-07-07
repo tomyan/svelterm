@@ -7,6 +7,7 @@ import { paintTextContent } from './paint-text.js'
 import { blendColor } from '../css/color.js'
 import { stringWidth } from '../layout/unicode.js'
 import { bumpPaintGeneration, paintGeneration } from './generation.js'
+import { syncTextareaView, paintTextareaSelection } from './paint-textarea.js'
 import { ensureImageLoading, paintImage } from './image.js'
 import { renderScrollbar, renderHScrollbar } from './scrollbar.js'
 import { dispatchEvent } from '../input/dispatch.js'
@@ -153,6 +154,11 @@ function paintNode(
                 paintInput(node, buffer, box, visuals, clip)
             }
         }
+        if (node.tag === 'textarea' && box) {
+            // Caret-follow must run before children so their scroll offset
+            // reflects the adjusted scrollTop/scrollLeft
+            syncTextareaView(node, box, styles?.get(node.id), clip)
+        }
         if (node instanceof SvtRegionNode) {
             paintRegion(node, buffer, box, clip)
             return
@@ -194,6 +200,11 @@ function paintNode(
         : kids
     for (const child of ordered) {
         paintNode(child, buffer, styles, layout, visuals, childClip, childScroll, damageClip)
+    }
+
+    // Selection inverts on top of the painted value
+    if (node.nodeType === 'element' && node.tag === 'textarea' && box) {
+        paintTextareaSelection(node, buffer, box, styles?.get(node.id), childClip)
     }
 
     // Render scrollbar overlays for scrollable containers

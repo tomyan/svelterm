@@ -12,6 +12,11 @@ function isPlainAscii(text: string): boolean {
 
 export function wrapText(text: string, width: number, wordBreak: WordBreak = 'normal'): string[] {
     if (text === '') return ['']
+    // Hard newlines (pre-formatted text, textarea values) always break;
+    // each segment wraps independently.
+    if (text.includes('\n')) {
+        return text.split('\n').flatMap(segment => wrapText(segment, width, wordBreak))
+    }
     if (isPlainAscii(text)) return wrapAscii(text, width, wordBreak)
     return wrapGraphemes(text, width, wordBreak)
 }

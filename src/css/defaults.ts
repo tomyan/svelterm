@@ -25,6 +25,7 @@ mark { background-color: yellow; color: black; }
 kbd { border: single; border-color: gray; padding: 0 1cell; }
 progress, meter { display: inline-block; width: 20cell; height: 1cell; }
 input[type="checkbox"], input[type="radio"] { display: inline-block; width: 3cell; height: 1cell; }
+textarea { display: block; white-space: pre; overflow: hidden; }
 details:not([open]) > :not(summary) { display: none; }
 summary { padding-left: 2cell; }
 select { display: inline-block; height: 1cell; }
