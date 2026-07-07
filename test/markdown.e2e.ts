@@ -34,6 +34,9 @@ const answer = 42
 \`\`\`
 
 End paragraph.
+
+${Array.from({ length: 30 }, (_, i) => `Section ${i} body text.\n`).join('\n')}
+THE END
 `
 
 let dir: string
@@ -79,6 +82,39 @@ test('heading and code pick up their colors', async () => {
     assert.match(styled, /FIXTURE DOC/)
     assert.match(styled, /cyan/)
     assert.match(styled, /green/)
+})
+
+test('keys scroll the document', async () => {
+    // Given — the tail is out of the viewport
+    assert.doesNotMatch(await h.screenText(), /THE END/)
+
+    // When — page down through the document
+    for (let i = 0; i < 10; i++) await h.key('PageDown')
+
+    // Then — the tail is visible, the head has scrolled away
+    const bottom = await h.waitForText('THE END', 2000)
+    assert.doesNotMatch(bottom, /FIXTURE DOC/)
+
+    // And — paging back returns to the head
+    for (let i = 0; i < 10; i++) await h.key('PageUp')
+    await h.waitForText('FIXTURE DOC', 2000)
+})
+
+test('the mouse wheel scrolls too', async () => {
+    // When — wheel down over the document
+    for (let i = 0; i < 8; i++) {
+        await h.request('Input.mouse', { type: 'scroll', x: 20, y: 10, button: 'scrollDown' })
+    }
+    await h.settle()
+
+    // Then
+    const screen = await h.screenText()
+    assert.doesNotMatch(screen, /FIXTURE DOC/)
+    assert.match(screen, /Section/)
+
+    // Cleanup — back to the top for any later test
+    for (let i = 0; i < 10; i++) await h.key('PageUp')
+    await h.waitForText('FIXTURE DOC', 2000)
 })
 
 test('inline formatting styles the exact cells', async () => {
