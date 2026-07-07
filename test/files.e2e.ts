@@ -1,24 +1,22 @@
 /**
  * E2E scenario for the file-browser demo: list a fixture tree, move the
  * selection with arrows, descend with Enter, come back with Backspace.
- * Run via `npm run test:e2e`. The demo's debug server sits on 9445 so
- * the counter scenario (9444) can run in a parallel test process.
+ * Run via `npm run test:e2e`.
  */
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { connect, type Harness } from '../src/debug/harness.js'
+import { launch, type Harness } from '../src/debug/harness.js'
 
 const DEMO_ENTRY = fileURLToPath(new URL('../../dist-demo/files/main.js', import.meta.url))
 
 let fixtureRoot: string
-let app: ChildProcess
 let h: Harness
+let closeApp: () => void
 
 before(async () => {
     // Given — a small fixture tree
@@ -33,18 +31,13 @@ before(async () => {
     writeFileSync(join(fixtureRoot, 'readme.md'), '# Fixture readme\nsecond line\n')
     writeFileSync(join(fixtureRoot, 'zebra.txt'), 'stripes\n')
 
-    app = spawn(process.execPath, [DEMO_ENTRY], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, TERM: 'xterm-256color', SVELTERM_BROWSE_ROOT: fixtureRoot },
-    })
-    app.stdout!.resume()
-    app.stderr!.resume()
-    h = await connect({ port: 9445, timeoutMs: 5000 })
+    const launched = await launch(DEMO_ENTRY, { env: { SVELTERM_BROWSE_ROOT: fixtureRoot } })
+    h = launched.harness
+    closeApp = launched.close
 })
 
 after(() => {
-    h?.close()
-    app?.kill('SIGKILL')
+    closeApp?.()
     rmSync(fixtureRoot, { recursive: true, force: true })
 })
 

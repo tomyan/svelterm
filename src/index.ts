@@ -133,7 +133,10 @@ export function run<Props extends Record<string, any>>(
     const fullscreen = !inline && (options?.fullscreen ?? true)
     const mouseEnabled = options?.mouse ?? true
     const debugEnabled = options?.debug ?? false
-    const debugPort = options?.debugPort ?? 9444
+    // The env override outranks the app's option so a harness can pick
+    // the port (0 = OS-assigned, announced via SVELTERM_DEBUG_PORT_FILE)
+    const envDebugPort = typeof process !== 'undefined' ? process.env.SVELTERM_DEBUG_PORT : undefined
+    const debugPort = envDebugPort !== undefined ? Number(envDebugPort) : (options?.debugPort ?? 9444)
     const exitOn = options?.exitOn ?? ['ctrl+c']
     const userCss = options?.css ?? [...registeredComponentCss].join('\n')
     let stylesheet = parseCSS(DEFAULT_STYLESHEET + userCss)
@@ -631,7 +634,8 @@ export function run<Props extends Record<string, any>>(
             import('./debug/css.js'),
             import('./debug/input.js'),
             import('./debug/screen.js'),
-        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }, { InputDomain }, { ScreenDomain }]) => {
+            import('./debug/runtime.js'),
+        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }, { InputDomain }, { ScreenDomain }, { RuntimeDomain }]) => {
             debugServer = new DebugServer(debugPort)
             consoleDomain = new ConsoleDomain(debugServer)
             const debugCtx = {
@@ -652,9 +656,18 @@ export function run<Props extends Record<string, any>>(
                 displayBuffer: () => prevBuffer,
                 renderPending: () => renderScheduled || !ctx.queue.isEmpty(),
             }))
+            debugServer.registerDomain('Runtime', new RuntimeDomain())
             consoleDomain.start()
             consoleDomain.replay(pendingConsole.splice(0))
-            debugServer.start()
+            debugServer.start().then(() => {
+                // Announce the bound port (SVELTERM_DEBUG_PORT=0 lets the
+                // OS choose one) so harnesses can discover it.
+                const portFile = process.env.SVELTERM_DEBUG_PORT_FILE
+                if (!portFile) return
+                import('node:fs').then(fs => {
+                    try { fs.writeFileSync(portFile, String(debugServer.actualPort)) } catch { /* best-effort */ }
+                })
+            })
         })
     }
 
@@ -803,6 +816,17 @@ export function run<Props extends Record<string, any>>(
         process.on('SIGINT', () => { doCleanup(); process.exit(0) })
         process.on('SIGTERM', () => { doCleanup(); process.exit(0) })
         process.on('SIGCONT', resume)
+
+        // Opt-in orphan guard for harness-spawned apps: when the parent
+        // process dies its stdin pipe closes, so treat EOF as "controller
+        // gone" and exit. Not the default — `curl app.mjs | node -`
+        // exhausts stdin at startup and must keep running.
+        if (process.env.SVELTERM_EXIT_ON_STDIN_END === '1' && !process.stdin.isTTY) {
+            const exitOnEnd = () => { doCleanup(); process.exit(0) }
+            process.stdin.once('end', exitOnEnd)
+            process.stdin.once('close', exitOnEnd)
+            process.stdin.resume()
+        }
     }
 
     const setColorScheme = (scheme: 'dark' | 'light') => {

@@ -9,24 +9,16 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { connect } from '../src/debug/harness.js'
+import { launch } from '../src/debug/harness.js'
 
 const DEMO_ENTRY = fileURLToPath(new URL('../../dist-demo/counter/main.js', import.meta.url))
 
 test('counter demo: focus, click, and count over the debug protocol', async () => {
-    // Given — the demo running headless (stdout piped, injection replaces stdin)
-    const app = spawn(process.execPath, [DEMO_ENTRY], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, TERM: 'xterm-256color' },
-    })
-    app.stdout.resume()
-    app.stderr.resume()
+    // Given — the demo launched orphan-proof (OS-assigned port, pid-checked)
+    const { harness: h, close } = await launch(DEMO_ENTRY)
 
     try {
-        const h = await connect({ port: 9444, timeoutMs: 5000 })
-
         // Then — the first frame paints
         await h.waitForText('Svelterm — Counter Demo', 5000)
 
@@ -49,9 +41,23 @@ test('counter demo: focus, click, and count over the debug protocol', async () =
 
         // Then — back to 1
         await h.waitForText(/\b1\b/, 2000)
-
-        h.close()
     } finally {
-        app.kill('SIGKILL')
+        close()
     }
+})
+
+test('a launched app exits by itself when its stdin pipe closes', async () => {
+    // Given
+    const { harness, app } = await launch(DEMO_ENTRY)
+    harness.close()
+
+    // When — simulate the controlling process dying
+    app.stdin!.end()
+
+    // Then — the app exits on its own (no SIGKILL needed)
+    const code = await new Promise<number | null>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('app did not exit on stdin EOF')), 3000)
+        app.once('exit', exitCode => { clearTimeout(timer); resolve(exitCode) })
+    })
+    assert.equal(code, 0)
 })

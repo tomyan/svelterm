@@ -1,16 +1,15 @@
 /**
  * E2E scenario for the markdown-viewer demo: render a fixture document
- * and assert every block type on the emulated screen. Debug port 9446.
+ * and assert every block type on the emulated screen.
  */
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { connect, type Harness } from '../src/debug/harness.js'
+import { launch, type Harness } from '../src/debug/harness.js'
 
 const DEMO_ENTRY = fileURLToPath(new URL('../../dist-demo/markdown/main.js', import.meta.url))
 
@@ -40,24 +39,19 @@ THE END
 `
 
 let dir: string
-let app: ChildProcess
 let h: Harness
+let closeApp: () => void
 
 before(async () => {
     dir = mkdtempSync(join(tmpdir(), 'svelterm-md-'))
     writeFileSync(join(dir, 'doc.md'), FIXTURE)
-    app = spawn(process.execPath, [DEMO_ENTRY], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, TERM: 'xterm-256color', SVELTERM_MD_FILE: join(dir, 'doc.md') },
-    })
-    app.stdout!.resume()
-    app.stderr!.resume()
-    h = await connect({ port: 9446, timeoutMs: 5000 })
+    const launched = await launch(DEMO_ENTRY, { env: { SVELTERM_MD_FILE: join(dir, 'doc.md') } })
+    h = launched.harness
+    closeApp = launched.close
 })
 
 after(() => {
-    h?.close()
-    app?.kill('SIGKILL')
+    closeApp?.()
     rmSync(dir, { recursive: true, force: true })
 })
 

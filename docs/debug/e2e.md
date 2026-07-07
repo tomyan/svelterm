@@ -12,12 +12,34 @@ pipeline included. The in-test counterpart is
 run(App, { css, debug: true })   // debug server on 127.0.0.1:9444
 ```
 
-No TTY is needed — injected events replace stdin, so the app can be a
-child process with piped stdio:
+No TTY is needed — injected events replace stdin. The easy path is
+`launch()`, which spawns the app orphan-proof:
 
 ```ts
-const app = spawn(process.execPath, ['dist/main.js'], { stdio: 'pipe' })
+import { launch } from '@svelterm/core/harness'
+
+const { harness: h, app, close } = await launch('dist/main.js', {
+    env: { MY_FIXTURE: '/tmp/fixture' },
+})
+// ... drive h ...
+close()
 ```
+
+`launch()` sets three environment variables the core understands:
+
+- `SVELTERM_DEBUG_PORT=0` — overrides the app's `debugPort` option; `0`
+  binds an OS-assigned port, so parallel tests never collide.
+- `SVELTERM_DEBUG_PORT_FILE=<path>` — the app writes the bound port
+  there once the server is up; `launch()` polls it.
+- `SVELTERM_EXIT_ON_STDIN_END=1` — the app treats stdin EOF as
+  "controlling process died" and exits cleanly, so a crashed or killed
+  test run cannot leave orphans behind. (Opt-in: `curl app.mjs |
+  node -` exhausts stdin at startup and must keep running.)
+
+The connection is also pid-verified against the spawned child — if an
+orphan from an earlier run somehow still holds the port, `connect`
+fails with a message naming both pids instead of silently driving the
+wrong app.
 
 ## Drive it
 
@@ -25,6 +47,7 @@ const app = spawn(process.execPath, ['dist/main.js'], { stdio: 'pipe' })
 import { connect } from '@svelterm/core/harness'
 import assert from 'node:assert/strict'
 
+// connect() attaches to an already-running app (launch() calls it for you)
 const h = await connect({ port: 9444, timeoutMs: 5000 }) // retries while the app boots
 
 await h.waitForText('My App', 5000)   // first frame painted
@@ -64,6 +87,7 @@ For non-JS clients, the wire protocol is JSON over the WebSocket:
 | `Screen.styled` | | styled markup (colors/attributes) |
 | `Screen.cell` | `{ x, y }` | one cell record |
 | `Screen.settle` | `{ timeoutMs? }` | replies once no render is pending |
+| `Runtime.info` | | `{ pid, startedAt }` of the app process |
 
 `test/counter.e2e.ts` is the reference scenario (run with
 `npm run test:e2e`); [svt](./svt.md) and [DevTools](./devtools.md)

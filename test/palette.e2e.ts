@@ -1,32 +1,26 @@
 /**
  * E2E scenario for the colour-palette demo: the sections render and the
- * swatch cells carry their background colours. Debug port 9447.
+ * swatch cells carry their background colours.
  */
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { connect, type Harness } from '../src/debug/harness.js'
+import { launch, type Harness } from '../src/debug/harness.js'
 
 const DEMO_ENTRY = fileURLToPath(new URL('../../dist-demo/palette/main.js', import.meta.url))
 
-let app: ChildProcess
 let h: Harness
+let closeApp: () => void
 
 before(async () => {
-    app = spawn(process.execPath, [DEMO_ENTRY], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
-    })
-    app.stdout!.resume()
-    app.stderr!.resume()
-    h = await connect({ port: 9447, timeoutMs: 5000 })
+    const launched = await launch(DEMO_ENTRY, { env: { COLORTERM: 'truecolor' } })
+    h = launched.harness
+    closeApp = launched.close
 })
 
 after(() => {
-    h?.close()
-    app?.kill('SIGKILL')
+    closeApp?.()
 })
 
 test('all palette sections render', async () => {

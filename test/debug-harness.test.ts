@@ -128,6 +128,22 @@ describe('debug harness', () => {
         r.stop()
     })
 
+    it('connect with a pid verifies the process behind the socket', async () => {
+        // Given — a server reporting this process's pid
+        const server = new DebugServer(0)
+        server.registerDomain('Runtime', { handle: () => ({ pid: process.pid }) })
+        await server.start()
+
+        // Then — the right pid connects, a wrong pid fails loudly
+        const ok = await connect({ port: server.actualPort, pid: process.pid })
+        ok.close()
+        await assert.rejects(
+            connect({ port: server.actualPort, pid: process.pid + 1 }),
+            /orphaned app/,
+        )
+        server.stop()
+    })
+
     it('connect retries until the server is listening', async () => {
         // Given — a server that starts only after connect() begins retrying
         const server = new DebugServer(0)

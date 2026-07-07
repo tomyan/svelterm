@@ -31,7 +31,8 @@ export default defineConfig({
             fileName: 'main',
         },
         rollupOptions: {
-            external: ['svelte', 'svelte/renderer', 'svelte/internal', 'svelte/internal/client', 'node:module', 'fs', 'url', 'path', 'ws', 'http', 'crypto', 'child_process'],
+            external: ['svelte', 'svelte/renderer', 'svelte/internal', 'svelte/internal/client', 'node:module', 'fs', 'url', 'path', 'ws', 'http', 'crypto', 'child_process',
+                'node:fs', 'node:fs/promises', 'node:tty', 'node:child_process', 'node:os', 'node:path', 'node:url'],
         },
     },
 })
