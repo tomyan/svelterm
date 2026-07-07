@@ -27,6 +27,8 @@ export class TextBuffer {
     maxLength: number | null = null
     /** Blocks all mutation while leaving caret movement live. */
     readOnly = false
+    /** Line-aware editing (textarea): Enter inserts, Up/Down move lines. */
+    multiline = false
 
     constructor(initial: string = '') {
         this._text = initial
@@ -90,6 +92,38 @@ export class TextBuffer {
 
     wordLeft(): void { this._lastYank = false; this._cursor = this.scanWordLeft(this._cursor) }
     wordRight(): void { this._lastYank = false; this._cursor = this.scanWordRight(this._cursor) }
+
+    // --- Lines (sumi multiline.go) ---
+
+    /** The cursor's { row, col } within the value's lines, in code units. */
+    lineCol(): { row: number; col: number } {
+        let col = this._cursor
+        let row = 0
+        for (const line of this._text.split('\n')) {
+            if (col <= line.length) return { row, col }
+            col -= line.length + 1 // the newline
+            row++
+        }
+        return { row, col: 0 }
+    }
+
+    /** Move one line up, keeping the column where the target line allows. */
+    cursorUp(): void { this.moveLine(-1) }
+
+    /** Move one line down, keeping the column where the target line allows. */
+    cursorDown(): void { this.moveLine(1) }
+
+    private moveLine(delta: number): void {
+        const lines = this._text.split('\n')
+        const { row, col } = this.lineCol()
+        const target = row + delta
+        if (target < 0 || target >= lines.length) return
+        const clamped = Math.min(col, lines[target].length)
+        let cursor = 0
+        for (let i = 0; i < target; i++) cursor += lines[i].length + 1
+        this._cursor = cursor + clamped
+        this._lastYank = false
+    }
 
     // --- Kills (deleted text lands on the kill ring) ---
 

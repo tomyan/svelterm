@@ -8,7 +8,7 @@
 import type { KeyEvent } from '../input/keyboard.js'
 import type { TextBuffer } from './text-buffer.js'
 
-const MOVEMENT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End'])
+const MOVEMENT_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'])
 
 export function handleBufferKey(buf: TextBuffer, key: KeyEvent): boolean {
     if (MOVEMENT_KEYS.has(key.key)) return handleMovement(buf, key)
@@ -18,6 +18,12 @@ export function handleBufferKey(buf: TextBuffer, key: KeyEvent): boolean {
     switch (key.key) {
         case 'Backspace': buf.backspace(); return true
         case 'Delete': buf.delete(); return true
+        case 'Enter':
+            // Multiline (textarea): newline; consumed-but-inert when
+            // readOnly, as in sumi. Single-line leaves Enter to the app.
+            if (!buf.multiline) return false
+            buf.insert('\n')
+            return true
         default:
             if (key.key.length === 1) {
                 buf.insert(key.key)
@@ -29,12 +35,16 @@ export function handleBufferKey(buf: TextBuffer, key: KeyEvent): boolean {
 
 /** Shift extends the selection; Ctrl/Alt move by word. */
 function handleMovement(buf: TextBuffer, key: KeyEvent): boolean {
+    // Up/Down are line movement — only multiline buffers own them
+    if ((key.key === 'ArrowUp' || key.key === 'ArrowDown') && !buf.multiline) return false
     if (key.shift) buf.beginExtend()
     else buf.collapseSelection()
     const byWord = key.ctrl || key.meta
     switch (key.key) {
         case 'ArrowLeft': byWord ? buf.wordLeft() : buf.moveLeft(); break
         case 'ArrowRight': byWord ? buf.wordRight() : buf.moveRight(); break
+        case 'ArrowUp': buf.cursorUp(); break
+        case 'ArrowDown': buf.cursorDown(); break
         case 'Home': buf.home(); break
         case 'End': buf.end(); break
     }

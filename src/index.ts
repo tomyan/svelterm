@@ -531,7 +531,8 @@ export function run<Props extends Record<string, any>>(
 
         if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
         if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
-        if (key.key === 'Enter' && focusManager.focused) {
+        // Enter belongs to a focused textarea's buffer (newline), not click
+        if (key.key === 'Enter' && focusManager.focused && focusManager.focused.tag !== 'textarea') {
             const target = focusManager.focused
             if (hasBooleanAttribute(target, 'disabled')) return
             const event = dispatchEvent(target, 'click')
@@ -562,7 +563,7 @@ export function run<Props extends Record<string, any>>(
         // Text input for focused input/textarea
         const focused = focusManager.focused
         if (focused && (focused.tag === 'input' || focused.tag === 'textarea') && !isCheckableInput(focused)) {
-            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? focused.collectText())
             syncEditConstraints(focused)
             const oldValue = focused.textBuffer.text
             if (focused.textBuffer.handleKey(key)) {
@@ -642,7 +643,7 @@ export function run<Props extends Record<string, any>>(
     const handlePaste = (text: string) => {
         const focused = focusManager.focused
         if (focused && (focused.tag === 'input' || focused.tag === 'textarea')) {
-            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? '')
+            if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? focused.collectText())
             syncEditConstraints(focused)
             const oldValue = focused.textBuffer.text
             focused.textBuffer.insert(text)
@@ -896,7 +897,7 @@ function handleFieldClick(
     target: TermNode, box: LayoutBox, mouse: MouseEvent,
     ctx: RenderContext, io: TerminalIO,
 ): void {
-    if (!target.textBuffer) target.textBuffer = new TextBuffer(target.attributes.get('value') ?? '')
+    if (!target.textBuffer) target.textBuffer = new TextBuffer(target.attributes.get('value') ?? target.collectText())
     syncEditConstraints(target)
     const buf = target.textBuffer
     const offset = caretOffsetForClick(target, box, mouse.col)

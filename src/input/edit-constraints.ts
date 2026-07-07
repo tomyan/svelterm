@@ -12,4 +12,5 @@ export function syncEditConstraints(node: TermNode): void {
     node.textBuffer.maxLength = Number.isFinite(parsed) && parsed >= 0 ? parsed : null
     const readonly = node.attributes.get('readonly')
     node.textBuffer.readOnly = readonly !== undefined && readonly !== 'false'
+    node.textBuffer.multiline = node.tag === 'textarea'
 }
