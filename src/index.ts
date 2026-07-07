@@ -621,7 +621,8 @@ export function run<Props extends Record<string, any>>(
             import('./debug/dom.js'),
             import('./debug/css.js'),
             import('./debug/input.js'),
-        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }, { InputDomain }]) => {
+            import('./debug/screen.js'),
+        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }, { InputDomain }, { ScreenDomain }]) => {
             debugServer = new DebugServer(debugPort)
             consoleDomain = new ConsoleDomain(debugServer)
             const debugCtx = {
@@ -637,6 +638,10 @@ export function run<Props extends Record<string, any>>(
                 key: handleKeyData,
                 mouse: handleMouseData,
                 paste: handlePaste,
+            }))
+            debugServer.registerDomain('Screen', new ScreenDomain({
+                displayBuffer: () => prevBuffer,
+                renderPending: () => renderScheduled || !ctx.queue.isEmpty(),
             }))
             consoleDomain.start()
             debugServer.start()
