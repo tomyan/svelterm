@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.30.1 — 2026-07-07
+
+### Added
+
+- File-browser demo (`npm run demo:files`): tree navigation with a
+  windowed listing, preview pane, live filter input (the full editing
+  keymap works in it), and click-to-select / click-again-to-open rows.
+  Built E2E-first against the 0.30.0 harness (`test/files.e2e.ts`).
+
+### Fixed
+
+- Programmatic `input.value` writes now reset the element's editing
+  buffer with the caret at the end, as in a browser; previously the
+  field resurrected stale text on the next keystroke.
+- `Screen.text` is row-faithful (line N = screen row N, leading blanks
+  kept), so harness clients can derive mouse coordinates from the text.
+  Snapshot-file serialization (`bufferToText`) is unchanged.
+
 ## 0.30.0 — 2026-07-07
 
 ### Added
