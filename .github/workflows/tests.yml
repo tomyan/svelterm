@@ -50,6 +50,12 @@ jobs:
             https://github.com/tomyan/vite-plugin-svelte.git ../vite-plugin-svelte-fork
           cd ../vite-plugin-svelte-fork/packages/vite-plugin-svelte
           npm install --ignore-scripts --omit=dev
+          # Its own rolldown needs the linux binding too (npm/cli#4828),
+          # and module walk-up never reaches the repo's node_modules
+          rolldown_version=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/rolldown/package.json','utf8')).version" 2>/dev/null || echo "")
+          if [ -n "$rolldown_version" ]; then
+            npm install --no-save --ignore-scripts "@rolldown/binding-linux-x64-gnu@$rolldown_version"
+          fi
 
       - name: Install dependencies and link svelte fork
         run: |
