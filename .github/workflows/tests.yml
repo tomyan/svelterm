@@ -59,6 +59,10 @@ jobs:
           # vanished for the E2E vite builds)
           rm -rf node_modules/svelte
           ln -s "$(pwd)/../svelte-fork/packages/svelte" node_modules/svelte
+          # The plugin fork resolves its svelte peer from its own tree
+          mkdir -p ../vite-plugin-svelte-fork/packages/vite-plugin-svelte/node_modules
+          ln -sfn "$(pwd)/../svelte-fork/packages/svelte" \
+            ../vite-plugin-svelte-fork/packages/vite-plugin-svelte/node_modules/svelte
           # node-pty ships no linux prebuilds and --ignore-scripts skipped
           # its build — compile it for the svmux E2E scenario
           npm rebuild node-pty
