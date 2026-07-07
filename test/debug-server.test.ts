@@ -63,6 +63,40 @@ describe('DebugServer', () => {
         server.stop()
     })
 
+    it('awaits async domain results before replying', async () => {
+        // Given — a domain whose handle returns a Promise
+        const server = new DebugServer(0)
+        server.registerDomain('Async', {
+            handle(method: string) {
+                if (method === 'ok') return new Promise(r => setTimeout(() => r({ done: true }), 20))
+                return Promise.reject(new Error('async boom'))
+            },
+        })
+        await server.start()
+        const ws = new WebSocket(`ws://127.0.0.1:${server.actualPort}`)
+        await new Promise<void>((resolve) => { ws.onopen = () => resolve() })
+
+        // When / Then — resolved value arrives as the result
+        const ok = await new Promise<any>((resolve) => {
+            ws.onmessage = (event) => resolve(JSON.parse(String(event.data)))
+            ws.send(JSON.stringify({ id: 7, method: 'Async.ok', params: {} }))
+        })
+        assert.equal(ok.id, 7)
+        assert.deepEqual(ok.result, { done: true })
+
+        // And a rejection arrives as an error reply
+        const bad = await new Promise<any>((resolve) => {
+            ws.onmessage = (event) => resolve(JSON.parse(String(event.data)))
+            ws.send(JSON.stringify({ id: 8, method: 'Async.bad', params: {} }))
+        })
+        assert.equal(bad.id, 8)
+        assert.match(bad.error.message, /async boom/)
+
+        ws.close()
+        await new Promise(r => setTimeout(r, 50))
+        server.stop()
+    })
+
     it('handles unknown domain', async () => {
         const server = new DebugServer(0)
         await server.start()

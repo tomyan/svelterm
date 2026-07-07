@@ -94,9 +94,12 @@ export class DebugServer {
             return
         }
 
+        // handle() may return a Promise (e.g. Screen.settle) — reply when
+        // it resolves, so callers can await completion over the socket.
         try {
-            const result = domain.handle(methodName, msg.params ?? {})
-            ws.send(JSON.stringify({ id: msg.id, result: result ?? {} }))
+            Promise.resolve(domain.handle(methodName, msg.params ?? {}))
+                .then(result => ws.send(JSON.stringify({ id: msg.id, result: result ?? {} })))
+                .catch((err: any) => ws.send(JSON.stringify({ id: msg.id, error: { message: err?.message ?? 'Unknown error' } })))
         } catch (err: any) {
             ws.send(JSON.stringify({ id: msg.id, error: { message: err.message ?? 'Unknown error' } }))
         }

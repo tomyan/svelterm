@@ -620,7 +620,8 @@ export function run<Props extends Record<string, any>>(
             import('./debug/console.js'),
             import('./debug/dom.js'),
             import('./debug/css.js'),
-        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }]) => {
+            import('./debug/input.js'),
+        ]).then(([{ DebugServer }, { ConsoleDomain }, { DomDomain }, { CssDomain }, { InputDomain }]) => {
             debugServer = new DebugServer(debugPort)
             consoleDomain = new ConsoleDomain(debugServer)
             const debugCtx = {
@@ -632,6 +633,11 @@ export function run<Props extends Record<string, any>>(
             debugServer.registerDomain('Console', consoleDomain)
             debugServer.registerDomain('DOM', new DomDomain(debugCtx))
             debugServer.registerDomain('CSS', new CssDomain(debugCtx))
+            debugServer.registerDomain('Input', new InputDomain({
+                key: handleKeyData,
+                mouse: handleMouseData,
+                paste: handlePaste,
+            }))
             consoleDomain.start()
             debugServer.start()
         })
