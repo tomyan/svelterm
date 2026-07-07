@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.33.0 — 2026-07-07
+
+### Added
+
+- **Tab falls through to keydown when nothing is focusable**, so
+  full-screen apps (e.g. a terminal multiplexer) can forward it; with
+  focusables present Tab cycles focus as before.
+- **svmux demo** (`npm run demo:svmux`): two real shells side by side
+  via node-pty and `svt-region` cell sources — keys route to the
+  active pane, Alt+1/Alt+2 switch.
+- **Dual-target demo** (`npm run demo:dual` / `demo:dual-web`): the
+  same App.svelte compiled for the terminal and the browser DOM, with
+  a ch-unit stylesheet serving both.
+
 ## 0.32.0 — 2026-07-07
 
 ### Added
