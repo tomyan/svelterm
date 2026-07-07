@@ -1,17 +1,27 @@
 <script>
-    import { parseMarkdown } from './parse.js'
+    import { parseMarkdown, parseInline } from './parse.js'
 
     let { source = '' } = $props()
 
     const blocks = $derived(parseMarkdown(source))
 </script>
 
+{#snippet spans(text)}
+    {#each parseInline(text) as s, k (k)}
+        {#if s.kind === 'bold'}<strong>{s.text}</strong>
+        {:else if s.kind === 'italic'}<em>{s.text}</em>
+        {:else if s.kind === 'code'}<code>{s.text}</code>
+        {:else if s.kind === 'link'}<a href={s.href}>{s.text}</a>
+        {:else}{s.text}{/if}
+    {/each}
+{/snippet}
+
 <div class="doc">
     {#each blocks as block, i (i)}
         {#if block.type === 'heading'}
             <span class={'h' + block.level}>{block.text}</span>
         {:else if block.type === 'para'}
-            <span class="para">{block.text}</span>
+            <span class="para">{@render spans(block.text)}</span>
         {:else if block.type === 'code'}
             <div class="code">
                 {#each block.lines as line, j (j)}
@@ -21,11 +31,11 @@
         {:else if block.type === 'list'}
             <div class="list">
                 {#each block.items as item, j (j)}
-                    <span class="item">{block.ordered ? `${j + 1}. ` : '• '}{item}</span>
+                    <span class="item">{block.ordered ? `${j + 1}. ` : '• '}{@render spans(item)}</span>
                 {/each}
             </div>
         {:else if block.type === 'quote'}
-            <span class="quote">▎ {block.text}</span>
+            <span class="quote">▎ {@render spans(block.text)}</span>
         {:else}
             <hr />
         {/if}

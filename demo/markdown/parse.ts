@@ -4,6 +4,10 @@
  * formatting arrives in a later slice; block text stays raw here.
  */
 
+export type Span =
+    | { kind: 'text' | 'bold' | 'italic' | 'code'; text: string }
+    | { kind: 'link'; text: string; href: string }
+
 export type Block =
     | { type: 'heading'; level: 1 | 2 | 3; text: string }
     | { type: 'para'; text: string }
@@ -11,6 +15,27 @@ export type Block =
     | { type: 'list'; ordered: boolean; items: string[] }
     | { type: 'quote'; text: string }
     | { type: 'hr' }
+
+/** One alternation per inline form; code first so it protects markers. */
+const INLINE = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_|\[([^\]]+)\]\(([^)]+)\)/g
+
+/** Split a block's raw text into styled spans; unmatched markers stay literal. */
+export function parseInline(text: string): Span[] {
+    const spans: Span[] = []
+    let last = 0
+    for (const match of text.matchAll(INLINE)) {
+        if (match.index > last) spans.push({ kind: 'text', text: text.substring(last, match.index) })
+        const [, code, bold, star, underscore, linkText, href] = match
+        if (code !== undefined) spans.push({ kind: 'code', text: code })
+        else if (bold !== undefined) spans.push({ kind: 'bold', text: bold })
+        else if (star !== undefined || underscore !== undefined) {
+            spans.push({ kind: 'italic', text: (star ?? underscore)! })
+        } else spans.push({ kind: 'link', text: linkText, href })
+        last = match.index + match[0].length
+    }
+    if (last < text.length) spans.push({ kind: 'text', text: text.substring(last) })
+    return spans
+}
 
 const HEADING = /^(#{1,3})\s+(.*)$/
 const FENCE = /^```(\S*)\s*$/

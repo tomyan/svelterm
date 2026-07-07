@@ -17,7 +17,7 @@ const DEMO_ENTRY = fileURLToPath(new URL('../../dist-demo/markdown/main.js', imp
 const FIXTURE = `# Fixture Doc
 
 Intro paragraph line one
-continues here.
+continues **strongly** with _grace_, \`inline code\` and a [pointer](https://example.com).
 
 - alpha item
 - beta item
@@ -63,7 +63,8 @@ test('renders every block type of the fixture', async () => {
     // quote, rule, verbatim code, trailing paragraph
     const screen = await h.waitForText('End paragraph.', 5000)
     assert.match(screen, /FIXTURE DOC/)
-    assert.match(screen, /Intro paragraph line one continues here\./)
+    // Inline markers render as styled text, not literals (may wrap)
+    assert.match(screen, /continues strongly with grace, inline code and a\s+pointer\./)
     assert.match(screen, /• alpha item/)
     assert.match(screen, /• beta item/)
     assert.match(screen, /1\. first/)
@@ -78,4 +79,21 @@ test('heading and code pick up their colors', async () => {
     assert.match(styled, /FIXTURE DOC/)
     assert.match(styled, /cyan/)
     assert.match(styled, /green/)
+})
+
+test('inline formatting styles the exact cells', async () => {
+    // Given — locate the styled words on the row-faithful screen
+    const lines = (await h.screenText()).split('\n')
+    const at = (word: string) => {
+        const y = lines.findIndex(line => line.includes(word))
+        return { x: lines[y].indexOf(word), y }
+    }
+
+    // Then — bold, italic, and underlined-link cells
+    const strong = at('strongly')
+    assert.equal((await h.cellAt(strong.x, strong.y)).bold, true)
+    const em = at('grace')
+    assert.equal((await h.cellAt(em.x, em.y)).italic, true)
+    const link = at('pointer')
+    assert.equal((await h.cellAt(link.x, link.y)).underline, true)
 })
