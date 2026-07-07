@@ -26,6 +26,10 @@ before(async () => {
     mkdirSync(join(fixtureRoot, 'alpha'))
     writeFileSync(join(fixtureRoot, 'alpha', 'nested.txt'), 'nested file contents\n')
     mkdirSync(join(fixtureRoot, 'beta'))
+    mkdirSync(join(fixtureRoot, 'many'))
+    for (let i = 0; i < 40; i++) {
+        writeFileSync(join(fixtureRoot, 'many', `file-${String(i).padStart(2, '0')}.txt`), `${i}\n`)
+    }
     writeFileSync(join(fixtureRoot, 'readme.md'), '# Fixture readme\nsecond line\n')
     writeFileSync(join(fixtureRoot, 'zebra.txt'), 'stripes\n')
 
@@ -54,12 +58,12 @@ test('lists the fixture tree, directories first', async () => {
 })
 
 test('arrows move the selection, shown in the status line', async () => {
-    // When — down twice: alpha → beta → readme.md
+    // When — down twice: alpha → beta → many
     await h.key('ArrowDown')
     await h.key('ArrowDown')
 
     // Then
-    await h.waitForText(/3\/4\s+readme\.md/, 2000)
+    await h.waitForText(/3\/5\s+many/, 2000)
 })
 
 test('Enter descends into a directory', async () => {
@@ -85,4 +89,40 @@ test('Backspace returns to the parent, not above the root', async () => {
     await h.key('Backspace')
     const screen = await h.waitForText('zebra.txt', 2000)
     assert.match(screen, /alpha\//)
+})
+
+test('selecting a directory previews its entry count', async () => {
+    // Given — selection at the root on alpha
+    // Then — the preview pane counts its children
+    await h.waitForText('1 item', 2000)
+})
+
+test('selecting a file previews its first lines', async () => {
+    // When — down to readme.md: alpha → beta → many → readme.md
+    await h.key('ArrowDown')
+    await h.key('ArrowDown')
+    await h.key('ArrowDown')
+
+    // Then
+    const screen = await h.waitForText('Fixture readme', 2000)
+    assert.match(screen, /second line/)
+})
+
+test('long listings window around the selection', async () => {
+    // Given — into many/ (readme.md → many, then Enter)
+    await h.key('ArrowUp')
+    await h.key('Enter')
+    await h.waitForText('file-00.txt', 2000)
+
+    // When — move deep into the listing
+    for (let i = 0; i < 30; i++) await h.key('ArrowDown')
+
+    // Then — the window follows the selection
+    const screen = await h.waitForText(/31\/40\s+file-30\.txt/, 2000)
+    assert.match(screen, /file-29\.txt/)
+    assert.doesNotMatch(screen, /file-00\.txt/)
+
+    // Cleanup — back to the root
+    await h.key('Backspace')
+    await h.waitForText('zebra.txt', 2000)
 })

@@ -1,6 +1,9 @@
 <script>
-    import { readdirSync } from 'fs'
+    import { readdirSync, readFileSync } from 'fs'
     import { join, dirname, relative, basename } from 'path'
+
+    const WINDOW = 12
+    const PREVIEW_LINES = 12
 
     const root = process.env.SVELTERM_BROWSE_ROOT ?? process.cwd()
     let dir = $state(root)
@@ -19,6 +22,28 @@
             ]
         } catch {
             return []
+        }
+    })
+
+    // The listing shows a window of rows that follows the selection
+    const windowStart = $derived(Math.max(0,
+        Math.min(selected - Math.floor(WINDOW / 2), entries.length - WINDOW)))
+    const visible = $derived(entries.slice(windowStart, windowStart + WINDOW))
+    const hiddenAbove = $derived(windowStart)
+    const hiddenBelow = $derived(Math.max(0, entries.length - windowStart - WINDOW))
+
+    const preview = $derived.by(() => {
+        const entry = entries[selected]
+        if (!entry) return []
+        const full = join(dir, entry.name)
+        try {
+            if (entry.isDir) {
+                const count = readdirSync(full).length
+                return [`${count} item${count === 1 ? '' : 's'}`]
+            }
+            return readFileSync(full, 'utf-8').split('\n').slice(0, PREVIEW_LINES)
+        } catch {
+            return ['(unreadable)']
         }
     })
 
@@ -45,15 +70,28 @@
 <div class="app" onkeydown={(e) => handleKey(e.data?.key)}>
     <span class="path">{shownPath}</span>
 
-    <div class="listing">
-        {#if entries.length === 0}
-            <span class="empty">(empty directory)</span>
-        {/if}
-        {#each entries as entry, i (entry.name)}
-            <span class={i === selected ? 'row-selected' : 'row'}>
-                {entry.isDir ? entry.name + '/' : entry.name}
-            </span>
-        {/each}
+    <div class="panes">
+        <div class="listing">
+            {#if entries.length === 0}
+                <span class="empty">(empty directory)</span>
+            {/if}
+            {#if hiddenAbove > 0}
+                <span class="more">↑ {hiddenAbove} more</span>
+            {/if}
+            {#each visible as entry, i (entry.name)}
+                <span class={i + windowStart === selected ? 'row-selected' : 'row'}>
+                    {entry.isDir ? entry.name + '/' : entry.name}
+                </span>
+            {/each}
+            {#if hiddenBelow > 0}
+                <span class="more">↓ {hiddenBelow} more</span>
+            {/if}
+        </div>
+        <div class="preview">
+            {#each preview as line, i (i)}
+                <span class="preview-line">{line}</span>
+            {/each}
+        </div>
     </div>
 
     <span class="status">{entries.length === 0 ? '0/0' : `${selected + 1}/${entries.length}`}  {entries[selected]?.name ?? ''}</span>
@@ -82,6 +120,13 @@
         padding: 0 1cell;
     }
 
+    .panes {
+        display: flex;
+        flex-direction: row;
+        gap: 1cell;
+        flex-grow: 1;
+    }
+
     .listing {
         display: flex;
         flex-direction: column;
@@ -89,6 +134,24 @@
         border-color: var(--muted);
         padding: 0 1cell;
         flex-grow: 1;
+    }
+
+    .preview {
+        display: flex;
+        flex-direction: column;
+        border: single;
+        border-color: var(--muted);
+        padding: 0 1cell;
+        flex-grow: 1;
+    }
+
+    .preview-line {
+        white-space: pre;
+    }
+
+    .more {
+        color: var(--muted);
+        font-style: italic;
     }
 
     .row {
