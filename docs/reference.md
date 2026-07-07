@@ -122,9 +122,14 @@ Kills feed a kill ring; cut/copy also write the system clipboard (OSC 52
 plus the platform tool). Typing, `Enter`, or paste replaces an active
 selection; `Backspace`/`Delete` remove it. Clicking an input places the
 caret; double-click selects the clicked word and copies it, like the
-screen-space selection. Words are whitespace-delimited. The selection
-highlight paints on `input` fields; `textarea` shares the keyboard model
-but has no painted highlight yet.
+screen-space selection. Words are whitespace-delimited.
+
+In a `textarea` the same keymap gains lines: `Enter` inserts a newline,
+`↑`/`↓` move by line (column clamped to the target line, as in sumi),
+`Shift+↑/↓` extends the selection, the view scrolls to follow the
+caret, and the selection highlight paints across rows. `input` fires on
+value changes; caret-only movement fires `selectionchange` with
+`{ value, cursor }` for status bars.
 
 ### Interaction model for form controls
 
@@ -159,6 +164,7 @@ block/inline box per its display default.
 | `a` | underlined, focusable; Enter/click opens `href` in the local browser | [`<a>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) |
 | `table` and friends | full table layout: colspan/rowspan, header/footer groups, caption, `colgroup`/`col` width hints, collapse/separate borders, `empty-cells` | [`<table>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/table) |
 | `input` (text) | single-line editor with cursor, `value`, `input` events; `maxlength`, `readonly` | [`<input>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) |
+| `textarea` | multiline editor: Enter inserts, ↑/↓ move by line (column-clamped), scroll follows the caret, selection paints across rows; shares the whole editing keymap; `selectionchange` fires on caret-only moves with `{ value, cursor }` | [`<textarea>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea) |
 | `input type="password"` | value masked as `•` bullets; editing as text | [password](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/password) |
 | `input type="checkbox" / "radio"` | glyph toggles; `checked` attribute/property; `change`+`input` events | [checkbox](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/checkbox), [radio](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/radio) |
 | `textarea` | multi-line editing | [`<textarea>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea) |

@@ -1,5 +1,7 @@
 # DESIGN — multiline textarea + sveditor demo
 
+**COMPLETE — shipped as 0.32.0 (2026-07-07), all four slices.**
+
 The sveditor demo (PLAN.md wishlist) drives the missing half of text
 editing: `<textarea>` today shares the TextBuffer keymap but has no
 multiline semantics — Enter is swallowed by the global click dispatch,

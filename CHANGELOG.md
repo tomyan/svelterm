@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.32.0 — 2026-07-07
+
+### Added
+
+- **Multiline `<textarea>` editing** (mirrors sumi edit/multiline.go):
+  Enter inserts a newline (routed to the buffer, not click), ↑/↓ move
+  by line with column clamping, Shift+↑/↓ extends the selection, and
+  the whole 0.29.0 keymap (kills, yank, undo, word ops) applies.
+  Rendering flows through `white-space: pre` line boxes with the
+  standard overflow machinery: the view scrolls to follow the caret,
+  the hardware cursor sits at the caret cell, and the selection paints
+  across rows.
+- **`selectionchange` event**: caret-only movement in a focused
+  input/textarea dispatches `{ value, cursor }` (`input` still fires
+  only on value changes, per spec) — status bars can track the caret.
+- **Sveditor demo** (`npm run demo:sveditor`): edit a real file with
+  save-to-disk on Ctrl+S, modified marker, and a line:col status bar.
+
+### Fixed
+
+- `<textarea>{text}</textarea>` renders: Svelte compiles textarea
+  children to a value write, which now creates and syncs the display
+  text child on every path — including the first template effect,
+  which runs before the element joins the tree.
+- Hard newlines in pre-formatted text painted as a literal cell;
+  `wrapText` now breaks on `\n` (measure and paint share the fix).
+
 ## 0.31.0 — 2026-07-07
 
 ### Added
