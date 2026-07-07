@@ -1,4 +1,4 @@
-import { TermNode } from '../renderer/node.js'
+import { TermNode, syncTextareaValueChild } from '../renderer/node.js'
 import { RenderQueue } from './queue.js'
 
 /**
@@ -34,6 +34,8 @@ export class RenderContext {
             node.textBuffer.cursor = value.length
             node.textBuffer.collapseSelection()
         }
+        // A textarea displays through its text child — keep it in step
+        if (key === 'value') syncTextareaValueChild(node, value)
         this.invalidateStyles(node)
         this.onScheduleRender?.()
     }

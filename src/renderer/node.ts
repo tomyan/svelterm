@@ -80,8 +80,12 @@ export class TermNode {
     }
 
     set value(newValue: string) {
-        if (this.ctx) this.ctx.onSetAttribute(this, 'value', newValue)
-        else this.attributes.set('value', newValue)
+        if (this.ctx) {
+            this.ctx.onSetAttribute(this, 'value', newValue)
+        } else {
+            this.attributes.set('value', newValue)
+            syncTextareaValueChild(this, newValue)
+        }
     }
 
     /** DOM compatibility — checkbox/radio state as a property */
@@ -379,5 +383,25 @@ function clearCtx(node: TermNode): void {
     node.ctx = null
     for (const child of node.children) {
         clearCtx(child)
+    }
+}
+
+/**
+ * A textarea displays through its text child (Svelte compiles
+ * `<textarea>{text}</textarea>` to a value write — textareas have no DOM
+ * children). Keep the child in step with the value, creating it on the
+ * first write; safe pre-insertion, when the node has no render context.
+ */
+export function syncTextareaValueChild(node: TermNode, value: string): void {
+    if (node.tag !== 'textarea') return
+    const textChild = node.children.find(c => c.nodeType === 'text')
+    if (textChild) {
+        if (node.ctx) node.ctx.onSetText(textChild, value)
+        else textChild.text = value
+    } else {
+        const child = new TermNode('text', value)
+        child.ctx = node.ctx
+        node.insertBefore(child, null)
+        node.ctx?.onInsert(node, child)
     }
 }

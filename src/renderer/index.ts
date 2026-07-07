@@ -1,6 +1,6 @@
 import { createRenderer as svelteCreateRenderer } from 'svelte/renderer'
 import type { Component, ComponentType, SvelteComponent } from 'svelte'
-import { TermNode, SvtRegionNode } from './node.js'
+import { TermNode, SvtRegionNode, syncTextareaValueChild } from './node.js'
 
 type TermNodes = {
     fragment: TermNode
@@ -65,6 +65,9 @@ export function createTermRenderer(): ReturnType<typeof svelteCreateRenderer<Ter
                 ctx.onSetAttribute(element, key, String(value))
             } else {
                 element.attributes.set(key, String(value))
+                // Pre-insertion writes still shape the tree (Svelte's first
+                // template effect runs before append)
+                if (key === 'value') syncTextareaValueChild(element, String(value))
             }
         },
 

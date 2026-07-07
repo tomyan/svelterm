@@ -60,6 +60,24 @@ describe('input element text handling', () => {
         assert.equal(input.textBuffer.cursor, 0)
     })
 
+    it('a textarea value write creates and syncs its display text child', () => {
+        // Given — Svelte compiles <textarea>{text}</textarea> to a value write
+        const textarea = new TermNode('element', 'textarea')
+        const ctx = new RenderContext()
+        textarea.ctx = ctx
+
+        // When
+        ctx.onSetAttribute(textarea, 'value', 'first\nsecond')
+
+        // Then — the text child carries the value
+        assert.equal(textarea.collectText(), 'first\nsecond')
+
+        // And — later writes update it in place
+        ctx.onSetAttribute(textarea, 'value', 'changed')
+        assert.equal(textarea.collectText(), 'changed')
+        assert.equal(textarea.children.filter(c => c.nodeType === 'text').length, 1)
+    })
+
     it('TextBuffer handles arrow keys', () => {
         // Given
         const input = new TermNode('element', 'input')

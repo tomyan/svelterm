@@ -566,6 +566,7 @@ export function run<Props extends Record<string, any>>(
             if (!focused.textBuffer) focused.textBuffer = new TextBuffer(focused.attributes.get('value') ?? focused.collectText())
             syncEditConstraints(focused)
             const oldValue = focused.textBuffer.text
+            const oldCursor = focused.textBuffer.cursor
             if (focused.textBuffer.handleKey(key)) {
                 const copied = focused.textBuffer.drainClipboardText()
                 if (copied) copyToClipboard(copied, data => io.write(data))
@@ -575,9 +576,12 @@ export function run<Props extends Record<string, any>>(
                 if (textChild) ctx.onSetText(textChild, newValue)
                 // Enqueue the input element itself for repaint (cursor may have moved)
                 ctx.queue.enqueuePaintOnly(focused)
-                // input fires on value change, not caret movement (per spec)
+                // input fires on value change, not caret movement (per spec);
+                // caret-only moves fire selectionchange so status bars can track
                 if (newValue !== oldValue) {
                     dispatchEvent(focused, 'input', { value: newValue, cursor: focused.textBuffer.cursor })
+                } else if (focused.textBuffer.cursor !== oldCursor) {
+                    dispatchEvent(focused, 'selectionchange', { value: newValue, cursor: focused.textBuffer.cursor })
                 }
                 scheduleRender()
                 return

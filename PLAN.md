@@ -89,7 +89,7 @@ Abstract svelterm's terminal output/input so it can target:
 - ~~Markdown viewer~~ — shipped as `npm run demo:markdown` (2026-07-07)
 - ~~Color palette (16, 256, 24-bit side by side)~~ — shipped as `npm run demo:palette` (2026-07-07)
 - svmux (multi-pane terminal multiplexer)
-- Sveditor (content-editable with syntax highlighting)
+- ~~Sveditor~~ — shipped as `npm run demo:sveditor` (2026-07-07; plain text per scope decision)
 - Dual-target (same component in terminal and web)
 
 ## Documentation & community
