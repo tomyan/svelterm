@@ -102,10 +102,20 @@ Standard CSS works as expected. These are the terminal-specific additions:
 - **CSS tables** — `display: table*` including `inline-table`, sections and captions, `colspan`/`rowspan`, column sizing, `vertical-align`, `border-collapse` with shared box-drawing grid lines, anonymous boxes
 - **Animations & transitions** — `@keyframes` with RGB colour interpolation and cell-stepped length animation, `transition` on style changes, easing functions
 - **Terminal rendering** — ANSI colors (16, 256, truecolor), borders, text styles, differential output
-- **Input** — keyboard events, mouse click and scroll, focus management with Tab/Shift+Tab, `:focus` and `:hover` pseudo-classes
-- **Form controls** — `<input>`/`<textarea>` editing, checkboxes and radios, cycling `<select>`, `<progress>`/`<meter>` bars, `<details>`/`<summary>`
+- **Input** — keyboard events, mouse click and scroll (wheel and arrow/PageUp/PageDown keys scroll), focus management with Tab/Shift+Tab, `:focus` and `:hover` pseudo-classes
+- **Text editing** — readline-grade keymap in `<input>`/`<textarea>`: word ops, kill ring with yank, undo, shift+movement selection with cut/copy to the system clipboard, multiline textarea with caret-following scroll
+- **Form controls** — checkboxes and radios, cycling `<select>`, `<progress>`/`<meter>` bars, `<details>`/`<summary>`
 - **Incremental updates** — mutation tracking classifies changes as paint-only, style-resolve, or layout to avoid full recomputation
 - **Color scheme** — automatic `prefers-color-scheme` detection via terminal queries
+- **E2E testing** — headless rendering plus a scenario harness ([`@svelterm/core/harness`](docs/debug/e2e.md)) that drives a real running app over its debug socket: inject keys and mouse, wait for paint, assert on the emulated screen
+
+### Demos
+
+Each runs in a minute (`npm run demo:<name>` after setup): `counter`,
+`todo`, `snake`, `showcase`, `files` (file browser), `markdown`
+(viewer), `palette` (colour depths), `sveditor` (plain-text editor
+with save), `svmux` (two real shells via node-pty), and `dual` /
+`dual-web` — the same component in the terminal and the browser.
 
 ### Browser compatibility
 

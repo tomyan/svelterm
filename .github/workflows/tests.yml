@@ -41,6 +41,16 @@ jobs:
           pnpm install
           pnpm -C packages/svelte build
 
+      - name: Clone vite-plugin-svelte fork
+        run: |
+          # package.json points @sveltejs/vite-plugin-svelte at this local
+          # fork (feat/per-environment-compiler-options, PR #1318) — it is
+          # consumed from source, so it only needs its own deps installed
+          git clone --depth 1 -b feat/per-environment-compiler-options \
+            https://github.com/tomyan/vite-plugin-svelte.git ../vite-plugin-svelte-fork
+          cd ../vite-plugin-svelte-fork/packages/vite-plugin-svelte
+          npm install --ignore-scripts --omit=dev
+
       - name: Install dependencies and link svelte fork
         run: |
           npm install --ignore-scripts
