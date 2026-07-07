@@ -96,11 +96,7 @@
 
     .viewport {
         overflow: scroll;
-        /* Explicit height: a flex-grow child of a fixed column isn't
-           shrunk below its content height yet, which would leave
-           nothing to scroll (content == viewport). One row stays for
-           the hint. */
-        height: calc(100% - 1cell);
+        flex-grow: 1;
     }
 
     .doc {

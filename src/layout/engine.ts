@@ -45,7 +45,7 @@ function autoMinMainSize(
     baseDir: 'row' | 'column',
 ): number {
     if (!style) return 0
-    if (style.overflow === 'hidden' || style.overflow === 'scroll') return 0
+    if (style.overflow !== 'visible') return 0
     if (node.children.length === 0) return 0
     const hasBorder = style.borderStyle && style.borderStyle !== 'none'
     const borderMain = hasBorder
@@ -1365,7 +1365,21 @@ function positionChildren(
     // With wrapping enabled, items wrap instead of shrinking
     const overflow = wrap === 'wrap' ? 0 : Math.max(0, -rawFreeSpace)
     const hasGrow = totalGrow > 0
-    const totalShrink = overflow > 0 ? shrinkValues.reduce((a, b) => a + b, 0) : 0
+
+    // An item may shrink when it has an explicit main size, or when its
+    // overflow is non-visible — a scroll/clip container's auto min-size
+    // is 0 (§4.5), so clamping it to the line is safe and is what makes
+    // fixed-height layouts with scrollable panes work. Plain content-
+    // sized items stay unshrinkable (conservative: never squash text).
+    const mayShrink = (i: number): boolean => {
+        if (shrinkValues[i] <= 0) return false
+        const childStyle = styles.get(ordered[i].id)
+        const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
+        return explicitMain != null || (childStyle?.overflow !== undefined && childStyle.overflow !== 'visible')
+    }
+    const totalShrink = overflow > 0
+        ? shrinkValues.reduce((sum, v, i) => sum + (mayShrink(i) ? v : 0), 0)
+        : 0
 
     // Pre-compute grow/shrink adjustments with correct rounding
     const mainAdjust = new Array<number>(ordered.length).fill(0)
@@ -1395,50 +1409,47 @@ function positionChildren(
         }
     }
     if (overflow > 0 && totalShrink > 0) {
-        let distributed = 0
-        for (let i = 0; i < ordered.length; i++) {
-            if (shrinkValues[i] > 0) {
-                const childStyle = styles.get(ordered[i].id)
-                const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
-                if (explicitMain != null) {
-                    const share = Math.floor(overflow * shrinkValues[i] / totalShrink)
-                    mainAdjust[i] = -share
-                    distributed += share
-                }
-            }
-        }
-        // Distribute remainder to last shrinking item with explicit size
-        let remainder = overflow - distributed
-        for (let i = ordered.length - 1; i >= 0 && remainder > 0; i--) {
-            if (shrinkValues[i] > 0) {
-                const childStyle = styles.get(ordered[i].id)
-                const explicitMain = baseDir === 'row' ? childStyle?.width : childStyle?.height
-                if (explicitMain != null) {
-                    mainAdjust[i] -= remainder
-                    remainder = 0
-                }
-            }
-        }
-    }
-
-    // Apply min-width/min-height constraints to shrink adjustments.
-    // CSS Flexbox §4.5: items have auto min-size = min(content-size, specified-size).
-    // Approximate content-min as: borders in main axis + (1 if has children, else 0).
-    // overflow:hidden allows min to be 0 (per spec).
-    for (let i = 0; i < ordered.length; i++) {
-        if (mainAdjust[i] < 0) {
-            const baseSize = baseDir === 'row' ? sizes[i].width : sizes[i].height
+        // §9.7: distribute the overflow across shrinkable items, clamping
+        // each at its min size (explicit min, else the §4.5 auto minimum)
+        // and redistributing whatever a clamped item could not absorb.
+        const minMainOf = (i: number): number => {
             const childStyle = styles.get(ordered[i].id)
-            const minMain = baseDir === 'row' ? childStyle?.minWidth : childStyle?.minHeight
-            if (minMain != null) {
-                const adjusted = baseSize + mainAdjust[i]
-                if (adjusted < minMain) mainAdjust[i] = minMain - baseSize
-            } else {
-                const autoMin = autoMinMainSize(ordered[i], childStyle, baseDir)
-                if (baseSize + mainAdjust[i] < autoMin) mainAdjust[i] = autoMin - baseSize
+            const explicitMin = baseDir === 'row' ? childStyle?.minWidth : childStyle?.minHeight
+            if (explicitMin != null) return explicitMin
+            return autoMinMainSize(ordered[i], childStyle, baseDir)
+        }
+        const currentMain = (i: number): number =>
+            (baseDir === 'row' ? sizes[i].width : sizes[i].height) + mainAdjust[i]
+        const roomOf = (i: number): number => Math.max(0, currentMain(i) - minMainOf(i))
+
+        let remaining = overflow
+        for (let round = 0; round <= ordered.length && remaining > 0; round++) {
+            const eligible = ordered.map((_, i) => i).filter(i => mayShrink(i) && roomOf(i) > 0)
+            if (eligible.length === 0) break
+            // Scaled shrink factor: weight by factor × current main size,
+            // so larger items absorb proportionally more of the overflow
+            const weightOf = (i: number) => shrinkValues[i] * Math.max(1, currentMain(i))
+            const totalWeight = eligible.reduce((sum, i) => sum + weightOf(i), 0)
+            let progressed = false
+            for (const i of eligible) {
+                const take = Math.min(roomOf(i), Math.floor(remaining * weightOf(i) / totalWeight))
+                if (take > 0) {
+                    mainAdjust[i] -= take
+                    remaining -= take
+                    progressed = true
+                }
             }
-            // Never shrink below 0
-            if (baseSize + mainAdjust[i] < 0) mainAdjust[i] = -baseSize
+            if (!progressed) {
+                // Flooring gave nothing — peel single cells until done
+                for (const i of eligible) {
+                    if (remaining <= 0) break
+                    if (roomOf(i) > 0) {
+                        mainAdjust[i] -= 1
+                        remaining -= 1
+                    }
+                }
+                break
+            }
         }
     }
 

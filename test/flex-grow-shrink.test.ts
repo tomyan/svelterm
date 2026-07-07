@@ -6,7 +6,74 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { TermNode } from '../src/renderer/node.js'
 import { defaultStyle } from '../src/css/compute.js'
-import { makeTree, addChild, addText, flexRow } from './helpers/flex-helpers.js'
+import { makeTree, addChild, addText, flexRow, flexCol } from './helpers/flex-helpers.js'
+
+describe('flex-shrink of scroll containers (auto min-size 0)', () => {
+
+    it('an overflow:scroll column child shrinks to the fixed container', () => {
+        // Given — a 10-row column holding a 1-row hint and a viewport
+        // whose content wants 30 rows
+        let viewport: TermNode, hint: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexCol({ height: 10 }) as any)
+            viewport = addChild(root, styles, { overflow: 'scroll', flexGrow: 1 })
+            for (let i = 0; i < 30; i++) addText(addChild(viewport, styles), `line ${i}`)
+            hint = addChild(root, styles, { height: 1 })
+            addText(hint, 'hint')
+        }, 40, 10)
+
+        // Then — the viewport is clamped to the remaining rows
+        assert.equal(boxes.get(viewport!.id)!.height, 9)
+        assert.equal(boxes.get(hint!.id)!.height, 1)
+    })
+
+    it('overflow:hidden shrinks the same way', () => {
+        let panel: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexCol({ height: 6 }) as any)
+            panel = addChild(root, styles, { overflow: 'hidden' })
+            for (let i = 0; i < 20; i++) addText(addChild(panel, styles), `row ${i}`)
+        }, 40, 6)
+
+        assert.equal(boxes.get(panel!.id)!.height, 6)
+    })
+
+    it('flex-shrink: 0 opts a scroll container out', () => {
+        let viewport: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexCol({ height: 10 }) as any)
+            viewport = addChild(root, styles, { overflow: 'scroll', flexShrink: 0 })
+            for (let i = 0; i < 30; i++) addText(addChild(viewport, styles), `line ${i}`)
+        }, 40, 10)
+
+        assert.equal(boxes.get(viewport!.id)!.height, 30)
+    })
+
+    it('content-sized items without overflow still refuse to shrink', () => {
+        // The conservative rule stands: plain content is not squashed
+        let para: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexCol({ height: 5 }) as any)
+            para = addChild(root, styles, {})
+            for (let i = 0; i < 12; i++) addText(addChild(para, styles), `p${i}`)
+        }, 40, 5)
+
+        assert.equal(boxes.get(para!.id)!.height, 12)
+    })
+
+    it('a row-direction scroll child shrinks horizontally', () => {
+        let pane: TermNode
+        const boxes = makeTree((root, styles) => {
+            styles.set(root.id, flexRow({ width: 20 }) as any)
+            pane = addChild(root, styles, { overflow: 'scroll' })
+            addText(pane, 'a very long unbroken line of text well past twenty cells')
+            const side = addChild(root, styles, { width: 5 })
+            addText(side, 'side!')
+        }, 20, 4)
+
+        assert.equal(boxes.get(pane!.id)!.width, 15)
+    })
+})
 
 describe('flex-grow distribution', () => {
 
