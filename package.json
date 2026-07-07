@@ -16,6 +16,10 @@
       "types": "./dist/src/headless.d.ts",
       "default": "./dist/src/headless.js"
     },
+    "./harness": {
+      "types": "./dist/src/debug/harness.d.ts",
+      "default": "./dist/src/debug/harness.js"
+    },
     "./vite": {
       "types": "./dist/src/vite/config.d.ts",
       "default": "./dist/src/vite/config.js"
