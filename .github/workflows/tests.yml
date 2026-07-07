@@ -44,7 +44,11 @@ jobs:
       - name: Install dependencies and link svelte fork
         run: |
           npm install --ignore-scripts
-          npm install ../svelte-fork/packages/svelte --no-save
+          # Symlink (like the local setup) instead of `npm install <dir>`,
+          # which re-resolves the tree and prunes packages (vite-plugin-svelte
+          # vanished for the E2E vite builds)
+          rm -rf node_modules/svelte
+          ln -s "$(pwd)/../svelte-fork/packages/svelte" node_modules/svelte
           # node-pty ships no linux prebuilds and --ignore-scripts skipped
           # its build — compile it for the svmux E2E scenario
           npm rebuild node-pty
