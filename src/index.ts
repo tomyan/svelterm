@@ -25,6 +25,7 @@ import { hitTest } from './input/hit.js'
 import { FocusManager } from './input/focus.js'
 import { dispatchEvent } from './input/dispatch.js'
 import { isCheckableInput, toggleCheckable } from './input/checkable.js'
+import { applyScrollInput } from './input/scroll.js'
 import { toggleDetails } from './input/details.js'
 import { cycleSelect } from './input/select.js'
 import { labelledControl } from './input/label.js'
@@ -583,7 +584,45 @@ export function run<Props extends Record<string, any>>(
         }
 
         const keyTarget = focused ?? findFirstElement(root)
-        if (keyTarget) { dispatchEvent(keyTarget, 'keydown', key); scheduleRender() }
+        if (keyTarget) {
+            const event = dispatchEvent(keyTarget, 'keydown', key)
+            // Default action: unconsumed navigation keys scroll the pane
+            // around the focus (or the first scroll pane), as in a browser.
+            // Arrows stay with a focused text field; PageUp/Down always
+            // scroll; preventDefault() suppresses it.
+            if (!event.defaultPrevented && !key.ctrl && !key.meta && !key.shift) {
+                const inTextField = focused && (focused.tag === 'input' || focused.tag === 'textarea')
+                    && !isCheckableInput(focused)
+                const wanted = PAGE_SCROLL_KEYS.has(key.key)
+                    || (!inTextField && ARROW_SCROLL_KEYS.has(key.key))
+                if (wanted) scrollByKey(keyTarget, key.key)
+            }
+            scheduleRender()
+        }
+    }
+
+    /** Scroll the pane a navigation key addresses: the scrollable around
+     *  `from`, else the first scroll pane in the document, else the root. */
+    const scrollByKey = (from: TermNode, keyName: string) => {
+        if (!lastLayout) return
+        const ancestor = findScrollableAncestor(from, lastStyles)
+        const target = (ancestor && ancestor.tag !== 'root')
+            ? ancestor
+            : (findScrollableDescendant(root, lastStyles) ?? ancestor)
+        if (!target) return
+        const box = lastLayout.get(target.id)
+        if (!box) return
+        const size = io.getSize()
+        const viewportW = target.tag === 'root' ? size.width : box.width
+        const viewportH = target.tag === 'root' ? size.height : box.height
+        const { width: contentW, height: contentH } = contentExtent(target, lastLayout, box)
+        const beforeTop = target.scrollTop
+        const beforeLeft = target.scrollLeft
+        applyScrollInput(target, keyName, contentH, viewportH, contentW, viewportW)
+        if (target.scrollTop === beforeTop && target.scrollLeft === beforeLeft) return
+        target.scrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
+        scheduleScrollbarFade(ctx, scheduleRender)
+        ctx.onScroll(target)
     }
 
     const handleMouseData = (data: Buffer | Uint8Array) => {
@@ -970,11 +1009,7 @@ function handleMouse(
                     const delta = mouse.button === 'scrollLeft' ? -1 : 1
                     scrollTarget.scrollLeft = Math.max(0, Math.min(scrollTarget.scrollLeft + delta, maxScroll))
                     scrollTarget.hScrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
-                    const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
-                    const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
-                    for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
-                        setTimeout(forceRepaint, SCROLLBAR_VISIBLE_MS + i * frameInterval)
-                    }
+                    scheduleScrollbarFade(ctx, scheduleRender)
                     ctx.onScroll(scrollTarget)
                 }
             }
@@ -996,11 +1031,7 @@ function handleMouse(
                     const delta = mouse.button === 'scrollUp' ? -1 : 1
                     scrollTarget.scrollTop = Math.max(0, Math.min(scrollTarget.scrollTop + delta, maxScroll))
                     scrollTarget.scrollbarVisibleUntil = Date.now() + SCROLLBAR_TOTAL_MS
-                    const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
-                    const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
-                    for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
-                        setTimeout(forceRepaint, SCROLLBAR_VISIBLE_MS + i * frameInterval)
-                    }
+                    scheduleScrollbarFade(ctx, scheduleRender)
                     ctx.onScroll(scrollTarget)
                 }
             }
@@ -1042,6 +1073,30 @@ function updateHover(node: TermNode, hoveredId: number, ctx: RenderContext): voi
     }
     for (const child of node.children) {
         updateHover(child, hoveredId, ctx)
+    }
+}
+
+const ARROW_SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+const PAGE_SCROLL_KEYS = new Set(['PageUp', 'PageDown'])
+
+/** First user-scrollable pane in document order — the "document scroller"
+ *  analog when nothing focused sits inside one. */
+function findScrollableDescendant(node: TermNode, styles?: Map<number, ResolvedStyle>): TermNode | null {
+    const style = styles?.get(node.id)
+    if (style && (style.overflow === 'scroll' || style.overflow === 'auto')) return node
+    for (const child of node.children) {
+        const found = findScrollableDescendant(child, styles)
+        if (found) return found
+    }
+    return null
+}
+
+/** Keep repainting through the scrollbar fade window. */
+function scheduleScrollbarFade(ctx: RenderContext, scheduleRender: () => void): void {
+    const forceRepaint = () => { ctx.queue.setFullRecompute(); scheduleRender() }
+    const frameInterval = SCROLLBAR_FADE_MS / SCROLLBAR_FADE_FRAMES
+    for (let i = 0; i <= SCROLLBAR_FADE_FRAMES; i++) {
+        setTimeout(forceRepaint, SCROLLBAR_VISIBLE_MS + i * frameInterval)
     }
 }
 
