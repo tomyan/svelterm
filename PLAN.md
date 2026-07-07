@@ -90,7 +90,7 @@ Abstract svelterm's terminal output/input so it can target:
 - ~~Color palette (16, 256, 24-bit side by side)~~ — shipped as `npm run demo:palette` (2026-07-07)
 - svmux (multi-pane terminal multiplexer)
 - ~~Sveditor~~ — shipped as `npm run demo:sveditor` (2026-07-07; plain text per scope decision)
-- Dual-target (same component in terminal and web)
+- ~~Dual-target (same component in terminal and web)~~ — shipped as `npm run demo:dual` / `demo:dual-web` (2026-07-07)
 
 ## Documentation & community
 
