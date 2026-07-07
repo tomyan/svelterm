@@ -51,6 +51,15 @@ export class ConsoleDomain implements DebugDomain {
         })
     }
 
+    /** Seed entries logged before the domain started (mount buffers them). */
+    replay(entries: ConsoleEntry[]): void {
+        for (const entry of entries) {
+            this.buffer.push(entry)
+            this.server.emit('Console.messageAdded', { entry })
+        }
+        while (this.buffer.length > this.maxBuffer) this.buffer.shift()
+    }
+
     stop(): void {
         // Restore originals
         console.log = this.originals.log

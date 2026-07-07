@@ -1,6 +1,6 @@
 {
   "name": "@svelterm/core",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "description": "Svelte 5 components rendered to the terminal with real CSS",
   "type": "module",
   "exports": {
@@ -41,6 +41,7 @@
   "scripts": {
     "build": "tsc && node scripts/compile-devtools.mjs",
     "test": "node --test dist/**/*.test.js",
+    "test:e2e": "npm run build && DEMO=counter vite build && node --test dist/test/counter.e2e.js",
     "dev": "tsc --watch",
     "demo": "DEMO=${DEMO:-counter} npx vite build && node dist-demo/${DEMO:-counter}/main.js",
     "demo:counter": "DEMO=counter npx vite build && node dist-demo/counter/main.js",

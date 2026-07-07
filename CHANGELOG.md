@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.30.0 — 2026-07-07
+
+### Added
+
+- **Scenario-driven E2E over the debug protocol.** New `Input` domain
+  injects key/mouse/paste events into the run loop — semantic specs are
+  encoded to real terminal bytes (`src/input/encode.ts`) and pushed
+  through the stdin parsers. New `Screen` domain exposes the displayed
+  frame (`text`/`styled`/`cell`) and `Screen.settle`, which replies once
+  the render loop has no pending work. `DebugServer` domain handlers may
+  now return Promises.
+- **`@svelterm/core/harness`** — scenario test client:
+  `connect({ port, timeoutMs })` with `key`/`text`/`click`/
+  `doubleClick`/`paste` (each settles before resolving), `screenText`/
+  `styledText`/`cellAt`, and polling `waitForText`. `npm run test:e2e`
+  runs the reference scenario against the real counter demo, headless.
+
+### Fixed
+
+- With `debug: true`, `console.*` calls made before the Console domain
+  finished loading (e.g. first-render `$effect`s) crashed the app with
+  the corrupt-terminal guard; they now buffer and replay into the
+  domain once it starts.
+
 ## 0.29.0 — 2026-07-07
 
 ### Added

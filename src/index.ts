@@ -146,6 +146,10 @@ export function run<Props extends Record<string, any>>(
     const onConsole = options?.onConsole
     const ownsStdio = io instanceof ProcessIO
     const levels = ['log', 'warn', 'error', 'info', 'debug'] as const
+    // With debug on, console belongs to the Console domain — but the
+    // domain arrives via dynamic import, so early calls (first render
+    // effects) buffer here and replay once it starts.
+    const pendingConsole: { level: typeof levels[number]; args: string[]; timestamp: number }[] = []
     let restoreConsole = () => {}
     if (ownsStdio) {
         const originals = {
@@ -157,12 +161,17 @@ export function run<Props extends Record<string, any>>(
         }
         for (const level of levels) {
             ;(console as any)[level] = (...args: any[]) => {
+                const entry = {
+                    level,
+                    args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
+                    timestamp: Date.now(),
+                }
                 if (onConsole) {
-                    onConsole({
-                        level,
-                        args: args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2) ?? String(a)),
-                        timestamp: Date.now(),
-                    })
+                    onConsole(entry)
+                    return
+                }
+                if (debugEnabled) {
+                    pendingConsole.push(entry)
                     return
                 }
                 throw new Error(
@@ -644,6 +653,7 @@ export function run<Props extends Record<string, any>>(
                 renderPending: () => renderScheduled || !ctx.queue.isEmpty(),
             }))
             consoleDomain.start()
+            consoleDomain.replay(pendingConsole.splice(0))
             debugServer.start()
         })
     }

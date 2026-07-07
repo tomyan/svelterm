@@ -1,5 +1,7 @@
 # DESIGN — scenario-driven E2E over the debug protocol
 
+**COMPLETE — shipped as 0.30.0 (2026-07-07), all four slices.**
+
 Arc 2 of PLAN-NEXT.md. Decision (Tom, 2026-07-06): extend the existing
 debug server (0.17.0 `svt` CLI / 0.20.0 devtools plumbing) rather than
 adding a sumi-style second control socket — one protocol serves tree

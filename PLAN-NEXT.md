@@ -42,7 +42,7 @@ Slices:
 4. Undo/redo stacks (chords as in sumi).
 5. Docs + changelog + version bump.
 
-## Arc 2 — scenario-driven E2E protocol
+## Arc 2 — scenario-driven E2E protocol — DONE (0.30.0, DESIGN-e2e.md)
 
 **Decision (Tom, 2026-07-06): extend the existing debug server** (0.17.0
 svt CLI / 0.20.0 devtools plumbing) rather than adding a sumi-style

@@ -97,6 +97,23 @@ describe('DebugServer', () => {
         server.stop()
     })
 
+    it('replays entries buffered before the Console domain started', async () => {
+        // Given — entries logged while the domain was still loading
+        const server = new DebugServer(0)
+        const consoleDomain = new ConsoleDomain(server)
+        server.registerDomain('Console', consoleDomain)
+
+        // When
+        consoleDomain.replay([
+            { level: 'log', args: ['early message'], timestamp: 1 },
+        ])
+
+        // Then
+        const { entries } = consoleDomain.handle('getEntries', {})
+        assert.equal(entries.length, 1)
+        assert.equal(entries[0].args[0], 'early message')
+    })
+
     it('handles unknown domain', async () => {
         const server = new DebugServer(0)
         await server.start()
