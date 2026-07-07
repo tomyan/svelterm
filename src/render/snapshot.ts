@@ -34,6 +34,24 @@ export function bufferToText(buffer: CellBuffer): string {
 }
 
 /**
+ * Row-faithful serialization: exactly one line per buffer row (right-
+ * trimmed), leading and trailing empties included, so line N is row N.
+ * The E2E Screen domain uses this — clients derive mouse coordinates
+ * from the text.
+ */
+export function bufferToScreenText(buffer: CellBuffer): string {
+    const lines: string[] = []
+    for (let row = 0; row < buffer.height; row++) {
+        let line = ''
+        for (let col = 0; col < buffer.width; col++) {
+            line += buffer.getCell(col, row)!.char
+        }
+        lines.push(line.trimEnd())
+    }
+    return lines.join('\n')
+}
+
+/**
  * Serialize a cell buffer to a detailed format that includes style info.
  * Format: each non-default cell shows [col,row char fg bg bold]
  */

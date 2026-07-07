@@ -27,6 +27,13 @@ export class RenderContext {
         // node and its descendants.
         if (key === 'class') node.cache.classAttr = value
         node.attributes.set(key, value)
+        // A programmatic value write resets the editing buffer with the
+        // caret at the end, as assigning input.value does in a browser.
+        if (key === 'value' && node.textBuffer) {
+            node.textBuffer.text = value
+            node.textBuffer.cursor = value.length
+            node.textBuffer.collapseSelection()
+        }
         this.invalidateStyles(node)
         this.onScheduleRender?.()
     }

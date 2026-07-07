@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { TermNode } from '../src/renderer/node.js'
 import { TextBuffer } from '../src/components/text-buffer.js'
+import { RenderContext } from '../src/render/context.js'
 
 describe('input element text handling', () => {
 
@@ -42,6 +43,21 @@ describe('input element text handling', () => {
 
         input.textBuffer.handleKey({ key: 'e', ctrl: true, shift: false, meta: false })
         assert.equal(input.textBuffer.cursor, 5)
+    })
+
+    it('a programmatic value write resets the editing buffer, caret at end', () => {
+        // Given — a focused-and-edited input
+        const input = new TermNode('element', 'input')
+        input.textBuffer = new TextBuffer('typed text')
+        input.textBuffer.cursor = 2
+        const ctx = new RenderContext()
+
+        // When — the app assigns a new value (e.g. clearing a filter)
+        ctx.onSetAttribute(input, 'value', '')
+
+        // Then
+        assert.equal(input.textBuffer.text, '')
+        assert.equal(input.textBuffer.cursor, 0)
     })
 
     it('TextBuffer handles arrow keys', () => {

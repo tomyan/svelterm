@@ -2,18 +2,23 @@
     import { readdirSync, readFileSync } from 'fs'
     import { join, dirname, relative, basename } from 'path'
 
-    const WINDOW = 12
-    const PREVIEW_LINES = 12
+    // Sized so the whole frame (path + filter + panes + status + hint)
+    // fits a default 80x24 terminal
+    const WINDOW = 6
+    const PREVIEW_LINES = 6
 
     const root = process.env.SVELTERM_BROWSE_ROOT ?? process.cwd()
     let dir = $state(root)
     let selected = $state(0)
+    let filter = $state('')
 
     const shownPath = $derived(basename(root) + '/' + relative(root, dir))
 
     const entries = $derived.by(() => {
+        const wanted = filter.toLowerCase()
         try {
             const found = readdirSync(dir, { withFileTypes: true })
+                .filter(e => e.name.toLowerCase().includes(wanted))
             const dirs = found.filter(e => e.isDirectory()).map(e => e.name).sort()
             const files = found.filter(e => !e.isDirectory()).map(e => e.name).sort()
             return [
@@ -23,6 +28,11 @@
         } catch {
             return []
         }
+    })
+
+    // A narrowing filter can strand the selection past the end
+    $effect(() => {
+        if (selected >= entries.length) selected = Math.max(0, entries.length - 1)
     })
 
     // The listing shows a window of rows that follows the selection
@@ -58,17 +68,30 @@
         if (!entry?.isDir) return
         dir = join(dir, entry.name)
         selected = 0
+        filter = ''
     }
 
     function up() {
         if (dir === root) return
         dir = dirname(dir)
         selected = 0
+        filter = ''
+    }
+
+    // Click selects a row; a second click on the selected row opens it
+    function rowClick(index) {
+        if (index === selected) open(entries[index])
+        else selected = index
     }
 </script>
 
 <div class="app" onkeydown={(e) => handleKey(e.data?.key)}>
     <span class="path">{shownPath}</span>
+
+    <div class="filter-row">
+        <span class="filter-label">filter:</span>
+        <input class="filter" value={filter} oninput={(e) => filter = e.data?.value ?? ''} />
+    </div>
 
     <div class="panes">
         <div class="listing">
@@ -79,7 +102,10 @@
                 <span class="more">↑ {hiddenAbove} more</span>
             {/if}
             {#each visible as entry, i (entry.name)}
-                <span class={i + windowStart === selected ? 'row-selected' : 'row'}>
+                <span
+                    class={i + windowStart === selected ? 'row-selected' : 'row'}
+                    onclick={() => rowClick(i + windowStart)}
+                >
                     {entry.isDir ? entry.name + '/' : entry.name}
                 </span>
             {/each}
@@ -95,7 +121,7 @@
     </div>
 
     <span class="status">{entries.length === 0 ? '0/0' : `${selected + 1}/${entries.length}`}  {entries[selected]?.name ?? ''}</span>
-    <span class="hint">↑/↓ select, Enter opens a directory, Backspace goes up, Ctrl+C exits</span>
+    <span class="hint">↑/↓ select · Enter opens · Backspace up · Tab focuses the filter · click selects, again opens · Ctrl+C exits</span>
 </div>
 
 <style>
@@ -118,6 +144,27 @@
         border: single;
         border-color: var(--primary);
         padding: 0 1cell;
+    }
+
+    .filter-row {
+        display: flex;
+        flex-direction: row;
+        gap: 1cell;
+        border: single;
+        border-color: var(--muted);
+        padding: 0 1cell;
+    }
+
+    .filter-label {
+        color: var(--muted);
+    }
+
+    .filter {
+        flex-grow: 1;
+    }
+
+    .filter:focus {
+        color: var(--accent);
     }
 
     .panes {

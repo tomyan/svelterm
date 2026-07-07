@@ -29,6 +29,22 @@ describe('ScreenDomain snapshots', () => {
         assert.equal(result.height, 3)
     })
 
+    it('text is row-faithful: line N is buffer row N, empties kept', () => {
+        // Given — content on row 1, row 0 empty
+        const buffer = new CellBuffer(10, 3)
+        for (let i = 0; i < 2; i++) buffer.setCell(i, 1, { char: 'ab'[i] })
+        const domain = new ScreenDomain({
+            displayBuffer: () => buffer,
+            renderPending: () => false,
+        })
+
+        // When
+        const result = domain.handle('text', {})
+
+        // Then — leading empty preserved, one line per row
+        assert.deepEqual(result.text.split('\n'), ['', 'ab', ''])
+    })
+
     it('styled returns styled markup', () => {
         const buffer = bufferWith('hi')
         buffer.setCell(0, 0, { char: 'h', fg: 'green' })

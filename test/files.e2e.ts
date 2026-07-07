@@ -126,3 +126,63 @@ test('long listings window around the selection', async () => {
     await h.key('Backspace')
     await h.waitForText('zebra.txt', 2000)
 })
+
+test('clicking a row selects it; clicking again opens it', async () => {
+    // Given — locate the beta/ row on screen
+    const screen = await h.screenText()
+    const lines = screen.split('\n')
+    const y = lines.findIndex(line => line.includes('beta/'))
+    const x = lines[y].indexOf('beta/') + 1
+
+    // When — first click selects
+    await h.click(x, y)
+    await h.waitForText(/2\/5\s+beta/, 2000)
+
+    // And — second click opens
+    await h.click(x, y)
+    await h.waitForText('(empty directory)', 2000)
+
+    // Cleanup
+    await h.key('Backspace')
+    await h.waitForText('zebra.txt', 2000)
+})
+
+test('typing in the filter narrows the listing', async () => {
+    // When — Tab focuses the filter, then type
+    await h.key('Tab')
+    await h.text('read')
+
+    // Then — only readme.md remains
+    const screen = await h.waitForText(/1\/1\s+readme\.md/, 2000)
+    assert.doesNotMatch(screen, /zebra\.txt/)
+})
+
+test('Ctrl+W kills the filter word — the editing keymap works in the field', async () => {
+    // When
+    await h.key('w', { ctrl: true })
+
+    // Then — the full listing returns
+    const screen = await h.waitForText('zebra.txt', 2000)
+    assert.match(screen, /\/5\s/)
+})
+
+test('descending clears the filter programmatically without desyncing the field', async () => {
+    // Given — a filter that matches alpha, selection on it
+    await h.text('alp')
+    await h.waitForText(/1\/1\s+alpha/, 2000)
+
+    // When — descend via a row click (alpha is already selected, so one
+    // click opens; Enter would click the focused filter input instead)
+    const screen = await h.screenText()
+    const lines = screen.split('\n')
+    const y = lines.findIndex(line => line.includes('alpha/'))
+    const x = lines[y].indexOf('alpha/') + 1
+    await h.click(x, y)
+    await h.waitForText('nested.txt', 2000)
+
+    // Then — the filter box is empty again: typing starts a fresh filter
+    await h.text('zzz')
+    await h.waitForText('(empty directory)', 2000)
+    await h.key('w', { ctrl: true })
+    await h.waitForText('nested.txt', 2000)
+})

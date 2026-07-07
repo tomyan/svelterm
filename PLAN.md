@@ -85,7 +85,7 @@ Abstract svelterm's terminal output/input so it can target:
 
 ## Demos to build
 
-- File browser (scrolling, mouse, tree navigation)
+- ~~File browser (scrolling, mouse, tree navigation)~~ — shipped as `npm run demo:files` (2026-07-07)
 - Markdown viewer
 - Color palette (16, 256, 24-bit side by side)
 - svmux (multi-pane terminal multiplexer)

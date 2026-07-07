@@ -60,7 +60,7 @@ For non-JS clients, the wire protocol is JSON over the WebSocket:
 | `Input.text` | `{ text }` | one key per character |
 | `Input.mouse` | `{ type, x, y, button? }` | `press`/`release`/`motion`/`scroll`, 0-based cells |
 | `Input.paste` | `{ text }` | bracketed-paste delivery |
-| `Screen.text` | | `{ text, width, height }` of the displayed frame |
+| `Screen.text` | | `{ text, width, height }` of the displayed frame; row-faithful — line N is screen row N, so mouse coordinates can be derived from it |
 | `Screen.styled` | | styled markup (colors/attributes) |
 | `Screen.cell` | `{ x, y }` | one cell record |
 | `Screen.settle` | `{ timeoutMs? }` | replies once no render is pending |

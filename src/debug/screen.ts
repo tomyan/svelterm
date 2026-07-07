@@ -8,7 +8,7 @@
 
 import type { DebugDomain } from './server.js'
 import type { CellBuffer } from '../render/buffer.js'
-import { bufferToText, bufferToStyledText } from '../render/snapshot.js'
+import { bufferToScreenText, bufferToStyledText } from '../render/snapshot.js'
 
 /** Live render-loop state the domain reads from mount(). */
 export interface ScreenHooks {
@@ -25,7 +25,7 @@ export class ScreenDomain implements DebugDomain {
 
     handle(method: string, params: Record<string, any>): any {
         switch (method) {
-            case 'text': return this.snapshot(bufferToText)
+            case 'text': return this.snapshot(bufferToScreenText)
             case 'styled': return this.snapshot(bufferToStyledText)
             case 'cell': return this.cell(params.x, params.y)
             case 'settle': return this.settle(params.timeoutMs ?? DEFAULT_SETTLE_TIMEOUT_MS)
