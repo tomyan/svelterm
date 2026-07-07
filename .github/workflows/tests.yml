@@ -66,6 +66,11 @@ jobs:
           # node-pty ships no linux prebuilds and --ignore-scripts skipped
           # its build — compile it for the svmux E2E scenario
           npm rebuild node-pty
+          # npm's optional-deps bug (npm/cli#4828): the platform binding
+          # for rolldown (vite's bundler) is missing from a mac-generated
+          # lockfile — fetch it explicitly at the matching version
+          rolldown_version=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/rolldown/package.json','utf8')).version")
+          npm install --no-save --ignore-scripts "@rolldown/binding-linux-x64-gnu@$rolldown_version"
 
       - name: Build
         run: npm run build
