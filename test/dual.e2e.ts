@@ -26,8 +26,10 @@ before(async () => {
 after(() => closeApp?.())
 
 test('terminal target: renders and the buttons work', async () => {
-    // Given
+    // Given — the frame paints and onMount fired (lifecycle regression:
+    // the node target used to silently no-op it via the server entry)
     await h.waitForText('Dual target', 5000)
+    await h.waitForText('ready', 2000)
 
     // When — Tab to +1, click it twice
     await h.key('Tab')

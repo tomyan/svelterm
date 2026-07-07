@@ -1,4 +1,6 @@
 <script>
+    import { onMount } from 'svelte'
+
     // One component, two targets: this file compiles for the terminal
     // (customRenderer) and the browser DOM (regular Svelte) unchanged.
     // The stylesheet dual-targets too: ch units are cells in the
@@ -6,6 +8,10 @@
     // declarations let each target keep the one it understands.
     let count = $state(0)
     let level = $state(3)
+    // Doubles as lifecycle regression coverage: the node target used to
+    // resolve `svelte` to the server entry, silently no-opping onMount
+    let ready = $state('mounting')
+    onMount(() => { ready = 'ready' })
     const LEVELS = 8
 
     const gauge = $derived('█'.repeat(level) + '░'.repeat(LEVELS - level))
@@ -13,7 +19,7 @@
 
 <div class="app">
     <span class="title">Dual target</span>
-    <span class="sub">one component — terminal and browser</span>
+    <span class="sub">one component — terminal and browser · {ready}</span>
 
     <div class="row">
         <span class="label">count</span>
