@@ -529,8 +529,14 @@ export function run<Props extends Record<string, any>>(
             focusManager.focusNext() // pull focus into the modal
         }
 
-        if (key.key === 'Tab' && key.shift) { focusManager.focusPrevious(); scheduleRender(); return }
-        if (key.key === 'Tab') { focusManager.focusNext(); scheduleRender(); return }
+        // Tab cycles focus — but with nothing focusable it falls through
+        // to keydown so full-screen apps (e.g. a mux) can forward it
+        if (key.key === 'Tab' && focusManager.count > 0) {
+            if (key.shift) focusManager.focusPrevious()
+            else focusManager.focusNext()
+            scheduleRender()
+            return
+        }
         // Enter belongs to a focused textarea's buffer (newline), not click
         if (key.key === 'Enter' && focusManager.focused && focusManager.focused.tag !== 'textarea') {
             const target = focusManager.focused
